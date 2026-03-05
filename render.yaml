@@ -5,7 +5,6 @@ databases:
     user: dutch_a2_user
 
 services:
-  # ── Backend (FastAPI) — Starter plan $7/mo ─────────────────────────────────
   - type: web
     name: dutch-a2-blitz-api
     runtime: python
@@ -26,14 +25,9 @@ services:
         sync: false
 
 staticSites:
-  # ── Frontend (React) — Free ────────────────────────────────────────────────
   - name: dutch-a2-blitz
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/dist
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
     envVars:
       - key: VITE_API_BASE
         sync: false
