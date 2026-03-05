@@ -1,12 +1,14 @@
-"""Mock exam router — session creation and per-section result submission."""
+"""Mock exam router — serve questions from exam bank, grade answers."""
 
 import json
+import random
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session
 
+from backend.core.exam_bank import EXAM_BANK
 from backend.database import get_session
 from backend.models.exam import ExamResult
 from backend.models.user import User
@@ -37,6 +39,7 @@ class SectionInfo(BaseModel):
     code: str
     label: str
     default_minutes: int
+    question_count: int
 
 
 class ExamSessionOut(BaseModel):
@@ -47,15 +50,148 @@ class ExamSessionOut(BaseModel):
 @router.get("/session", response_model=ExamSessionOut)
 def get_exam_session(_user: User = Depends(get_current_user)):
     sections = [
-        SectionInfo(code=code, label=SECTION_LABELS[code], default_minutes=minutes)
+        SectionInfo(
+            code=code,
+            label=SECTION_LABELS[code],
+            default_minutes=minutes,
+            question_count=len(EXAM_BANK.get(code, [])),
+        )
         for code, minutes in SECTION_DEFAULTS.items()
     ]
     return ExamSessionOut(sections=sections, pass_score=PASS_SCORE)
 
 
+class ExamQuestion(BaseModel):
+    id: str
+    section: str
+    # For LZ
+    text_nl: str | None = None
+    text_en: str | None = None
+    # For LU
+    scenario_nl: str | None = None
+    scenario_en: str | None = None
+    # For SC
+    prompt_nl: str | None = None
+    prompt_en: str | None = None
+    task_nl: str | None = None
+    task_en: str | None = None
+    model_answer: str | None = None
+    key_points: list[str] | None = None
+    # For SP
+    situation_nl: str | None = None
+    situation_en: str | None = None
+    expected_phrases: list[str] | None = None
+    # Common MC fields
+    question_nl: str | None = None
+    question_en: str | None = None
+    options: dict[str, str] | None = None
+    # Never send answer in question response
+    explanation_en: str | None = None
+
+
+@router.get("/questions/{section_code}", response_model=list[ExamQuestion])
+def get_section_questions(
+    section_code: str,
+    _user: User = Depends(get_current_user),
+):
+    if section_code not in EXAM_BANK:
+        raise HTTPException(status_code=404, detail=f"Unknown section: {section_code}")
+
+    questions = EXAM_BANK[section_code]
+    result = []
+    for q in questions:
+        eq = ExamQuestion(id=q["id"], section=section_code, **{
+            k: v for k, v in q.items()
+            if k not in ("id", "answer", "explanation_en")
+        })
+        result.append(eq)
+    return result
+
+
+class AnswerItem(BaseModel):
+    question_id: str
+    answer: str  # For MC: "A"/"B"/etc. For SC/SP: free text
+
+
+class GradedItem(BaseModel):
+    question_id: str
+    correct: bool
+    user_answer: str
+    correct_answer: str | None = None
+    explanation: str | None = None
+
+
+class SectionGradeOut(BaseModel):
+    section: str
+    score: int
+    total: int
+    score_pct: int
+    items: list[GradedItem]
+
+
+@router.post("/grade/{section_code}", response_model=SectionGradeOut)
+def grade_section(
+    section_code: str,
+    answers: list[AnswerItem],
+    _user: User = Depends(get_current_user),
+):
+    if section_code not in EXAM_BANK:
+        raise HTTPException(status_code=404, detail=f"Unknown section: {section_code}")
+
+    bank = {q["id"]: q for q in EXAM_BANK[section_code]}
+    items = []
+    correct_count = 0
+
+    for a in answers:
+        q = bank.get(a.question_id)
+        if not q:
+            items.append(GradedItem(
+                question_id=a.question_id,
+                correct=False,
+                user_answer=a.answer,
+                correct_answer=None,
+                explanation="Question not found",
+            ))
+            continue
+
+        if "answer" in q:
+            # MC grading
+            is_correct = a.answer.strip().upper() == q["answer"].strip().upper()
+            items.append(GradedItem(
+                question_id=a.question_id,
+                correct=is_correct,
+                user_answer=a.answer,
+                correct_answer=q["answer"],
+                explanation=q.get("explanation_en"),
+            ))
+            if is_correct:
+                correct_count += 1
+        else:
+            # SC/SP — auto-pass for now (user self-grades)
+            items.append(GradedItem(
+                question_id=a.question_id,
+                correct=True,
+                user_answer=a.answer,
+                correct_answer=q.get("model_answer"),
+                explanation=None,
+            ))
+            correct_count += 1
+
+    total = len(answers) if answers else 1
+    score_pct = round(correct_count / total * 100)
+
+    return SectionGradeOut(
+        section=section_code,
+        score=correct_count,
+        total=total,
+        score_pct=score_pct,
+        items=items,
+    )
+
+
 class SectionResultRequest(BaseModel):
     source: str  # "official" | "ai"
-    scores: dict[str, int | None]  # section_code → score (0–100) or None if skipped
+    scores: dict[str, int | None]  # section_code -> score (0-100) or None if skipped
 
 
 class ExamResultOut(BaseModel):

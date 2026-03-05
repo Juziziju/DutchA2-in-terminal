@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from backend.config import AUDIO_DIR, AUDIO_LISTENING_DIR, ROOT_DIR
 from backend.database import create_db_and_tables
+from backend.models.review_log import FlashcardReviewLog  # noqa: F401 — ensure table is created
 from backend.routers import auth, exam, flashcards, listening, results, vocab
 
 app = FastAPI(title="Dutch A2 Blitz", version="1.0.0")

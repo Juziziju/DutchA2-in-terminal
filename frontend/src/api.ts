@@ -112,8 +112,18 @@ export interface ReviewOut {
   mastered: boolean;
 }
 
-export function submitReview(progress_id: number, rating: Rating) {
-  return request<ReviewOut>("POST", "/flashcards/review", { progress_id, rating });
+export function submitReview(
+  progress_id: number,
+  rating: Rating,
+  vocab_id?: number,
+  direction?: string,
+) {
+  return request<ReviewOut>("POST", "/flashcards/review", {
+    progress_id,
+    rating,
+    ...(vocab_id !== undefined && { vocab_id }),
+    ...(direction && { direction }),
+  });
 }
 
 // ── Listening ─────────────────────────────────────────────────────────────────
@@ -138,10 +148,11 @@ export interface GenerateResponse {
   dialogue: DialogueLine[];
   questions: Question[];
   vocab_used: string[];
+  level: string;
 }
 
-export function generateListening() {
-  return request<GenerateResponse>("POST", "/listening/generate");
+export function generateListening(mode?: string, level?: string) {
+  return request<GenerateResponse>("POST", "/listening/generate", { mode: mode ?? "quiz", level: level ?? "A2" });
 }
 
 export interface SubmitListeningRequest {
@@ -151,6 +162,9 @@ export interface SubmitListeningRequest {
   questions: Question[];
   user_answers: string[];
   vocab_used: string[];
+  mode?: string;
+  level?: string;
+  duration_seconds?: number;
 }
 
 export interface SubmitListeningResponse {
@@ -177,14 +191,67 @@ export function explainListening(
   topic: string,
   dialogue: DialogueLine[],
   questions: Question[],
-  user_answers: string[]
+  user_answers: string[],
+  level?: string
 ) {
   return request<{ explanation: string }>("POST", "/listening/explain", {
     topic,
     dialogue,
     questions,
     user_answers,
+    level: level ?? "A2",
   });
+}
+
+// ── Intensive Listening ──────────────────────────────────────────────────────
+
+export interface IntensiveLine {
+  speaker: string;
+  text: string;
+  english: string;
+  audio_file: string | null;
+}
+
+export interface GenerateIntensiveResponse {
+  session_id: string;
+  topic: string;
+  speakers: string[];
+  lines: IntensiveLine[];
+  vocab_used: string[];
+  level: string;
+  content_type: string;
+}
+
+export function generateIntensive(level?: string, content_type?: string) {
+  return request<GenerateIntensiveResponse>("POST", "/listening/generate-intensive", {
+    level: level ?? "A2",
+    content_type: content_type ?? "dialogue",
+  });
+}
+
+export interface IntensiveLineResult {
+  original: string;
+  user_text: string;
+  correct: boolean;
+  audio_file: string | null;
+}
+
+export interface SubmitIntensiveResponse {
+  score_pct: number;
+  results: IntensiveLineResult[];
+}
+
+export function submitIntensive(req: {
+  session_id: string;
+  topic: string;
+  lines: IntensiveLine[];
+  user_texts: string[];
+  vocab_used: string[];
+  level: string;
+  content_type: string;
+  duration_seconds?: number;
+}) {
+  return request<SubmitIntensiveResponse>("POST", "/listening/submit-intensive", req);
 }
 
 // ── Exam ──────────────────────────────────────────────────────────────────────
@@ -193,6 +260,7 @@ export interface SectionInfo {
   code: string;
   label: string;
   default_minutes: number;
+  question_count: number;
 }
 
 export interface ExamSessionOut {
@@ -202,6 +270,51 @@ export interface ExamSessionOut {
 
 export function getExamSession() {
   return request<ExamSessionOut>("GET", "/exam/session");
+}
+
+export interface ExamQuestion {
+  id: string;
+  section: string;
+  text_nl?: string;
+  text_en?: string;
+  scenario_nl?: string;
+  scenario_en?: string;
+  prompt_nl?: string;
+  prompt_en?: string;
+  task_nl?: string;
+  task_en?: string;
+  model_answer?: string;
+  key_points?: string[];
+  situation_nl?: string;
+  situation_en?: string;
+  expected_phrases?: string[];
+  question_nl?: string;
+  question_en?: string;
+  options?: Record<string, string>;
+}
+
+export function getExamQuestions(sectionCode: string) {
+  return request<ExamQuestion[]>("GET", `/exam/questions/${sectionCode}`);
+}
+
+export interface GradedItem {
+  question_id: string;
+  correct: boolean;
+  user_answer: string;
+  correct_answer: string | null;
+  explanation: string | null;
+}
+
+export interface SectionGradeOut {
+  section: string;
+  score: number;
+  total: number;
+  score_pct: number;
+  items: GradedItem[];
+}
+
+export function gradeExamSection(sectionCode: string, answers: { question_id: string; answer: string }[]) {
+  return request<SectionGradeOut>("POST", `/exam/grade/${sectionCode}`, answers);
 }
 
 export interface ExamResultOut {
@@ -235,10 +348,15 @@ export interface ListeningHistoryItem {
   date: string;
   topic: string;
   score_pct: number;
+  mode: string;
+  level: string | null;
+  content_type: string | null;
+  duration_seconds: number | null;
 }
 
-export function getListeningResults() {
-  return request<ListeningHistoryItem[]>("GET", "/results/listening");
+export function getListeningResults(mode?: string) {
+  const params = mode ? { mode } : undefined;
+  return request<ListeningHistoryItem[]>("GET", "/results/listening", undefined, params);
 }
 
 export interface ExamHistoryItem {
@@ -252,4 +370,76 @@ export interface ExamHistoryItem {
 
 export function getExamResults() {
   return request<ExamHistoryItem[]>("GET", "/results/exam");
+}
+
+// ── Trends ───────────────────────────────────────────────────────────────────
+
+export interface FlashcardTrendPoint { date: string; reviewed: number; correct_pct: number }
+export interface ListeningTrendPoint { date: string; avg_score: number; count: number }
+export interface ExamTrendPoint { date: string; avg_score: number; count: number }
+
+export function getFlashcardTrend() { return request<FlashcardTrendPoint[]>("GET", "/results/flashcards/trend"); }
+export function getListeningTrend(mode?: string) {
+  const params = mode ? { mode } : undefined;
+  return request<ListeningTrendPoint[]>("GET", "/results/listening/trend", undefined, params);
+}
+export function getExamTrend() { return request<ExamTrendPoint[]>("GET", "/results/exam/trend"); }
+
+// ── Dashboard ────────────────────────────────────────────────────────────────
+
+export interface DailyTrainingItem {
+  date: string;
+  mode: string;
+  count: number;
+  total_seconds: number;
+  avg_score: number;
+}
+
+export interface TrainingSummary {
+  total_sessions: number;
+  total_minutes: number;
+  quiz_sessions: number;
+  intensive_sessions: number;
+  avg_score_quiz: number | null;
+  avg_score_intensive: number | null;
+  daily: DailyTrainingItem[];
+}
+
+export function getDashboardTraining(days = 30) {
+  return request<TrainingSummary>("GET", "/results/dashboard/training", undefined, { days: String(days) });
+}
+
+// ── Detail / History ─────────────────────────────────────────────────────────
+
+export interface ListeningDetailItem {
+  id: number;
+  date: string;
+  topic: string;
+  score_pct: number;
+  mode: string;
+  level: string | null;
+  content_type: string | null;
+  dialogue: { speaker: string; text: string; english: string; audio_file?: string | null }[];
+  questions: { question: string; options: Record<string, string>; answer: string; user_answer?: string; correct?: boolean }[];
+  vocab_used: string[];
+  lines?: { speaker: string; text: string; english: string; audio_file?: string | null }[] | null;
+  user_texts?: string[] | null;
+  results?: { original: string; user_text: string; correct: boolean; audio_file?: string | null }[] | null;
+}
+
+export function getListeningDetail(id: number) {
+  return request<ListeningDetailItem>("GET", `/results/listening/${id}`);
+}
+
+export interface FlashcardReviewItem {
+  id: number;
+  date: string;
+  dutch: string;
+  english: string;
+  direction: string;
+  rating: string;
+}
+
+export function getFlashcardHistory(limit = 50) {
+  return request<FlashcardReviewItem[]>("GET", "/results/flashcards/history", undefined, { limit: String(limit) });
 }

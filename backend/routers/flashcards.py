@@ -10,6 +10,7 @@ from sqlmodel import Session, select
 from backend.core.sm2 import QUALITY_MAP, sm2_update
 from backend.database import get_session
 from backend.models.progress import FlashcardProgress
+from backend.models.review_log import FlashcardReviewLog
 from backend.models.user import User
 from backend.models.vocab import Vocab
 from backend.routers.auth import get_current_user
@@ -20,7 +21,7 @@ MAX_NEW_CARDS = 20
 
 
 class CardOut(BaseModel):
-    progress_id: int
+    progress_id: int  # -1 for new cards (no progress record yet)
     vocab_id: int
     dutch: str
     english: str
@@ -50,7 +51,6 @@ def get_session_cards(
         dir_list = ["nl_en", "en_nl"]
 
     all_vocab = db.exec(select(Vocab)).all()
-    vocab_map = {v.id: v for v in all_vocab}
 
     # Load existing progress for this user
     progress_rows = db.exec(
@@ -60,8 +60,8 @@ def get_session_cards(
         (p.vocab_id, p.direction): p for p in progress_rows
     }
 
-    due: list[tuple[Vocab, str, FlashcardProgress | None]] = []
-    new: list[tuple[Vocab, str, None]] = []
+    due: list[tuple[Vocab, str, FlashcardProgress]] = []
+    new: list[tuple[Vocab, str]] = []
 
     for vocab in all_vocab:
         for direction in dir_list:
@@ -70,10 +70,13 @@ def get_session_cards(
             if prog:
                 if prog.mastered:
                     continue
-                if prog.next_review <= today:
+                if prog.repetitions > 0 and prog.next_review <= today:
                     due.append((vocab, direction, prog))
+                elif prog.repetitions == 0:
+                    # Created but never reviewed — treat as new
+                    new.append((vocab, direction))
             else:
-                new.append((vocab, direction, None))
+                new.append((vocab, direction))
 
     random.shuffle(due)
     random.shuffle(new)
@@ -83,18 +86,7 @@ def get_session_cards(
     new_count = len(new)
 
     cards: list[CardOut] = []
-    for vocab, direction, prog in due + new:
-        if prog is None:
-            # Create a new progress row now so we have a stable ID
-            prog = FlashcardProgress(
-                user_id=user.id,
-                vocab_id=vocab.id,
-                direction=direction,
-            )
-            db.add(prog)
-            db.commit()
-            db.refresh(prog)
-
+    for vocab, direction, prog in due:
         cards.append(CardOut(
             progress_id=prog.id,
             vocab_id=vocab.id,
@@ -105,7 +97,21 @@ def get_session_cards(
             example_english=vocab.example_english,
             audio_file=vocab.audio_file,
             direction=direction,
-            is_new=(prog.repetitions == 0),
+            is_new=False,
+        ))
+
+    for vocab, direction in new:
+        cards.append(CardOut(
+            progress_id=-1,  # no progress record yet
+            vocab_id=vocab.id,
+            dutch=vocab.dutch,
+            english=vocab.english,
+            category=vocab.category,
+            example_dutch=vocab.example_dutch,
+            example_english=vocab.example_english,
+            audio_file=vocab.audio_file,
+            direction=direction,
+            is_new=True,
         ))
 
     return SessionOut(cards=cards, due_count=due_count, new_count=new_count)
@@ -113,6 +119,8 @@ def get_session_cards(
 
 class ReviewRequest(BaseModel):
     progress_id: int
+    vocab_id: int = -1      # needed when progress_id == -1
+    direction: str = ""     # needed when progress_id == -1
     rating: str  # "again" | "hard" | "good" | "easy" | "mastered"
 
 
@@ -129,9 +137,39 @@ def submit_review(
     db: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
-    prog = db.get(FlashcardProgress, req.progress_id)
-    if not prog or prog.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Progress record not found.")
+    # Resolve or create progress record
+    if req.progress_id == -1:
+        # New card — create progress on first review
+        if req.vocab_id < 0 or not req.direction:
+            raise HTTPException(status_code=400, detail="vocab_id and direction required for new cards.")
+        prog = db.exec(
+            select(FlashcardProgress).where(
+                FlashcardProgress.user_id == user.id,
+                FlashcardProgress.vocab_id == req.vocab_id,
+                FlashcardProgress.direction == req.direction,
+            )
+        ).first()
+        if not prog:
+            prog = FlashcardProgress(
+                user_id=user.id,
+                vocab_id=req.vocab_id,
+                direction=req.direction,
+            )
+            db.add(prog)
+            db.commit()
+            db.refresh(prog)
+    else:
+        prog = db.get(FlashcardProgress, req.progress_id)
+        if not prog or prog.user_id != user.id:
+            raise HTTPException(status_code=404, detail="Progress record not found.")
+
+    # Log this review for trend/history tracking
+    db.add(FlashcardReviewLog(
+        user_id=user.id,
+        vocab_id=prog.vocab_id,
+        direction=prog.direction,
+        rating=req.rating,
+    ))
 
     if req.rating == "mastered":
         # Mark both directions of this vocab as mastered for this user
