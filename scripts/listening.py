@@ -472,21 +472,46 @@ def get_explanation(api_key, data, questions, user_answers):
 
 # ── Post-results loop ─────────────────────────────────────────────────────────
 
-def show_transcript(data):
+def _render_transcript(data, active_line=None):
     clear()
     print("\n  Dialogue Transcript")
     divider()
-    for line in data["dialogue"]:
-        print(f"  {line['speaker']}: {line['text']}")
+    for i, line in enumerate(data["dialogue"]):
+        if i == active_line:
+            print(f"\033[1m  ▶ {line['speaker']}: {line['text']}\033[0m")
+        else:
+            print(f"    {line['speaker']}: {line['text']}")
         english = line.get("english", "")
         if english:
-            print(f"             ({english})")
+            print(f"      ({english})")
     divider()
-    print("\n  ENTER  back to results")
+
+
+def show_transcript(data, audio_files=None):
+    _render_transcript(data)
+    if audio_files:
+        print("  P  play while reading    ENTER  back")
+    else:
+        print("  ENTER  back to results")
+
     while True:
         ch = getch()
         if ch in ("\r", "\n", "q"):
             return
+        if ch in ("p", "P") and audio_files:
+            for i, (path, _) in enumerate(zip(audio_files, data["dialogue"])):
+                _render_transcript(data, active_line=i)
+                print("  (listening...)")
+                if path and path.exists():
+                    subprocess.run(
+                        ["afplay", str(path)],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
+                else:
+                    time.sleep(1)
+            _render_transcript(data)
+            print("  P  play again    ENTER  back")
 
 
 def post_results_loop(api_key, data, questions, user_answers, audio_files):
@@ -501,7 +526,7 @@ def post_results_loop(api_key, data, questions, user_answers, audio_files):
             play_dialogue(audio_files, data["dialogue"])
             time.sleep(0.5)
         elif ch in ("v", "V"):
-            show_transcript(data)
+            show_transcript(data, audio_files)
         elif ch in ("e", "E"):
             get_explanation(api_key, data, questions, user_answers)
 
