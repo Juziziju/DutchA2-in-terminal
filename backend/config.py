@@ -27,7 +27,7 @@ DASHSCOPE_API_KEY: str = os.environ.get("DASHSCOPE_API_KEY", "")
 
 _db_url = os.environ.get("DATABASE_URL", "")
 # Fall back to local SQLite if the URL is unset or still contains a placeholder
-if not _db_url or "[project-ref]" in _db_url or "[password]" in _db_url:
+if not _db_url or "[placeholder]" in _db_url or "[project-ref]" in _db_url:
     _db_url = f"sqlite:///{ROOT_DIR / 'dutch_a2.db'}"
 DATABASE_URL: str = _db_url
 
