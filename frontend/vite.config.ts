@@ -12,6 +12,7 @@ export default defineConfig({
       "/listening": "http://localhost:8000",
       "/exam": "http://localhost:8000",
       "/results": "http://localhost:8000",
+      "/planner": "http://localhost:8000",
       "/audio": "http://localhost:8000",
       "/audio_listening": "http://localhost:8000",
       "/health": "http://localhost:8000",

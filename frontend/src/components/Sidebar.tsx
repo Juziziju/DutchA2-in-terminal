@@ -7,6 +7,7 @@ import {
   CogIcon,
   HomeIcon,
   LayersIcon,
+  PlannerIcon,
   XIcon,
 } from "./icons";
 import SidebarItem, { SidebarSubItem } from "./SidebarItem";
@@ -89,6 +90,7 @@ export default function Sidebar() {
             <SidebarSubItem to="/study/knm" label="KNM" />
           </SidebarItem>
 
+          <SidebarItem to="/planner" icon={<PlannerIcon />} label="Learning Planner" />
           <SidebarItem to="/vocab-refresh" icon={<LayersIcon />} label="Vocab Refresh" badge={active.flashcards ? <ActiveDot /> : undefined} />
           <SidebarItem to="/study-material" icon={<ChartIcon />} label="Study Material" />
           <SidebarItem to="/exam" icon={<ClipboardIcon />} label="Mock Exam" badge={active.mockExam ? <ActiveDot /> : undefined} />

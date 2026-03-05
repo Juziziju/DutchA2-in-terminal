@@ -14,6 +14,7 @@ const TITLES: Record<string, string> = {
   "/study/knm": "KNM Exercise",
   "/vocab-refresh": "Vocab Refresh",
   "/study-material": "Study Material",
+  "/planner": "Learning Planner",
   "/exam": "Mock Exam",
   "/settings": "Settings",
 };

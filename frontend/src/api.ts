@@ -443,3 +443,112 @@ export interface FlashcardReviewItem {
 export function getFlashcardHistory(limit = 50) {
   return request<FlashcardReviewItem[]>("GET", "/results/flashcards/history", undefined, { limit: String(limit) });
 }
+
+// ── Planner ─────────────────────────────────────────────────────────────────
+
+export interface PlannerProfile {
+  language: string;
+  planner_enabled: boolean;
+  goal: string | null;
+  timeline_months: number | null;
+  daily_minutes: number | null;
+  current_level: string | null;
+  weak_skills: string[];
+  onboarding_completed: boolean;
+  placement_completed: boolean;
+  start_date: string | null;
+  exam_date: string | null;
+}
+
+export interface PlannerStatus {
+  planner_enabled: boolean;
+  step: "language" | "goal" | "placement" | "ready";
+}
+
+export interface PlannerTask {
+  id: number;
+  task_index: number;
+  task_type: string;
+  description: string;
+  duration_minutes: number;
+  difficulty: string;
+  status: "pending" | "completed" | "skipped";
+  score: number | null;
+  time_spent_seconds: number | null;
+}
+
+export interface PlannerDailyPlan {
+  id: number;
+  plan_date: string;
+  focus_headline: string;
+  coach_message: string;
+  progress_note: string;
+  tasks: PlannerTask[];
+  retry: boolean;
+}
+
+export interface PlannerHistoryItem {
+  plan_date: string;
+  focus_headline: string;
+  total_tasks: number;
+  completed_tasks: number;
+  completion_pct: number;
+}
+
+export interface PlacementQuestions {
+  vocab: { question: string; options: Record<string, string>; answer: string }[];
+  listening: { text: string; question: string; options: Record<string, string>; answer: string }[];
+  reading: { passage: string; question: string; options: Record<string, string>; answer: string }[];
+  writing_prompt: string;
+}
+
+export interface PlacementSubmitResponse {
+  vocab_score: number;
+  listening_score: number;
+  reading_score: number;
+  writing_score: number;
+  writing_feedback: { score: number; level_tag: string; errors: string[]; strengths: string[] };
+  overall_level: string;
+  weak_skills: string[];
+}
+
+export interface PlannerWeeklyReport {
+  week_start: string;
+  week_end: string;
+  report: {
+    completion_rate: number;
+    score_changes: Record<string, string>;
+    biggest_improvement: string;
+    focus_next_week: string;
+    summary_text: string;
+  };
+}
+
+export interface PlannerRoadmap {
+  phases: { month: number; milestone: string; skill_weights: Record<string, number> }[];
+  generated_at: string;
+}
+
+export function getPlannerProfile() { return request<PlannerProfile>("GET", "/planner/profile"); }
+export function updatePlannerProfile(data: Partial<PlannerProfile>) { return request<PlannerProfile>("PUT", "/planner/profile", data); }
+export function enablePlanner() { return request<{ ok: boolean }>("POST", "/planner/enable"); }
+export function disablePlanner() { return request<{ ok: boolean }>("POST", "/planner/disable"); }
+export function getPlannerStatus() { return request<PlannerStatus>("GET", "/planner/status"); }
+export function getPlacementQuestions() { return request<PlacementQuestions>("GET", "/planner/placement/start"); }
+export function submitPlacement(data: {
+  vocab_answers: string[];
+  listening_answers: string[];
+  reading_answers: string[];
+  writing_text: string;
+  questions: PlacementQuestions;
+}) { return request<PlacementSubmitResponse>("POST", "/planner/placement/submit", data); }
+export function getTodayPlan() { return request<PlannerDailyPlan>("GET", "/planner/today"); }
+export function regenerateTodayPlan() { return request<PlannerDailyPlan>("POST", "/planner/today/regenerate"); }
+export function completeTask(taskId: number, data: { score?: number; time_spent_seconds?: number }) {
+  return request<{ ok: boolean }>("POST", `/planner/tasks/${taskId}/complete`, data);
+}
+export function skipTask(taskId: number) { return request<{ ok: boolean }>("POST", `/planner/tasks/${taskId}/skip`); }
+export function getPlannerHistory(days = 7) { return request<PlannerHistoryItem[]>("GET", "/planner/history", undefined, { days: String(days) }); }
+export function getWeeklyReport() { return request<PlannerWeeklyReport>("GET", "/planner/report/weekly"); }
+export function getRoadmap() { return request<PlannerRoadmap>("GET", "/planner/roadmap"); }
+export function regenerateRoadmap() { return request<PlannerRoadmap>("POST", "/planner/roadmap/regenerate"); }
