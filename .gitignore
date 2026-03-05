@@ -20,6 +20,6 @@ scripts/listening_log.json
 scripts/progress.json
 scripts/listening_tmp/
 scripts/*.mp3
-
+scripts//test_main.py
 # Audio / cache anywhere
 *.mp3
