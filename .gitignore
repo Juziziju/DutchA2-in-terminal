@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
+
+# Obsidian metadata (if present)
+.obsidian/
+
+# Secrets
+scripts/.env
+
+# Logs / data
+scripts/listening_log.json
+scripts/progress.json
+scripts/listening_tmp/
+scripts/*.mp3
+
+# Audio / cache anywhere
+*.mp3
