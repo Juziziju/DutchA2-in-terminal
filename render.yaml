@@ -6,9 +6,9 @@ databases:
 
 services:
   - type: web
-    name: dutch-a2-blitz-api
+    name: dutch-a2-blitz
     runtime: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && cd frontend && npm install && npm run build
     startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHONPATH
@@ -20,14 +20,4 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: DASHSCOPE_API_KEY
-        sync: false
-      - key: ALLOWED_ORIGINS
-        sync: false
-
-staticSites:
-  - name: dutch-a2-blitz
-    buildCommand: cd frontend && npm install && npm run build
-    staticPublishPath: frontend/dist
-    envVars:
-      - key: VITE_API_BASE
         sync: false

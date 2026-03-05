@@ -1,9 +1,8 @@
 /** Typed fetch wrappers for all backend endpoints. */
 
-// In development: empty string → Vite proxy handles /auth, /vocab, etc.
-// In production: set VITE_API_BASE to your Render backend URL, e.g.
-//   VITE_API_BASE=https://dutch-a2-blitz-backend.onrender.com
-const BASE = import.meta.env.VITE_API_BASE ?? "";
+// In dev: Vite proxy forwards to localhost:8000.
+// In prod: same origin — FastAPI serves both API and frontend.
+const BASE = "";
 
 function getToken(): string | null {
   return localStorage.getItem("token");
