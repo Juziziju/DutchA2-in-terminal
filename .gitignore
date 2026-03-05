@@ -3,7 +3,18 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+# Secrets (keep .env.example, ignore the real .env)
 .env
+backend/.env
+frontend/.env.local
+
+# Local SQLite DB (Supabase is used in production)
+dutch_a2.db
+
+# Frontend
+frontend/dist/
+frontend/node_modules/
 # OS/editor
 .DS_Store
 .vscode/

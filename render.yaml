@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: dutch-a2-blitz-backend
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHONPATH
+        value: .
+      - key: DATABASE_URL
+        sync: false          # set manually in Render dashboard
+      - key: SECRET_KEY
+        generateValue: true  # Render auto-generates a secure random value
+      - key: DASHSCOPE_API_KEY
+        sync: false          # set manually in Render dashboard
+    disk:
+      name: audio
+      mountPath: /opt/render/project/src/audio
+      sizeGB: 1
