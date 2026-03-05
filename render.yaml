@@ -5,11 +5,10 @@ databases:
     user: dutch_a2_user
 
 services:
-  # ── Backend (FastAPI) ──────────────────────────────────────────────────────
+  # ── Backend (FastAPI) — Starter plan $7/mo ─────────────────────────────────
   - type: web
     name: dutch-a2-blitz-api
     runtime: python
-    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     envVars:
@@ -22,15 +21,13 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: DASHSCOPE_API_KEY
-        sync: false  # set manually in Render dashboard
+        sync: false
       - key: ALLOWED_ORIGINS
-        sync: false  # set to your Static Site URL after first deploy
+        sync: false
 
-  # ── Frontend (React static build) ─────────────────────────────────────────
-  - type: web
-    name: dutch-a2-blitz
-    runtime: static
-    plan: free
+staticSites:
+  # ── Frontend (React) — Free ────────────────────────────────────────────────
+  - name: dutch-a2-blitz
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/dist
     routes:
@@ -39,4 +36,4 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_BASE
-        sync: false  # set to your API service URL, e.g. https://dutch-a2-blitz-api.onrender.com
+        sync: false
