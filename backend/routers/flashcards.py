@@ -79,7 +79,8 @@ def get_session_cards(
             else:
                 new.append((vocab, direction))
 
-    random.shuffle(due)
+    # Sort due cards by urgency: most overdue first
+    due.sort(key=lambda x: x[2].next_review)
     random.shuffle(new)
 
     # Due cards are top priority — only add new cards if there's room

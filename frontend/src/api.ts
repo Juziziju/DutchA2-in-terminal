@@ -807,6 +807,65 @@ export async function submitShadowRecording(
   return res.json();
 }
 
+// ── Freestyle Talk ───────────────────────────────────────────────────────
+
+export interface FreestyleEvent {
+  type: "transcript" | "sentence" | "done";
+  text?: string;
+  audio?: string;
+  full_text?: string;
+}
+
+export async function freestyleChat(
+  audio: Blob,
+  history: Array<{ role: string; content: string }>,
+  onEvent: (event: FreestyleEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const token = getToken();
+  const form = new FormData();
+  form.append("audio", audio, "recording.webm");
+  form.append("history", JSON.stringify(history));
+
+  const res = await fetch(BASE + "/speaking/freestyle/chat", {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+    signal,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail ?? "Request failed");
+  }
+
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let partial = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    partial += decoder.decode(value, { stream: true });
+    const lines = partial.split("\n");
+    partial = lines.pop() ?? "";
+    for (const line of lines) {
+      if (line.startsWith("data: ")) {
+        try {
+          const event = JSON.parse(line.slice(6)) as FreestyleEvent;
+          onEvent(event);
+        } catch { /* skip malformed lines */ }
+      }
+    }
+  }
+  // flush remaining
+  if (partial.startsWith("data: ")) {
+    try {
+      const event = JSON.parse(partial.slice(6)) as FreestyleEvent;
+      onEvent(event);
+    } catch { /* skip */ }
+  }
+}
+
 // ── Mock Exams ───────────────────────────────────────────────────────────────
 
 export interface MockExamSummary {
@@ -866,10 +925,50 @@ export function getDashboardInsights() {
 
 // ── Advisor ──────────────────────────────────────────────────────────────────
 
+export interface AdvisorTask {
+  task_type: string;
+  description: string;
+  route: string;
+}
+
 export interface AdvisorResponse {
   reply: string;
+  suggested_tasks?: AdvisorTask[];
 }
 
 export function askAdvisor(message: string) {
   return request<AdvisorResponse>("POST", "/advisor/ask", { message });
+}
+
+export async function askAdvisorStream(
+  message: string,
+  onChunk: (text: string) => void,
+  signal?: AbortSignal,
+): Promise<string> {
+  const token = getToken();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(BASE + "/advisor/ask-stream", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ message }),
+    signal,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail ?? "Request failed");
+  }
+
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let full = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const text = decoder.decode(value, { stream: true });
+    full += text;
+    onChunk(full);
+  }
+  return full;
 }

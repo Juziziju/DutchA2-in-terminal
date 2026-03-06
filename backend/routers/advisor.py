@@ -6,10 +6,11 @@ from datetime import date, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlmodel import Session, select, func
 
-from backend.core.advisor_ai import get_advisor_response
+from backend.core.advisor_ai import get_advisor_response_structured, stream_advisor_response
 from backend.core.metrics import (
     classify_level,
     get_active_dates,
@@ -46,8 +47,15 @@ class AdvisorRequest(BaseModel):
     message: str
 
 
+class AdvisorTask(BaseModel):
+    task_type: str
+    description: str
+    route: str
+
+
 class AdvisorResponse(BaseModel):
     reply: str
+    suggested_tasks: list[AdvisorTask] = []
 
 
 def _gather_data(user: User, db: Session) -> dict:
@@ -207,5 +215,27 @@ def ask_advisor(
         raise HTTPException(status_code=400, detail="Message cannot be empty")
 
     data = _gather_data(user, db)
-    reply = get_advisor_response(data, req.message.strip())
-    return AdvisorResponse(reply=reply)
+    result = get_advisor_response_structured(data, req.message.strip())
+    tasks = [
+        AdvisorTask(**t) for t in result.get("suggested_tasks", [])
+        if isinstance(t, dict) and "task_type" in t and "description" in t and "route" in t
+    ]
+    return AdvisorResponse(reply=result["reply"], suggested_tasks=tasks)
+
+
+@router.post("/ask-stream")
+def ask_advisor_stream(
+    req: AdvisorRequest,
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    if not req.message.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+
+    data = _gather_data(user, db)
+
+    def generate():
+        for chunk in stream_advisor_response(data, req.message.strip()):
+            yield chunk
+
+    return StreamingResponse(generate(), media_type="text/plain")

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import CountdownTimer from "../components/CountdownTimer";
 import { useAudioRecorder } from "../hooks/useAudioRecorder";
 import * as api from "../api";
@@ -602,6 +602,18 @@ function SpeakingHome({
           <p className="text-sm text-slate-400 mb-3">Listen to model sentences, repeat, and compare your pronunciation</p>
           <div className="text-xs text-slate-500">Improve pronunciation & fluency</div>
         </button>
+        {/* Block 5 — Freestyle Talk */}
+        <Link
+          to="/study/speaking/freestyle"
+          className="bg-gradient-to-br from-sky-900/60 to-slate-800 hover:from-sky-800/60 hover:to-slate-700 rounded-xl p-6 text-left transition-colors border border-sky-700/40 md:col-span-2"
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <div className="text-3xl">💬</div>
+            <span className="bg-sky-500/20 text-sky-300 text-[10px] px-2 py-0.5 rounded-full font-medium">BETA</span>
+          </div>
+          <h2 className="text-lg font-bold text-white mb-1">Freestyle Talk</h2>
+          <p className="text-sm text-slate-400">Have a free conversation in Dutch with AI</p>
+        </Link>
       </div>
     </div>
   );

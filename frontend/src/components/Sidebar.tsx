@@ -77,10 +77,11 @@ export default function Sidebar() {
   const username = localStorage.getItem("username") ?? "U";
   const avatarLetter = username.charAt(0).toUpperCase();
   const [dueCount, setDueCount] = useState(0);
+  const location = useLocation();
 
   useEffect(() => {
     getFlashcardResults().then(r => setDueCount(r.due_today)).catch(() => {});
-  }, []);
+  }, [location.pathname]);
 
   const width = isCollapsed ? "w-16" : "w-60";
 
@@ -135,27 +136,29 @@ export default function Sidebar() {
           <SectionLabel isCollapsed={isCollapsed}>Learn</SectionLabel>
           <div className="space-y-0.5">
             <SidebarItem to="/" icon={<HomeIcon />} label="Dashboard" />
-            <SidebarItem icon={<BookIcon />} label="Study" submenuKey="study">
+            <SidebarItem icon={<BookIcon />} label="Study" submenuKey="study" data-tour="study-menu">
               <SidebarSubItem to="/study/listening" label="Listening" badge={active.listening ? <ActiveDot /> : undefined} />
               <SidebarSubItem to="/study/speaking" label="Speaking" />
               <SidebarSubItem to="/study/reading" label="Reading" />
               <SidebarSubItem to="/study/writing" label="Writing" />
               <SidebarSubItem to="/study/knm" label="KNM" />
             </SidebarItem>
-            <SidebarItem to="/vocab-refresh" icon={<LayersIcon />} label="Vocab Refresh" badge={dueCount > 0 ? <DueBadge count={dueCount} isCollapsed={isCollapsed} /> : active.flashcards ? <ActiveDot /> : undefined} />
+            <SidebarItem to="/vocab-refresh" icon={<LayersIcon />} label="Vocab Refresh" data-tour="vocab-refresh" badge={dueCount > 0 ? <DueBadge count={dueCount} isCollapsed={isCollapsed} /> : active.flashcards ? <ActiveDot /> : undefined} />
             <SidebarItem to="/vocab-notebook" icon={<NotebookIcon />} label="Vocab Notebook" />
           </div>
 
           <SectionLabel isCollapsed={isCollapsed}>Prepare</SectionLabel>
           <div className="space-y-0.5">
-            <SidebarItem to="/planner" icon={<PlannerIcon />} label="Learning Planner" />
+            <SidebarItem to="/planner" icon={<PlannerIcon />} label="Learning Planner" data-tour="planner" />
             <SidebarItem to="/study-material" icon={<ChartIcon />} label="Study Material" />
-            <SidebarItem to="/exam" icon={<ClipboardIcon />} label="Mock Exam" badge={active.mockExam ? <ActiveDot /> : undefined} />
+            <SidebarItem to="/exam" icon={<ClipboardIcon />} label="Mock Exam" data-tour="mock-exam" badge={active.mockExam ? <ActiveDot /> : undefined} />
           </div>
 
           <SectionLabel isCollapsed={isCollapsed}>Tools</SectionLabel>
           <div className="space-y-0.5">
-            <AdvisorNavItem isCollapsed={isCollapsed} closeMobile={closeMobile} />
+            <span data-tour="ai-advisor">
+              <AdvisorNavItem isCollapsed={isCollapsed} closeMobile={closeMobile} />
+            </span>
             <SidebarItem to="/settings" icon={<CogIcon />} label="Settings" />
           </div>
         </nav>

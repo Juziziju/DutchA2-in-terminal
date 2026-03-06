@@ -25,6 +25,7 @@ import {
   getWeeklyReport,
   getRoadmap,
 } from "../api";
+import { TASK_TYPE_LABELS, TASK_TYPE_COLORS, TASK_TYPE_ROUTES } from "../constants/taskTypes";
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
@@ -44,23 +45,6 @@ const DAILY_MINUTES = [
   { value: 90, label: "1.5 hours" },
   { value: 120, label: "2 hours" },
 ];
-
-const TASK_TYPE_LABELS: Record<string, string> = {
-  vocab_review: "Vocabulary Review",
-  listening_quiz: "Listening Quiz",
-  intensive: "Intensive Listening",
-  reading: "Reading",
-  writing: "Writing",
-  shadow_reading: "Shadow Reading",
-};
-const TASK_TYPE_COLORS: Record<string, string> = {
-  vocab_review: "bg-green-100 text-green-700",
-  listening_quiz: "bg-blue-100 text-blue-700",
-  intensive: "bg-amber-100 text-amber-700",
-  reading: "bg-purple-100 text-purple-700",
-  writing: "bg-rose-100 text-rose-700",
-  shadow_reading: "bg-cyan-100 text-cyan-700",
-};
 
 // ── Main Component ──────────────────────────────────────────────────────────
 
@@ -679,15 +663,6 @@ function TodayPlan({ plan, onComplete, onSkip, onRegenerate }: {
     </div>
   );
 }
-
-const TASK_TYPE_ROUTES: Record<string, string> = {
-  vocab_review: "/vocab-refresh",
-  listening_quiz: "/study/listening",
-  intensive: "/study/listening",
-  reading: "/study/reading",
-  writing: "/study/writing",
-  shadow_reading: "/study/listening",
-};
 
 const SCORE_OPTIONS = [
   { label: "Poor", value: 25, color: "bg-red-100 text-red-700 hover:bg-red-200" },

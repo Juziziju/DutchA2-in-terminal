@@ -49,9 +49,16 @@ def _call_ai(system_prompt: str, user_prompt: str, temperature: float = 0.7) -> 
     raise RuntimeError(f"AI call failed after 2 attempts: {last_err}")
 
 
+def _strip_thinking_tags(raw: str) -> str:
+    """Remove <think>...</think> blocks that some models emit."""
+    import re
+    return re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
+
+
 def _call_ai_json(system_prompt: str, user_prompt: str, temperature: float = 0.7) -> dict:
-    """Call AI, strip markdown fences, parse JSON. Retries once."""
+    """Call AI, strip markdown fences + thinking tags, parse JSON. Retries once."""
     raw = _call_ai(system_prompt, user_prompt, temperature)
+    raw = _strip_thinking_tags(raw)
     raw = _strip_markdown_fences(raw)
     return json.loads(raw)
 
@@ -235,21 +242,31 @@ Rules:
 - If recent scores are low in a skill, add more practice at lower difficulty
 - If recent scores are high, gradually increase difficulty
 - Include at least one vocab_review task per day
-- Keep tasks achievable and encouraging"""
+- Keep tasks achievable and encouraging
+- Use 'Day X of total_days' where total_days = timeline_months * 30 in progress_note
+- The streak counts ALL study activity (flashcards, listening, speaking, exams), not just planner tasks
+- If the streak > 0 or there are flashcard/listening sessions, the user IS active — do NOT say they are inactive or starting over
+- Base coach_message on the actual streak and activity data, not just planner task counts"""
 
+    total_plan_days = profile.get('timeline_months', 6) * 30
     user_prompt = f"""Learner profile:
 - Goal: {profile.get('goal', 'everyday')}
 - Current level: {profile.get('level', 'A1')}
 - Timeline: {profile.get('timeline_months', 6)} months
 - Daily budget: {profile.get('daily_minutes', 30)} minutes
 - Weak skills: {profile.get('weak_skills', [])}
-- Day {days_since_start} of plan
+- Day {days_since_start} of {total_plan_days}
+- Total plan days: {total_plan_days}
+- Latest skill assessments: {profile.get('skill_snapshots', [])}
 
 Recent 7-day performance:
-- Tasks completed: {recent_performance.get('tasks_completed', 0)}
-- Tasks skipped: {recent_performance.get('tasks_skipped', 0)}
+- Planner tasks completed: {recent_performance.get('tasks_completed', 0)}
+- Planner tasks skipped: {recent_performance.get('tasks_skipped', 0)}
+- Flashcard reviews (outside planner): {recent_performance.get('flashcard_reviews_7d', 0)}
+- Listening sessions (outside planner): {recent_performance.get('listening_sessions_7d', 0)}
+- Exam sessions (outside planner): {recent_performance.get('exam_sessions_7d', 0)}
 - Average scores: {recent_performance.get('avg_scores', {})}
-- Streak days: {recent_performance.get('streak_days', 0)}
+- Current streak: {recent_performance.get('streak_days', 0)} consecutive days with ANY study activity
 - Adjustments: {recent_performance.get('adjustments', {})}
 
 Generate today's task plan."""
@@ -264,6 +281,7 @@ def compute_adjustments(
     profile: dict,
     task_logs_7d: list[dict],
     skill_snapshots_14d: list[dict],
+    has_recent_activity: bool = False,
 ) -> dict:
     """Detect trigger conditions and compute adjustments.
 
@@ -320,7 +338,7 @@ def compute_adjustments(
             recent_dates.add(log.get("date", ""))
 
     recent_3_days = {(today - timedelta(days=i)).isoformat() for i in range(3)}
-    if not recent_dates.intersection(recent_3_days) and task_logs_7d:
+    if not recent_dates.intersection(recent_3_days) and task_logs_7d and not has_recent_activity:
         triggers.append("inactive_3_days")
         time_rebalance["overall"] = "lighten"
 

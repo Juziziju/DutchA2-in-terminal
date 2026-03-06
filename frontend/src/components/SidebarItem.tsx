@@ -9,9 +9,10 @@ interface SidebarItemProps {
   submenuKey?: string;
   children?: React.ReactNode;
   badge?: React.ReactNode;
+  "data-tour"?: string;
 }
 
-export default function SidebarItem({ to, icon, label, submenuKey, children, badge }: SidebarItemProps) {
+export default function SidebarItem({ to, icon, label, submenuKey, children, badge, "data-tour": dataTour }: SidebarItemProps) {
   const { isCollapsed, expandedMenus, toggleSubmenu, closeMobile } = useSidebar();
   const location = useLocation();
   const isExpanded = submenuKey ? expandedMenus.has(submenuKey) : false;
@@ -23,7 +24,7 @@ export default function SidebarItem({ to, icon, label, submenuKey, children, bad
   if (submenuKey && children) {
     const isChildActive = location.pathname.startsWith("/study/");
     return (
-      <div>
+      <div data-tour={dataTour}>
         <button
           onClick={() => toggleSubmenu(submenuKey)}
           className={`${base} w-[calc(100%-16px)] ${isChildActive && !isExpanded ? active : ""}`}
@@ -55,6 +56,7 @@ export default function SidebarItem({ to, icon, label, submenuKey, children, bad
         onClick={closeMobile}
         className={({ isActive }) => `${base} ${isActive ? active : ""}`}
         title={isCollapsed ? label : undefined}
+        data-tour={dataTour}
       >
         <span className="flex-shrink-0">{icon}</span>
         {!isCollapsed && <span className="flex-1">{label}</span>}

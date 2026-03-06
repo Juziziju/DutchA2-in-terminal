@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Line, ComposedChart,
 } from "recharts";
+import OnboardingTour, { TourStep, isTourDone, setTourDone } from "../components/OnboardingTour";
+import { useSidebar } from "../hooks/useSidebar";
 import {
   DashboardInsights,
   ExamHistoryItem,
@@ -38,8 +40,22 @@ function fmtMinutes(mins: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
+const TOUR_STEPS: TourStep[] = [
+  { targetSelector: '[data-tour="welcome-bar"]', title: "Welcome Bar", description: "This is your personal dashboard. It shows a welcome message and your exam countdown timer.", placement: "bottom" },
+  { targetSelector: '[data-tour="stat-cards"]', title: "Stat Cards", description: "These cards show your study streak, vocab mastered, cards due today, review consistency, and planner completion rate.", placement: "bottom" },
+  { targetSelector: '[data-tour="skill-insights"]', title: "Skill Radar & Weak Categories", description: "Track your skill levels across all areas and see which vocab categories need more work.", placement: "top" },
+  { targetSelector: '[data-tour="quick-actions"]', title: "Quick Actions", description: "Jump straight into the most useful activities \u2014 vocab review, listening practice, your weakest skill, or AI advisor.", placement: "top" },
+  { targetSelector: '[data-tour="recent-activity"]', title: "Recent Activity", description: "See your recent listening, speaking, and exam sessions at a glance.", placement: "top" },
+  { targetSelector: '[data-tour="study-menu"]', title: "Study", description: "Practice Listening, Speaking, Reading, Writing, and KNM exercises here.", placement: "right", needsSidebar: true },
+  { targetSelector: '[data-tour="vocab-refresh"]', title: "Vocab Refresh", description: "Review your flashcards using spaced repetition. The badge shows how many cards are due.", placement: "right", needsSidebar: true },
+  { targetSelector: '[data-tour="planner"]', title: "Learning Planner", description: "Set your exam date and get a personalized daily study plan.", placement: "right", needsSidebar: true },
+  { targetSelector: '[data-tour="mock-exam"]', title: "Mock Exam", description: "Take practice exams to test your readiness.", placement: "right", needsSidebar: true },
+  { targetSelector: '[data-tour="ai-advisor"]', title: "AI Advisor", description: "Ask the AI for study tips, explanations, or help with Dutch grammar.", placement: "right", needsSidebar: true },
+];
+
 export default function Dashboard() {
   const nav = useNavigate();
+  const sidebar = useSidebar();
   const username = localStorage.getItem("username") ?? "learner";
   const [fcStats, setFcStats] = useState<FlashcardStats | null>(null);
   const [listening, setListening] = useState<ListeningHistoryItem[]>([]);
@@ -52,6 +68,21 @@ export default function Dashboard() {
   const [streak, setStreak] = useState(0);
   const [activeDates, setActiveDates] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showTour, setShowTour] = useState(false);
+
+  // Show tour after data loads for first-time users
+  useEffect(() => {
+    if (!loading && !isTourDone()) {
+      // Expand sidebar for tour
+      sidebar.setCollapsed(false);
+      sidebar.expandSubmenu("study");
+      setShowTour(true);
+    }
+  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleTourComplete = useCallback(() => {
+    setShowTour(false);
+  }, []);
 
   useEffect(() => {
     const core = Promise.all([getFlashcardResults(), getListeningResults(), getExamResults(), getSpeakingHistory()])
@@ -110,7 +141,7 @@ export default function Dashboard() {
 
       {/* Section 1: Hero Welcome Bar */}
       {!loading && (
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-6 text-white flex items-center justify-between">
+        <div data-tour="welcome-bar" className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-6 text-white flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold">Welcome back, {username}</h2>
             <p className="text-blue-200 text-sm mt-1">{streakSubtitle}</p>
@@ -118,13 +149,14 @@ export default function Dashboard() {
           <ExamCountdownRing
             daysUntilExam={insights?.days_until_exam ?? null}
             examDate={insights?.exam_date ?? null}
+            onDateSaved={() => getDashboardInsights().then(setInsights).catch(() => {})}
           />
         </div>
       )}
 
       {/* Section 2: Stat Cards (5) */}
       {!loading && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div data-tour="stat-cards" className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           <StatCard
             label="Study streak"
             value={`${streak}`}
@@ -145,7 +177,7 @@ export default function Dashboard() {
             value={String(fcStats?.due_today ?? 0)}
             accent="text-blue-600"
             gradient="from-blue-400 to-indigo-400"
-            onClick={() => nav("/vocab-refresh")}
+            onClick={() => nav("/vocab-due")}
           />
           <StatCard
             label="Review consistency"
@@ -193,7 +225,7 @@ export default function Dashboard() {
 
       {/* Section 4: Two-Column Insights */}
       {!loading && insights && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div data-tour="skill-insights" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <SkillRadarCard snapshots={insights.skill_snapshots} />
           <WeakCategoriesCard categories={insights.vocab_categories} />
         </div>
@@ -276,7 +308,7 @@ export default function Dashboard() {
 
       {/* Section 8: Smart Quick Actions */}
       {!loading && (
-        <div>
+        <div data-tour="quick-actions">
           <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Quick Actions</h3>
           <SmartQuickActions
             dueToday={fcStats?.due_today ?? 0}
@@ -287,12 +319,16 @@ export default function Dashboard() {
 
       {/* Section 9: Recent Activity Tabs */}
       {!loading && (
-        <RecentActivityTabs
-          listening={listening}
-          speaking={speaking}
-          exams={exams}
-        />
+        <div data-tour="recent-activity">
+          <RecentActivityTabs
+            listening={listening}
+            speaking={speaking}
+            exams={exams}
+          />
+        </div>
       )}
+
+      {showTour && <OnboardingTour steps={TOUR_STEPS} onComplete={handleTourComplete} />}
     </div>
   );
 }

@@ -143,14 +143,16 @@ def _get_or_create_profile(user: User, db: Session) -> UserProfile:
     return profile
 
 
-def _gather_recent_performance(user_id: int, db: Session, days: int = 7) -> dict:
+def _gather_recent_performance(user: User, db: Session, days: int = 7) -> dict:
     """Gather performance data from TaskLog + existing modules."""
+    from backend.core.metrics import get_active_dates, compute_streak
+
     cutoff = date.today() - timedelta(days=days)
 
     # TaskLog data
     task_logs = db.exec(
         select(TaskLog).where(
-            TaskLog.user_id == user_id,
+            TaskLog.user_id == user.id,
             TaskLog.created_at >= cutoff.isoformat(),
         )
     ).all()
@@ -168,23 +170,14 @@ def _gather_recent_performance(user_id: int, db: Session, days: int = 7) -> dict
 
     avg_scores = {k: round(sum(v) / len(v)) for k, v in scores_by_type.items() if v}
 
-    # Streak: count consecutive days with completed tasks (backwards from today)
-    completed_dates = set()
-    for t in task_logs:
-        if t.status == "completed" and t.completed_at:
-            d = t.completed_at.date() if hasattr(t.completed_at, "date") else t.completed_at
-            completed_dates.add(d)
-
-    streak = 0
-    check = date.today()
-    while check in completed_dates:
-        streak += 1
-        check -= timedelta(days=1)
+    # Streak: count ALL activity types (flashcards, listening, speaking, exams)
+    active_dates = get_active_dates(user, db)
+    streak = compute_streak(active_dates)
 
     # FlashcardReviewLog recent performance
     fc_logs = db.exec(
         select(FlashcardReviewLog).where(
-            FlashcardReviewLog.user_id == user_id,
+            FlashcardReviewLog.user_id == user.id,
             FlashcardReviewLog.created_at >= cutoff.isoformat(),
         )
     ).all()
@@ -194,7 +187,7 @@ def _gather_recent_performance(user_id: int, db: Session, days: int = 7) -> dict
     # ListeningSession recent scores
     ls_rows = db.exec(
         select(ListeningSession).where(
-            ListeningSession.user_id == user_id,
+            ListeningSession.user_id == user.id,
             ListeningSession.date >= cutoff.isoformat(),
         )
     ).all()
@@ -203,7 +196,7 @@ def _gather_recent_performance(user_id: int, db: Session, days: int = 7) -> dict
     # ExamResult recent
     exam_rows = db.exec(
         select(ExamResult).where(
-            ExamResult.user_id == user_id,
+            ExamResult.user_id == user.id,
             ExamResult.date >= cutoff.isoformat(),
         )
     ).all()
@@ -221,6 +214,9 @@ def _gather_recent_performance(user_id: int, db: Session, days: int = 7) -> dict
         "tasks_skipped": skipped,
         "avg_scores": avg_scores,
         "streak_days": streak,
+        "flashcard_reviews_7d": fc_total,
+        "listening_sessions_7d": len(ls_rows),
+        "exam_sessions_7d": len(exam_rows),
     }
 
 
@@ -549,15 +545,21 @@ def regenerate_today_plan(
 def _generate_and_save_plan(user: User, profile: UserProfile, plan_date: date, db: Session) -> DailyPlanResponse:
     """Generate AI plan, save to DB, create TaskLog entries, return response."""
     days_since_start = (plan_date - profile.start_date).days if profile.start_date else 0
-    recent_perf = _gather_recent_performance(user.id, db)
+    recent_perf = _gather_recent_performance(user, db)
 
     # Compute adjustments
     task_log_dicts = _task_logs_as_dicts(user.id, db, days=7)
     snap_dicts = _skill_snapshots_as_dicts(user.id, db, days=14)
+    has_recent_activity = (
+        recent_perf.get("streak_days", 0) > 0
+        or recent_perf.get("flashcard_reviews_7d", 0) > 0
+        or recent_perf.get("listening_sessions_7d", 0) > 0
+    )
     adjustments = compute_adjustments(
         {"goal": profile.goal, "level": profile.current_level},
         task_log_dicts,
         snap_dicts,
+        has_recent_activity=has_recent_activity,
     )
     recent_perf["adjustments"] = adjustments
 
@@ -567,6 +569,7 @@ def _generate_and_save_plan(user: User, profile: UserProfile, plan_date: date, d
         "timeline_months": profile.timeline_months or 6,
         "daily_minutes": profile.daily_minutes or 30,
         "weak_skills": json.loads(profile.weak_skills),
+        "skill_snapshots": snap_dicts,
     }
 
     retry = False
@@ -577,7 +580,9 @@ def _generate_and_save_plan(user: User, profile: UserProfile, plan_date: date, d
             days_since_start=days_since_start,
             language=profile.language,
         )
-    except Exception:
+    except Exception as exc:
+        import logging
+        logging.getLogger("planner").error("Plan generation failed: %s", exc, exc_info=True)
         # Fallback: use previous day's plan
         yesterday = plan_date - timedelta(days=1)
         prev_plan = db.exec(

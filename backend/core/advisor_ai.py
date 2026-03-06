@@ -4,6 +4,7 @@ Uses the same AI client as planner_ai (AI_API_KEY + AI_BASE_URL).
 Hardcoded model: qwen3.5-plus-2026-02-15.
 """
 
+import json
 import time
 
 from backend.config import AI_API_KEY, AI_BASE_URL
@@ -24,11 +25,29 @@ Analyze the learner's data below and provide specific, actionable advice.
 Respond in the same language the user writes in (Chinese or English).
 
 === RESPONSE RULES ===
-- Keep responses under 150 words unless the user explicitly asks for a detailed breakdown.
-- Lead with ONE key-insight sentence, then 2-4 action bullets.
+- ALWAYS respond with valid JSON: {"reply": "<your markdown advice>", "suggested_tasks": [...]}
+- Be conversational and natural. Match the tone of the user's message.
+- For casual messages (greetings, small talk, simple questions), reply casually. Do NOT push study advice or tasks unless the user asks for it.
+- Only provide study recommendations when the user asks about their progress, what to study, or explicitly requests advice.
+- Keep the "reply" under 150 words unless the user explicitly asks for a detailed breakdown.
+- When giving study advice, lead with ONE key-insight sentence, then 2-4 action bullets.
 - Use bullet points, NOT tables or numbered schedules.
 - No emojis unless the user uses them first.
 - When referencing app features, use the exact feature name and path from the APP FEATURES section below.
+- Only include "suggested_tasks" when you are actively recommending study actions. For casual conversation, use "suggested_tasks": [].
+- When your advice leads to specific study actions, include 1-3 tasks in "suggested_tasks":
+  {"task_type": "<type>", "description": "<what to do>", "route": "<app path>"}
+  Valid task_type -> route:
+  - vocab_review -> /vocab-refresh
+  - listening_quiz -> /study/listening
+  - intensive -> /study/listening
+  - speaking -> /study/speaking
+  - reading -> /study/reading
+  - writing -> /study/writing
+  - shadow_reading -> /study/speaking
+  - knm -> /study/knm
+  - exam -> /exam
+- If no tasks are relevant, use "suggested_tasks": []
 
 === APP FEATURES (refer users to these by name) ===
 - Vocab Refresh (/vocab-refresh): Flashcard review with SM-2 spaced repetition. Shows due cards.
@@ -137,11 +156,9 @@ Summary: {weekly.get('summary_text', 'N/A')}
     return context_doc + learner_data
 
 
-def get_advisor_response(data: dict, user_message: str) -> str:
-    """Call LLM with assembled context + user question. Returns markdown string."""
+def _call_advisor_llm(system_prompt: str, user_message: str) -> str:
+    """Call LLM and return raw content string. Retries once on failure."""
     client = _get_ai_client()
-    system_prompt = build_system_prompt(data)
-
     last_err = None
     for attempt in range(2):
         try:
@@ -159,3 +176,54 @@ def get_advisor_response(data: dict, user_message: str) -> str:
             if attempt == 0:
                 time.sleep(2)
     raise RuntimeError(f"Advisor AI call failed after 2 attempts: {last_err}")
+
+
+def stream_advisor_response(data: dict, user_message: str):
+    """Generator that yields text chunks from the LLM via streaming."""
+    client = _get_ai_client()
+    system_prompt = build_system_prompt(data)
+    stream = client.chat.completions.create(
+        model=ADVISOR_MODEL,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message},
+        ],
+        temperature=0.6,
+        stream=True,
+    )
+    for chunk in stream:
+        delta = chunk.choices[0].delta if chunk.choices else None
+        if delta and delta.content:
+            yield delta.content
+
+
+def get_advisor_response(data: dict, user_message: str) -> str:
+    """Call LLM with assembled context + user question. Returns markdown string."""
+    system_prompt = build_system_prompt(data)
+    return _call_advisor_llm(system_prompt, user_message)
+
+
+def get_advisor_response_structured(data: dict, user_message: str) -> dict:
+    """Call LLM and parse structured JSON response with reply + suggested_tasks.
+
+    Falls back gracefully if the LLM returns plain text instead of JSON.
+    """
+    system_prompt = build_system_prompt(data)
+    raw = _call_advisor_llm(system_prompt, user_message)
+
+    # Strip markdown fences if present
+    stripped = raw.strip()
+    if stripped.startswith("```"):
+        lines = stripped.splitlines()
+        end = len(lines) - 1 if lines[-1].strip() == "```" else len(lines)
+        stripped = "\n".join(lines[1:end])
+
+    try:
+        parsed = json.loads(stripped)
+        if isinstance(parsed, dict) and "reply" in parsed:
+            return parsed
+    except (json.JSONDecodeError, ValueError):
+        pass
+
+    # Fallback: plain text response
+    return {"reply": raw, "suggested_tasks": []}

@@ -8,6 +8,8 @@ export interface SidebarContextValue {
   toggleMobile(): void;
   toggleSubmenu(key: string): void;
   closeMobile(): void;
+  expandSubmenu(key: string): void;
+  setCollapsed(collapsed: boolean): void;
 }
 
 export const SidebarContext = createContext<SidebarContextValue | null>(null);

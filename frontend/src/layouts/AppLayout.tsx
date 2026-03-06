@@ -54,6 +54,18 @@ export default function AppLayout() {
       return next;
     });
   }, []);
+  const expandSubmenu = useCallback((key: string) => {
+    setExpandedMenus((prev) => {
+      if (prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+  }, []);
+  const setSidebarCollapsed = useCallback((collapsed: boolean) => {
+    setCollapsed(collapsed);
+    localStorage.setItem("sidebar-collapsed", String(collapsed));
+  }, []);
 
   if (!token) return <Navigate to="/login" replace />;
 
@@ -65,6 +77,8 @@ export default function AppLayout() {
     toggleMobile,
     toggleSubmenu,
     closeMobile,
+    expandSubmenu,
+    setCollapsed: setSidebarCollapsed,
   };
 
   const pageTitle = TITLES[location.pathname] ?? "";

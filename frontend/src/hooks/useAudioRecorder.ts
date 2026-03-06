@@ -96,5 +96,5 @@ export function useAudioRecorder() {
     }
   }, []);
 
-  return { isRecording, audioBlob, error, permissionDenied, start, stop, reset, acquireStream };
+  return { isRecording, audioBlob, error, permissionDenied, start, stop, reset, acquireStream, streamRef };
 }
