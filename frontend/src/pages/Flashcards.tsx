@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Rating, getFlashcardSession, submitReview } from "../api";
+import { Rating, getFlashcardSession, submitReview, vocabAudioUrl } from "../api";
 import { useAudioPlay } from "../components/AudioPlayer";
 import { useFlashcardsState } from "../contexts/FlashcardsContext";
 
@@ -20,7 +20,7 @@ export default function Flashcards() {
   const spellingRef = useRef<HTMLInputElement>(null);
 
   const card = s.session?.cards[s.index] ?? null;
-  const audioSrc = card?.audio_file ? `/audio/${card.audio_file}` : null;
+  const audioSrc = card?.audio_file ? vocabAudioUrl(card.audio_file) : null;
   const playAudio = useAudioPlay(audioSrc);
 
   // In spelling mode for current card?

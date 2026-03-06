@@ -4,6 +4,26 @@
 // In prod: same origin — FastAPI serves both API and frontend.
 const BASE = "";
 
+// Supabase Storage public URL base for audio files
+const SUPABASE_AUDIO = "https://nqkxsfojfovlttqthxnw.supabase.co/storage/v1/object/public/audio";
+
+function sanitizeFilename(filename: string): string {
+  // Match backend _sanitize: strip accents, keep ASCII
+  return filename.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w.\-]/g, "_");
+}
+
+export function vocabAudioUrl(filename: string): string {
+  return `${SUPABASE_AUDIO}/vocab/${sanitizeFilename(filename)}`;
+}
+
+export function listeningAudioUrl(filename: string): string {
+  return `${SUPABASE_AUDIO}/listening/${sanitizeFilename(filename)}`;
+}
+
+export function speakingAudioUrl(filename: string): string {
+  return `${SUPABASE_AUDIO}/speaking/${sanitizeFilename(filename)}`;
+}
+
 function getToken(): string | null {
   return localStorage.getItem("token");
 }

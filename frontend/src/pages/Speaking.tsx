@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import CountdownTimer from "../components/CountdownTimer";
 import { useAudioRecorder } from "../hooks/useAudioRecorder";
 import * as api from "../api";
+import { listeningAudioUrl } from "../api";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -665,7 +666,7 @@ function SceneDetailView({
       if (audioRef.current) {
         audioRef.current.pause();
       }
-      const audio = new Audio(`/audio_listening/${audio_file}`);
+      const audio = new Audio(listeningAudioUrl(audio_file));
       audioRef.current = audio;
       audio.onended = () => setPlayingIdx(null);
       audio.onerror = () => setPlayingIdx(null);
@@ -1386,7 +1387,7 @@ function ShadowPlayView({
       if (audioRef.current) {
         audioRef.current.pause();
       }
-      const audio = new Audio(`/audio_listening/${audio_file}`);
+      const audio = new Audio(listeningAudioUrl(audio_file));
       audioRef.current = audio;
       audio.onended = () => { setPlaying(false); setHasPlayed(true); };
       audio.onerror = () => { setPlaying(false); };

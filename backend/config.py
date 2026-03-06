@@ -51,3 +51,9 @@ ACCESS_TOKEN_EXPIRE_MINUTES: int = int(
     os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "10080")  # 7 days
 )
 ALGORITHM: str = "HS256"
+
+# ── Supabase Storage ─────────────────────────────────────────────────────────
+
+SUPABASE_URL: str = os.environ.get("SUPABASE_URL", "")
+SUPABASE_SERVICE_KEY: str = os.environ.get("SUPABASE_SERVICE_KEY", "")
+SUPABASE_AUDIO_BUCKET: str = "audio"

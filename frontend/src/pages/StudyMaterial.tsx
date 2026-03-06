@@ -20,6 +20,7 @@ import {
   getListeningDetail,
   getListeningResults,
   getListeningTrend,
+  listeningAudioUrl,
 } from "../api";
 
 type Tab = "flashcards" | "listening" | "exam";
@@ -80,7 +81,7 @@ export default function StudyMaterial() {
 
   function playListeningAudio(filename: string) {
     if (audioRef.current) { audioRef.current.pause(); }
-    const a = new Audio(`/audio_listening/${filename}`);
+    const a = new Audio(listeningAudioUrl(filename));
     audioRef.current = a;
     a.play().catch(() => {});
   }
@@ -90,7 +91,7 @@ export default function StudyMaterial() {
     let idx = 0;
     function playNext() {
       if (idx >= files.length) return;
-      const a = new Audio(`/audio_listening/${files[idx]}`);
+      const a = new Audio(listeningAudioUrl(files[idx]));
       audioRef.current = a;
       a.onended = () => { idx++; playNext(); };
       a.play().catch(() => {});

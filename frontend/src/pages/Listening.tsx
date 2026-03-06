@@ -14,6 +14,7 @@ import {
   ContentType,
   useListeningState,
 } from "../contexts/ListeningContext";
+import { listeningAudioUrl } from "../api";
 
 const LEVEL_CARDS: { level: ListeningLevel; label: string; accent: string; bg: string }[] = [
   { level: "A1", label: "A1", accent: "from-green-500 to-emerald-500", bg: "border-green-200 bg-green-50" },
@@ -424,7 +425,7 @@ function DictationView({ iv, setIntensive, resetIntensive, onSubmit }: {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
-    const a = new Audio(`/audio_listening/${line.audio_file}`);
+    const a = new Audio(listeningAudioUrl(line.audio_file));
     audioRef.current = a;
     setPlaying(true);
     a.onended = () => setPlaying(false);
@@ -671,7 +672,7 @@ function IntensiveResults({ iv, resetIntensive, setIntensive }: {
   function playLine(audioFile: string | null) {
     if (!audioFile) return;
     if (audioRef.current) { audioRef.current.pause(); }
-    const a = new Audio(`/audio_listening/${audioFile}`);
+    const a = new Audio(listeningAudioUrl(audioFile));
     audioRef.current = a;
     a.play().catch(() => {});
   }
@@ -683,7 +684,7 @@ function IntensiveResults({ iv, resetIntensive, setIntensive }: {
     let idx = 0;
     function playNext() {
       if (idx >= files.length) return;
-      const a = new Audio(`/audio_listening/${files[idx]}`);
+      const a = new Audio(listeningAudioUrl(files[idx]));
       audioRef.current = a;
       a.onended = () => { idx++; playNext(); };
       a.play().catch(() => {});
@@ -795,7 +796,7 @@ function QuizFlow({ s, set, reset, onGenerate, startPlayback, onLineEnded, selec
   if (s.phase === "pre_play" && s.data) {
     const audioSrc =
       s.playing && s.data.dialogue[s.currentAudio]?.audio_file
-        ? `/audio_listening/${s.data.dialogue[s.currentAudio].audio_file}`
+        ? listeningAudioUrl(s.data.dialogue[s.currentAudio].audio_file!)
         : null;
 
     return (
