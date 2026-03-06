@@ -13,8 +13,10 @@ const TITLES: Record<string, string> = {
   "/study/writing": "Writing",
   "/study/knm": "KNM Exercise",
   "/vocab-refresh": "Vocab Refresh",
+  "/vocab-notebook": "Vocab Notebook",
   "/study-material": "Study Material",
   "/planner": "Learning Planner",
+  "/advisor": "AI Advisor",
   "/exam": "Mock Exam",
   "/settings": "Settings",
 };

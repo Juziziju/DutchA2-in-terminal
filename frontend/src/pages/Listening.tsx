@@ -220,7 +220,7 @@ export default function Listening() {
     return <IdleScreen
       quizPhase={s.phase}
       quizError={s.error}
-      onGenerateQuiz={() => handleGenerate("quiz", "A2")}
+      onStartQuiz={() => set((p) => ({ ...p, phase: "select" }))}
       onStartIntensive={() => setIntensive((p) => ({ ...p, phase: "select" }))}
     />;
   }
@@ -252,10 +252,10 @@ export default function Listening() {
 
 // ── Idle screen ──────────────────────────────────────────────────────────────
 
-function IdleScreen({ quizPhase, quizError, onGenerateQuiz, onStartIntensive }: {
+function IdleScreen({ quizPhase, quizError, onStartQuiz, onStartIntensive }: {
   quizPhase: string;
   quizError: string;
-  onGenerateQuiz: () => void;
+  onStartQuiz: () => void;
   onStartIntensive: () => void;
 }) {
   return (
@@ -267,15 +267,14 @@ function IdleScreen({ quizPhase, quizError, onGenerateQuiz, onStartIntensive }: 
           <h2 className="text-lg font-bold">Listening Quiz</h2>
         </div>
         <p className="text-slate-500 text-sm mb-4">
-          AI generates a Dutch A2 dialogue using your vocab, then you answer comprehension questions.
+          AI generates a Dutch dialogue using your vocab, then you answer comprehension questions.
         </p>
         {quizError && <p className="text-red-500 text-sm mb-3">{quizError}</p>}
         <button
-          onClick={onGenerateQuiz}
-          disabled={quizPhase === "generating"}
-          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 shadow-md disabled:opacity-50"
+          onClick={onStartQuiz}
+          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 shadow-md"
         >
-          {quizPhase === "generating" ? "Generating..." : "Generate Quiz"}
+          Start Quiz
         </button>
       </div>
 
@@ -370,7 +369,7 @@ function IntensiveFlow({ iv, setIntensive, resetIntensive, onGenerate, onSubmit 
           {iv.phase === "generating" ? "Generating..." : "Generate"}
         </button>
         {iv.phase === "generating" && (
-          <p className="text-sm text-slate-400 text-center">Calling Qwen + gTTS, this takes ~10-20 seconds...</p>
+          <p className="text-sm text-slate-400 text-center">Generating dialogue + audio, this takes ~10-20 seconds...</p>
         )}
       </div>
     );
@@ -784,85 +783,131 @@ function QuizFlow({ s, set, reset, onGenerate, startPlayback, onLineEnded, selec
   handleExplain: () => void;
 }) {
 
-  if (s.phase === "generating") {
+  // ── Select level phase ──────────────────────────────────────────────────
+
+  if (s.phase === "select") {
     return (
-      <div className="flex flex-col items-center gap-4 py-12">
-        <p className="text-lg font-semibold">Generating quiz...</p>
-        <p className="text-sm text-slate-400">Calling Qwen + gTTS, this takes ~10-20 seconds...</p>
+      <div className="max-w-lg mx-auto py-8 space-y-6">
+        <div className="flex items-center justify-between">
+          <button onClick={reset} className="text-slate-500 hover:text-slate-800 text-sm">&larr; Back</button>
+          <span className="text-sm font-semibold text-slate-600">Listening Quiz</span>
+        </div>
+
+        {/* Level selection */}
+        <div>
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Difficulty Level</p>
+          <div className="grid grid-cols-3 gap-3">
+            {LEVEL_CARDS.map((c) => (
+              <button
+                key={c.level}
+                onClick={() => set((p) => ({ ...p, level: c.level }))}
+                className={`rounded-2xl border p-4 flex flex-col items-center text-center transition-all ${
+                  s.level === c.level ? c.bg + " ring-2 ring-offset-1 ring-blue-400" : "border-slate-200 bg-white"
+                }`}
+              >
+                <span className={`text-2xl font-bold bg-gradient-to-r ${c.accent} bg-clip-text text-transparent`}>
+                  {c.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {s.error && <p className="text-red-500 text-sm">{s.error}</p>}
+
+        <button
+          onClick={() => onGenerate("quiz", s.level)}
+          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 shadow-md"
+        >
+          Generate Quiz
+        </button>
       </div>
     );
   }
 
-  if (s.phase === "pre_play" && s.data) {
+  // ── Generating phase ────────────────────────────────────────────────────
+
+  if (s.phase === "generating") {
+    return (
+      <div className="flex flex-col items-center gap-4 py-12">
+        <div className="animate-spin w-10 h-10 border-3 border-blue-400 border-t-transparent rounded-full" />
+        <p className="text-lg font-semibold">Generating quiz...</p>
+        <p className="text-sm text-slate-400">Generating dialogue + audio, this takes ~10-20 seconds...</p>
+      </div>
+    );
+  }
+
+  // ── Combined dialogue + questions phase ─────────────────────────────────
+  // pre_play and quiz are merged: user sees dialogue, can play audio, and answer questions all on one page
+
+  if ((s.phase === "pre_play" || s.phase === "quiz") && s.data) {
     const audioSrc =
       s.playing && s.data.dialogue[s.currentAudio]?.audio_file
         ? listeningAudioUrl(s.data.dialogue[s.currentAudio].audio_file!)
         : null;
+    const allAnswered = s.answers.length === s.data.questions.length && s.answers.every(Boolean);
 
     return (
-      <div className="max-w-lg mx-auto">
-        <div className="flex items-center justify-between mb-4">
+      <div className="max-w-lg mx-auto space-y-4 py-4">
+        <div className="flex items-center justify-between">
           <button onClick={reset} className="text-slate-500 hover:text-slate-800 text-sm">&larr; Back</button>
-          <button onClick={reset} className="text-xs text-slate-400 hover:text-red-500">Reset</button>
+          <div className="flex items-center gap-2">
+            <LevelBadge level={s.level} />
+            <button onClick={reset} className="text-xs text-slate-400 hover:text-red-500">Reset</button>
+          </div>
         </div>
-        <h2 className="text-lg font-bold mb-1">Topic: {s.data.topic}</h2>
-        <p className="text-sm text-slate-500 mb-4">Speakers: {s.data.speakers.join(", ")}</p>
 
-        <div className="bg-slate-50 rounded-2xl p-4 mb-4 space-y-3">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Read the questions before listening</p>
+        {/* Topic + speakers */}
+        <div>
+          <h2 className="text-lg font-bold">Topic: {s.data.topic}</h2>
+          <p className="text-sm text-slate-500">Speakers: {s.data.speakers.join(", ")}</p>
+        </div>
+
+        {/* Audio playback */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-4">
+          {s.playing && audioSrc ? (
+            <div className="mb-3">
+              <p className="text-xs text-slate-500 mb-1">
+                Line {s.currentAudio + 1}/{s.data.dialogue.length} — {s.data.dialogue[s.currentAudio].speaker}
+              </p>
+              <AudioPlayer src={audioSrc} autoPlay onEnded={onLineEnded} />
+            </div>
+          ) : (
+            !s.playing && (
+              <p className="text-xs text-slate-400 mb-3">Listen to the dialogue, then answer the questions below.</p>
+            )
+          )}
+          <button
+            onClick={startPlayback}
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2.5 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 flex items-center justify-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.841z"/></svg>
+            {s.playing ? "Replay from start" : "Play dialogue"}
+          </button>
+        </div>
+
+        {/* Questions — always visible */}
+        <div className="space-y-4">
           {s.data.questions.map((q, i) => (
-            <div key={i}>
-              <p className="text-sm font-medium">Q{i + 1}. {q.question}</p>
-              <ul className="text-xs text-slate-500 ml-3">
-                {Object.entries(q.options).map(([k, v]) => <li key={k}>{k}) {v}</li>)}
-              </ul>
+            <div key={i} className="bg-white rounded-2xl border border-slate-200 p-4">
+              <p className="font-medium mb-3">Q{i + 1}. {q.question}</p>
+              <div className="space-y-2">
+                {Object.entries(q.options).map(([k, v]) => (
+                  <button key={k} onClick={() => selectAnswer(i, k)} className={`w-full text-left px-4 py-2 rounded-lg border text-sm transition-colors ${s.answers[i] === k ? "border-blue-500 bg-blue-50 text-blue-800" : "border-slate-200 hover:bg-slate-50"}`}>
+                    <span className="font-semibold mr-2">{k})</span>{v}
+                  </button>
+                ))}
+              </div>
             </div>
           ))}
         </div>
 
-        {s.playing && audioSrc && (
-          <div className="mb-3 bg-blue-50 rounded-2xl p-3">
-            <p className="text-xs text-slate-500 mb-1">
-              Line {s.currentAudio + 1}/{s.data.dialogue.length} — {s.data.dialogue[s.currentAudio].speaker}
-            </p>
-            <AudioPlayer src={audioSrc} autoPlay onEnded={onLineEnded} />
-          </div>
-        )}
-
-        <div className="flex gap-2">
-          <button onClick={startPlayback} className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700">
-            {s.playing ? "Replay" : "Play dialogue"}
-          </button>
-          <button onClick={() => set((p) => ({ ...p, phase: "quiz" }))} className="flex-1 bg-white border border-slate-300 py-2 rounded-xl hover:bg-slate-50">
-            Go to questions
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (s.phase === "quiz" && s.data) {
-    const allAnswered = s.answers.length === s.data.questions.length && s.answers.every(Boolean);
-    return (
-      <div className="max-w-lg mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <button onClick={() => set((p) => ({ ...p, phase: "pre_play" }))} className="text-slate-500 hover:text-slate-800 text-sm">&larr; Back to dialogue</button>
-          <button onClick={reset} className="text-xs text-slate-400 hover:text-red-500">Reset</button>
-        </div>
-        <h2 className="text-lg font-bold">Questions — {s.data.topic}</h2>
-        {s.data.questions.map((q, i) => (
-          <div key={i} className="bg-white rounded-2xl border border-slate-200 p-4">
-            <p className="font-medium mb-3">Q{i + 1}. {q.question}</p>
-            <div className="space-y-2">
-              {Object.entries(q.options).map(([k, v]) => (
-                <button key={k} onClick={() => selectAnswer(i, k)} className={`w-full text-left px-4 py-2 rounded-lg border text-sm transition-colors ${s.answers[i] === k ? "border-blue-500 bg-blue-50 text-blue-800" : "border-slate-200 hover:bg-slate-50"}`}>
-                  <span className="font-semibold mr-2">{k})</span>{v}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-        <button onClick={handleSubmit} disabled={!allAnswered} className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 disabled:opacity-40">
+        {/* Submit */}
+        <button
+          onClick={handleSubmit}
+          disabled={!allAnswered}
+          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 disabled:opacity-40"
+        >
           Submit answers
         </button>
       </div>
@@ -889,12 +934,15 @@ function QuizFlow({ s, set, reset, onGenerate, startPlayback, onLineEnded, selec
             );
           })}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           <button onClick={handleExplain} disabled={s.explaining} className="flex-1 border border-slate-300 py-2 rounded-xl text-sm hover:bg-slate-50 disabled:opacity-50">
-            {s.explaining ? "Getting explanation..." : "Explain answers"}
+            {s.explaining ? "Explaining..." : "Explain"}
           </button>
-          <button onClick={() => onGenerate(s.mode, s.level)} className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 rounded-xl text-sm font-semibold hover:from-blue-700 hover:to-indigo-700">
+          <button onClick={() => set((p) => ({ ...p, phase: "select" }))} className="flex-1 border border-slate-300 py-2 rounded-xl text-sm hover:bg-slate-50">
             New exercise
+          </button>
+          <button onClick={reset} className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 rounded-xl text-sm font-semibold hover:from-blue-700 hover:to-indigo-700">
+            Back to Home
           </button>
         </div>
       </div>
@@ -903,14 +951,19 @@ function QuizFlow({ s, set, reset, onGenerate, startPlayback, onLineEnded, selec
 
   if (s.phase === "explain" && s.data && s.result) {
     return (
-      <div className="max-w-lg mx-auto">
-        <h2 className="text-lg font-bold mb-4">Explanation — {s.data.topic}</h2>
+      <div className="max-w-lg mx-auto space-y-4">
+        <h2 className="text-lg font-bold">Explanation — {s.data.topic}</h2>
         <div className="bg-white rounded-2xl border border-slate-200 p-4 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
           {s.explanation}
         </div>
-        <button onClick={() => set((p) => ({ ...p, phase: "results" }))} className="mt-4 w-full border border-slate-300 py-2 rounded-xl text-sm hover:bg-slate-50">
-          Back to results
-        </button>
+        <div className="flex gap-3">
+          <button onClick={() => set((p) => ({ ...p, phase: "results" }))} className="flex-1 border border-slate-300 py-2 rounded-xl text-sm hover:bg-slate-50">
+            Back to results
+          </button>
+          <button onClick={reset} className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 rounded-xl text-sm font-semibold hover:from-blue-700 hover:to-indigo-700">
+            Back to Home
+          </button>
+        </div>
       </div>
     );
   }

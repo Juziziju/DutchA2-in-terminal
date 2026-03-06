@@ -6,6 +6,7 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      "/advisor": "http://localhost:8000",
       "/auth": "http://localhost:8000",
       "/vocab": "http://localhost:8000",
       "/flashcards": "http://localhost:8000",

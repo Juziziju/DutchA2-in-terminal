@@ -8,6 +8,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, select, func
 
+from backend.core.metrics import (
+    get_days_until_exam,
+    get_flashcard_stats,
+    get_listening_trend_7d,
+    get_planner_rate_7d,
+    get_review_consistency_30d,
+    get_skill_practice_counts,
+    get_skill_snapshots,
+    get_speaking_subscores,
+    get_vocab_categories,
+    build_progress_by_vid,
+)
 from backend.database import get_session
 from backend.models.exam import ExamResult
 from backend.models.listening import ListeningSession
@@ -442,3 +454,83 @@ def flashcard_history(
         )
         for log in logs
     ]
+
+
+# ── Dashboard Insights ────────────────────────────────────────────────────────
+
+class VocabCategoryItem(BaseModel):
+    category: str
+    mastered: int
+    total: int
+
+
+class DashboardInsights(BaseModel):
+    days_until_exam: int | None
+    exam_date: str | None
+    vocab_categories: list[VocabCategoryItem]
+    listening_trend_7d: float | None
+    speaking_subscores: dict[str, float | None]
+    planner_completion_rate_7d: float | None
+    most_practiced_skill: str | None
+    least_practiced_skill: str | None
+    skill_practice_counts: dict[str, int]
+    review_consistency_30d: int
+    review_dates_30d: list[str]
+    skill_snapshots: list[dict]
+
+
+@router.get("/dashboard/insights", response_model=DashboardInsights)
+def dashboard_insights(
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    today = date.today()
+    cutoff_30d = today - timedelta(days=30)
+
+    # Exam countdown
+    days_until, exam_dt = get_days_until_exam(user, db, today)
+
+    # Vocab categories
+    all_vocab = db.exec(select(Vocab)).all()
+    fc_stats = get_flashcard_stats(user, db, today)
+    progress_by_vid = build_progress_by_vid(fc_stats["_all_progress"])
+    vocab_cats = get_vocab_categories(all_vocab, progress_by_vid)
+
+    # Listening trend
+    listening_trend = get_listening_trend_7d(user, db, today)
+
+    # Speaking sub-scores (30d)
+    speaking_rows = db.exec(
+        select(SpeakingSession).where(
+            SpeakingSession.user_id == user.id,
+            SpeakingSession.date >= cutoff_30d.isoformat(),
+        )
+    ).all()
+    subscores = get_speaking_subscores(speaking_rows)
+
+    # Planner rate
+    planner_rate = get_planner_rate_7d(user, db, today)
+
+    # Skill practice counts
+    skill_counts, most, least = get_skill_practice_counts(user, db, today)
+
+    # Review consistency
+    consistency_count, review_dates = get_review_consistency_30d(user, db, today)
+
+    # Skill snapshots
+    snapshots = get_skill_snapshots(user, db)
+
+    return DashboardInsights(
+        days_until_exam=days_until,
+        exam_date=exam_dt,
+        vocab_categories=[VocabCategoryItem(**c) for c in vocab_cats],
+        listening_trend_7d=listening_trend,
+        speaking_subscores=subscores,
+        planner_completion_rate_7d=planner_rate,
+        most_practiced_skill=most,
+        least_practiced_skill=least,
+        skill_practice_counts=skill_counts,
+        review_consistency_30d=consistency_count,
+        review_dates_30d=review_dates,
+        skill_snapshots=snapshots,
+    )

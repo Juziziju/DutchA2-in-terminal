@@ -17,7 +17,7 @@ export default function SidebarItem({ to, icon, label, submenuKey, children, bad
   const isExpanded = submenuKey ? expandedMenus.has(submenuKey) : false;
 
   const base = "flex items-center gap-3 px-4 py-2.5 rounded-lg mx-2 text-sm font-medium text-sidebar-text hover:shadow-md hover:shadow-black/25 transition-all duration-150";
-  const active = "bg-sidebar-active text-white shadow-lg shadow-blue-500/30";
+  const active = "bg-gradient-to-r from-blue-600/80 to-blue-500/60 text-white border-l-[3px] border-blue-400 shadow-lg shadow-blue-500/20";
 
   // Parent with submenu
   if (submenuKey && children) {
@@ -76,7 +76,7 @@ export function SidebarSubItem({ to, label, badge }: { to: string; label: string
       className={({ isActive }) =>
         `flex items-center pl-11 pr-4 py-2 mx-2 rounded-lg text-sm transition-all duration-150 ${
           isActive
-            ? "bg-sidebar-active text-white font-medium shadow-lg shadow-blue-500/30"
+            ? "bg-gradient-to-r from-blue-600/80 to-blue-500/60 text-white font-medium border-l-[3px] border-blue-400 shadow-lg shadow-blue-500/20"
             : "text-sidebar-text hover:shadow-md hover:shadow-black/25"
         }`
       }

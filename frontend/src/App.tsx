@@ -6,11 +6,13 @@ import KNMExercise from "./pages/KNMExercise";
 import Listening from "./pages/Listening";
 import Login from "./pages/Login";
 import MockExam from "./pages/MockExam";
+import Advisor from "./pages/Advisor";
 import Planner from "./pages/Planner";
 import Reading from "./pages/Reading";
 import Settings from "./pages/Settings";
 import Speaking from "./pages/Speaking";
 import StudyMaterial from "./pages/StudyMaterial";
+import VocabNotebook from "./pages/VocabNotebook";
 import Writing from "./pages/Writing";
 
 export default function App() {
@@ -26,8 +28,10 @@ export default function App() {
           <Route path="study/writing" element={<Writing />} />
           <Route path="study/knm" element={<KNMExercise />} />
           <Route path="vocab-refresh" element={<Flashcards />} />
+          <Route path="vocab-notebook" element={<VocabNotebook />} />
           <Route path="study-material" element={<StudyMaterial />} />
           <Route path="planner" element={<Planner />} />
+          <Route path="advisor" element={<Advisor />} />
           <Route path="exam" element={<MockExam />} />
           <Route path="settings" element={<Settings />} />
         </Route>

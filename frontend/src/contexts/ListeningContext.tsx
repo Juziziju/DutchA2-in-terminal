@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, Dispatch, SetStateAction, ReactNode } from "react";
 import { GenerateResponse, GenerateIntensiveResponse, SubmitListeningResponse, SubmitIntensiveResponse } from "../api";
 
-type Phase = "idle" | "generating" | "pre_play" | "quiz" | "results" | "explain";
+type Phase = "idle" | "select" | "generating" | "pre_play" | "quiz" | "results" | "explain";
 type IntensivePhase = "idle" | "select" | "generating" | "dictation" | "results";
 
 export type ListeningMode = "quiz" | "intensive";

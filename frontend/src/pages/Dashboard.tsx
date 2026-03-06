@@ -1,23 +1,35 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Line, ComposedChart,
 } from "recharts";
 import {
+  DashboardInsights,
   ExamHistoryItem,
   FlashcardStats,
   ListeningHistoryItem,
+  SpeakingHistoryItem,
   TrainingSummary,
   PlannerStatus,
   PlannerDailyPlan,
   getExamResults,
   getFlashcardResults,
   getListeningResults,
+  getSpeakingHistory,
   getStreak,
   getDashboardTraining,
+  getDashboardInsights,
   getPlannerStatus,
   getTodayPlan,
 } from "../api";
+import ExamCountdownRing from "../components/dashboard/ExamCountdownRing";
+import SkillRadarCard from "../components/dashboard/SkillRadarCard";
+import WeakCategoriesCard from "../components/dashboard/WeakCategoriesCard";
+import ConsistencyHeatmap from "../components/dashboard/ConsistencyHeatmap";
+import SpeakingSubScoresCard from "../components/dashboard/SpeakingSubScoresCard";
+import PracticeBalanceCard from "../components/dashboard/PracticeBalanceCard";
+import SmartQuickActions from "../components/dashboard/SmartQuickActions";
+import RecentActivityTabs from "../components/dashboard/RecentActivityTabs";
 
 function fmtMinutes(mins: number): string {
   if (mins < 60) return `${mins}m`;
@@ -31,19 +43,23 @@ export default function Dashboard() {
   const username = localStorage.getItem("username") ?? "learner";
   const [fcStats, setFcStats] = useState<FlashcardStats | null>(null);
   const [listening, setListening] = useState<ListeningHistoryItem[]>([]);
+  const [speaking, setSpeaking] = useState<SpeakingHistoryItem[]>([]);
   const [exams, setExams] = useState<ExamHistoryItem[]>([]);
   const [training, setTraining] = useState<TrainingSummary | null>(null);
+  const [insights, setInsights] = useState<DashboardInsights | null>(null);
   const [plannerStatus, setPlannerStatus] = useState<PlannerStatus | null>(null);
   const [todayPlan, setTodayPlan] = useState<PlannerDailyPlan | null>(null);
   const [streak, setStreak] = useState(0);
+  const [activeDates, setActiveDates] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const core = Promise.all([getFlashcardResults(), getListeningResults(), getExamResults()])
-      .then(([fc, l, e]) => { setFcStats(fc); setListening(l); setExams(e); })
+    const core = Promise.all([getFlashcardResults(), getListeningResults(), getExamResults(), getSpeakingHistory()])
+      .then(([fc, l, e, s]) => { setFcStats(fc); setListening(l); setExams(e); setSpeaking(s); })
       .catch(() => {});
     const tr = getDashboardTraining(30).then(setTraining).catch(() => {});
-    const sk = getStreak().then(r => setStreak(r.streak)).catch(() => {});
+    const sk = getStreak().then(r => { setStreak(r.streak); setActiveDates(r.active_dates); }).catch(() => {});
+    const ins = getDashboardInsights().then(setInsights).catch(() => {});
     const planner = getPlannerStatus()
       .then(s => {
         setPlannerStatus(s);
@@ -52,11 +68,10 @@ export default function Dashboard() {
         }
       })
       .catch(() => {});
-    Promise.all([core, tr, sk, planner]).finally(() => setLoading(false));
+    Promise.all([core, tr, sk, ins, planner]).finally(() => setLoading(false));
   }, []);
-  const latestExam = exams[0];
 
-  // Aggregate daily chart data: merge quiz + intensive per day
+  // Aggregate daily chart data
   const dailyChart = (() => {
     if (!training) return [];
     const byDay: Record<string, { date: string; quiz_min: number; intensive_min: number; quiz_score: number; intensive_score: number; quiz_n: number; intensive_n: number }> = {};
@@ -87,38 +102,78 @@ export default function Dashboard() {
       }));
   })();
 
-  return (
-    <div className="max-w-3xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6">
-        Welcome back, {username}
-      </h2>
+  const streakSubtitle = streak >= 7 ? "You're on fire! Keep it up!" : streak >= 3 ? "Building momentum!" : streak > 0 ? "Great start, keep going!" : "Start studying to build your streak!";
 
+  return (
+    <div className="max-w-5xl mx-auto space-y-6">
       {loading && <p className="text-slate-400 text-sm">Loading stats...</p>}
 
-      {/* Stat cards */}
+      {/* Section 1: Hero Welcome Bar */}
       {!loading && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatCard label="Study streak" value={`${streak} day${streak !== 1 ? "s" : ""}`} accent="text-orange-500" gradient="from-orange-400 to-amber-400" />
-          <StatCard label="Vocab mastered" value={String(fcStats?.mastered ?? 0)} accent="text-green-600" gradient="from-green-400 to-emerald-400" />
-          <StatCard label="Due today" value={String(fcStats?.due_today ?? 0)} accent="text-blue-600" gradient="from-blue-400 to-indigo-400" />
-          <StatCard
-            label="Latest exam"
-            value={latestExam ? `${latestExam.avg_score ?? 0}%` : "--"}
-            accent={latestExam?.passed ? "text-green-600" : "text-red-500"}
-            badge={latestExam ? (latestExam.passed ? "PASS" : "FAIL") : undefined}
-            gradient="from-purple-400 to-violet-400"
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-6 text-white flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Welcome back, {username}</h2>
+            <p className="text-blue-200 text-sm mt-1">{streakSubtitle}</p>
+          </div>
+          <ExamCountdownRing
+            daysUntilExam={insights?.days_until_exam ?? null}
+            examDate={insights?.exam_date ?? null}
           />
         </div>
       )}
 
-      {/* Planner Card */}
+      {/* Section 2: Stat Cards (5) */}
+      {!loading && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          <StatCard
+            label="Study streak"
+            value={`${streak}`}
+            unit={`day${streak !== 1 ? "s" : ""}`}
+            accent="text-orange-500"
+            gradient="from-orange-400 to-amber-400"
+            icon="🔥"
+          />
+          <StatCard
+            label="Vocab mastered"
+            value={`${fcStats?.mastered ?? 0}/${fcStats?.total_cards ?? 0}`}
+            accent="text-green-600"
+            gradient="from-green-400 to-emerald-400"
+            progress={fcStats && fcStats.total_cards > 0 ? (fcStats.mastered / fcStats.total_cards) * 100 : 0}
+          />
+          <StatCard
+            label="Due today"
+            value={String(fcStats?.due_today ?? 0)}
+            accent="text-blue-600"
+            gradient="from-blue-400 to-indigo-400"
+            onClick={() => nav("/vocab-refresh")}
+          />
+          <StatCard
+            label="Review consistency"
+            value={`${insights?.review_consistency_30d ?? 0}/30`}
+            unit="days"
+            accent="text-purple-600"
+            gradient="from-purple-400 to-violet-400"
+            dots={insights?.review_dates_30d}
+          />
+          <StatCard
+            label="Planner rate"
+            value={insights?.planner_completion_rate_7d != null ? `${Math.round(insights.planner_completion_rate_7d)}%` : "--"}
+            accent="text-teal-600"
+            gradient="from-teal-400 to-cyan-400"
+          />
+        </div>
+      )}
+
+      {/* Section 3: Planner Card */}
       {!loading && plannerStatus?.planner_enabled && todayPlan && (() => {
         const total = todayPlan.tasks.length;
         const done = todayPlan.tasks.filter(t => t.status === "completed").length;
+        const skipped = todayPlan.tasks.filter(t => t.status === "skipped").length;
+        const pending = total - done - skipped;
         const pct = total > 0 ? Math.round(done / total * 100) : 0;
         return (
           <div
-            className="bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl p-5 mb-8 text-white cursor-pointer hover:shadow-lg transition"
+            className="bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl p-5 text-white cursor-pointer hover:shadow-lg transition"
             onClick={() => nav("/planner")}
           >
             <p className="text-sm font-medium opacity-80 mb-1">Today's Plan</p>
@@ -126,37 +181,50 @@ export default function Dashboard() {
             <div className="mt-3 bg-white/20 rounded-full h-2">
               <div className="bg-white rounded-full h-2 transition-all" style={{ width: `${pct}%` }} />
             </div>
-            <p className="text-xs opacity-70 mt-1">{done}/{total} tasks completed ({pct}%)</p>
+            <div className="flex items-center gap-3 mt-2">
+              <span className="text-xs opacity-70">{done}/{total} tasks ({pct}%)</span>
+              <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full">{done} done</span>
+              {pending > 0 && <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full">{pending} pending</span>}
+              {skipped > 0 && <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full">{skipped} skipped</span>}
+            </div>
           </div>
         );
       })()}
 
-      {/* Training Overview Card */}
+      {/* Section 4: Two-Column Insights */}
+      {!loading && insights && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <SkillRadarCard snapshots={insights.skill_snapshots} />
+          <WeakCategoriesCard categories={insights.vocab_categories} />
+        </div>
+      )}
+
+      {/* Section 5: Training Overview */}
       {!loading && training && training.total_sessions > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 mb-8 shadow-sm">
-          <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">Training Overview (30 days)</h3>
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">Training Overview (30 days)</h3>
+            {insights?.listening_trend_7d != null && (
+              <span className={`text-xs font-semibold px-2 py-1 rounded-full flex items-center gap-1 ${
+                insights.listening_trend_7d >= 0
+                  ? "bg-green-100 text-green-700"
+                  : "bg-red-100 text-red-700"
+              }`}>
+                {insights.listening_trend_7d >= 0 ? "↑" : "↓"}
+                {Math.abs(insights.listening_trend_7d)}% (7d)
+              </span>
+            )}
+          </div>
 
           {/* Summary row */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-            <div className="bg-slate-50 rounded-xl p-3 text-center">
-              <p className="text-xl font-bold text-slate-800">{training.total_sessions}</p>
-              <p className="text-xs text-slate-500">Sessions</p>
-            </div>
-            <div className="bg-slate-50 rounded-xl p-3 text-center">
-              <p className="text-xl font-bold text-slate-800">{fmtMinutes(training.total_minutes)}</p>
-              <p className="text-xs text-slate-500">Total time</p>
-            </div>
-            <div className="bg-blue-50 rounded-xl p-3 text-center">
-              <p className="text-xl font-bold text-blue-600">{training.avg_score_quiz != null ? `${training.avg_score_quiz}%` : "--"}</p>
-              <p className="text-xs text-slate-500">Quiz avg</p>
-            </div>
-            <div className="bg-amber-50 rounded-xl p-3 text-center">
-              <p className="text-xl font-bold text-amber-600">{training.avg_score_intensive != null ? `${training.avg_score_intensive}%` : "--"}</p>
-              <p className="text-xs text-slate-500">Intensive avg</p>
-            </div>
+            <MiniStat value={String(training.total_sessions)} label="Sessions" />
+            <MiniStat value={fmtMinutes(training.total_minutes)} label="Total time" />
+            <MiniStat value={training.avg_score_quiz != null ? `${training.avg_score_quiz}%` : "--"} label="Quiz avg" accent="text-blue-600" bg="bg-blue-50" />
+            <MiniStat value={training.avg_score_intensive != null ? `${training.avg_score_intensive}%` : "--"} label="Intensive avg" accent="text-amber-600" bg="bg-amber-50" />
           </div>
 
-          {/* Session type breakdown */}
+          {/* Legend */}
           <div className="flex items-center gap-4 mb-4 text-xs text-slate-500">
             <span className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-sm bg-blue-400 inline-block" /> Quiz ({training.quiz_sessions})
@@ -164,115 +232,66 @@ export default function Dashboard() {
             <span className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-sm bg-amber-400 inline-block" /> Intensive ({training.intensive_sessions})
             </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-0.5 bg-green-500 inline-block" /> Avg Score
+            </span>
           </div>
 
-          {/* Daily duration chart */}
+          {/* Chart */}
           {dailyChart.length > 0 && (
-            <div>
-              <p className="text-xs text-slate-400 mb-2">Daily training time (minutes)</p>
-              <ResponsiveContainer width="100%" height={160}>
-                <BarChart data={dailyChart}>
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(v: string) => v.slice(5)} />
-                  <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip
-                    formatter={(value) => [`${value}m`]}
-                    labelFormatter={(label) => String(label)}
-                  />
-                  <Bar dataKey="quiz" stackId="a" fill="#60a5fa" radius={[0, 0, 0, 0]} name="Quiz" />
-                  <Bar dataKey="intensive" stackId="a" fill="#fbbf24" radius={[2, 2, 0, 0]} name="Intensive" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-
-          {/* Daily score dots */}
-          {dailyChart.length > 0 && (
-            <div className="mt-3">
-              <p className="text-xs text-slate-400 mb-2">Daily average score</p>
-              <div className="flex gap-1.5 flex-wrap">
-                {dailyChart.slice(-14).map((d) => (
-                  <div
-                    key={d.date}
-                    className="flex flex-col items-center"
-                    title={`${d.date}: ${d.avg_score}%`}
-                  >
-                    <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${
-                        d.avg_score >= 80 ? "bg-green-500" : d.avg_score >= 60 ? "bg-blue-500" : "bg-red-400"
-                      }`}
-                    >
-                      {d.avg_score}
-                    </div>
-                    <span className="text-[9px] text-slate-400 mt-0.5">{d.date.slice(8)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <ResponsiveContainer width="100%" height={180}>
+              <ComposedChart data={dailyChart}>
+                <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(v: string) => v.slice(5)} />
+                <YAxis yAxisId="mins" tick={{ fontSize: 10 }} />
+                <YAxis yAxisId="score" orientation="right" domain={[0, 100]} tick={{ fontSize: 10 }} hide />
+                <Tooltip formatter={(value, name) => [name === "avg_score" ? `${value}%` : `${value}m`, name === "avg_score" ? "Avg Score" : String(name)]} labelFormatter={(label) => String(label)} />
+                <Bar yAxisId="mins" dataKey="quiz" stackId="a" fill="#60a5fa" name="Quiz" />
+                <Bar yAxisId="mins" dataKey="intensive" stackId="a" fill="#fbbf24" radius={[2, 2, 0, 0]} name="Intensive" />
+                <Line yAxisId="score" type="monotone" dataKey="avg_score" stroke="#22c55e" strokeWidth={2} dot={false} name="avg_score" />
+              </ComposedChart>
+            </ResponsiveContainer>
           )}
         </div>
       )}
 
-      {/* Quick actions */}
-      <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Quick actions</h3>
-      <div className="grid grid-cols-2 gap-4 mb-8">
-        <button
-          onClick={() => nav("/vocab-refresh")}
-          className="bg-white rounded-2xl border border-slate-200 p-4 text-left hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
-        >
-          <p className="font-semibold">Start Vocab Refresh</p>
-          <p className="text-sm text-slate-500">{fcStats ? `${fcStats.due_today} cards due` : "Review flashcards"}</p>
-        </button>
-        <button
-          onClick={() => nav("/study/listening")}
-          className="bg-white rounded-2xl border border-slate-200 p-4 text-left hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
-        >
-          <p className="font-semibold">New Listening</p>
-          <p className="text-sm text-slate-500">Quiz or intensive dictation</p>
-        </button>
-      </div>
+      {/* Section 6: Study Consistency Heatmap */}
+      {!loading && insights && (
+        <ConsistencyHeatmap
+          reviewDates={insights.review_dates_30d}
+          activeDates={activeDates}
+        />
+      )}
 
-      {/* Recent activity */}
-      {listening.length > 0 && (
-        <>
-          <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Recent listening</h3>
-          <div className="space-y-2">
-            {listening.slice(0, 5).map((l) => (
-              <div
-                key={l.id}
-                className="bg-white rounded-2xl border border-slate-200 px-4 py-3 flex justify-between items-center"
-              >
-                <div className="flex items-center gap-2">
-                  <div>
-                    <p className="font-medium text-sm flex items-center gap-1.5">
-                      {l.topic}
-                      {l.level && (
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
-                          l.level === "A1" ? "bg-green-100 text-green-700" :
-                          l.level === "B1" ? "bg-purple-100 text-purple-700" :
-                          "bg-blue-100 text-blue-700"
-                        }`}>{l.level}</span>
-                      )}
-                      {l.mode === "intensive" && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">intensive</span>
-                      )}
-                    </p>
-                    <p className="text-xs text-slate-400">
-                      {l.date.split("T")[0]}
-                      {l.duration_seconds != null && l.duration_seconds > 0 && (
-                        <span className="ml-2">{fmtMinutes(Math.round(l.duration_seconds / 60))}</span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-                <span
-                  className={`text-sm font-semibold ${l.score_pct >= 60 ? "text-green-600" : "text-red-500"}`}
-                >
-                  {l.score_pct}%
-                </span>
-              </div>
-            ))}
-          </div>
-        </>
+      {/* Section 7: Two-Column — Practice Balance + Speaking Sub-scores */}
+      {!loading && insights && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <PracticeBalanceCard
+            skillCounts={insights.skill_practice_counts}
+            mostPracticed={insights.most_practiced_skill}
+            leastPracticed={insights.least_practiced_skill}
+          />
+          <SpeakingSubScoresCard subscores={insights.speaking_subscores} />
+        </div>
+      )}
+
+      {/* Section 8: Smart Quick Actions */}
+      {!loading && (
+        <div>
+          <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Quick Actions</h3>
+          <SmartQuickActions
+            dueToday={fcStats?.due_today ?? 0}
+            leastPracticedSkill={insights?.least_practiced_skill ?? null}
+          />
+        </div>
+      )}
+
+      {/* Section 9: Recent Activity Tabs */}
+      {!loading && (
+        <RecentActivityTabs
+          listening={listening}
+          speaking={speaking}
+          exams={exams}
+        />
       )}
     </div>
   );
@@ -281,32 +300,71 @@ export default function Dashboard() {
 function StatCard({
   label,
   value,
+  unit,
   accent,
-  badge,
   gradient,
+  progress,
+  icon,
+  dots,
+  onClick,
 }: {
   label: string;
   value: string;
+  unit?: string;
   accent: string;
-  badge?: string;
   gradient?: string;
+  progress?: number;
+  icon?: string;
+  dots?: string[];
+  onClick?: () => void;
 }) {
+  const today = new Date();
+  // Generate last 30 days for dots
+  const dotDays: boolean[] = [];
+  if (dots !== undefined) {
+    const dotSet = new Set(dots);
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      dotDays.push(dotSet.has(d.toISOString().slice(0, 10)));
+    }
+  }
+
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all duration-200">
+    <div
+      className={`bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 ${onClick ? "cursor-pointer" : ""}`}
+      onClick={onClick}
+    >
       {gradient && <div className={`h-1 bg-gradient-to-r ${gradient}`} />}
       <div className="p-4">
-        <p className={`text-2xl font-bold ${accent}`}>{value}</p>
+        <div className="flex items-baseline gap-1.5">
+          {icon && <span className="text-lg">{icon}</span>}
+          <span className={`text-2xl font-bold ${accent}`}>{value}</span>
+          {unit && <span className="text-xs text-slate-400">{unit}</span>}
+        </div>
         <p className="text-xs text-slate-500 mt-1">{label}</p>
-        {badge && (
-          <span
-            className={`mt-1 inline-block text-xs px-2 py-0.5 rounded-full font-medium ${
-              badge === "PASS" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-            }`}
-          >
-            {badge}
-          </span>
+        {progress !== undefined && (
+          <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${Math.min(progress, 100)}%` }} />
+          </div>
+        )}
+        {dotDays.length > 0 && (
+          <div className="flex gap-px mt-2 flex-wrap">
+            {dotDays.map((active, i) => (
+              <div key={i} className={`w-1.5 h-1.5 rounded-full ${active ? "bg-green-500" : "bg-slate-200"}`} />
+            ))}
+          </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function MiniStat({ value, label, accent, bg }: { value: string; label: string; accent?: string; bg?: string }) {
+  return (
+    <div className={`${bg ?? "bg-slate-50"} rounded-xl p-3 text-center`}>
+      <p className={`text-xl font-bold ${accent ?? "text-slate-800"}`}>{value}</p>
+      <p className="text-xs text-slate-500">{label}</p>
     </div>
   );
 }

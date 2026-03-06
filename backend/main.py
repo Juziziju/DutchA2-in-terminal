@@ -17,7 +17,8 @@ from backend.models.daily_plan import DailyPlan, TaskLog  # noqa: F401
 from backend.models.skill_snapshot import SkillSnapshot  # noqa: F401
 from backend.models.weekly_report import WeeklyReport, Roadmap  # noqa: F401
 from backend.models.speaking import SpeakingSession  # noqa: F401
-from backend.routers import auth, exam, flashcards, listening, planner, results, speaking, vocab
+from backend.models.custom_scene import CustomScene  # noqa: F401
+from backend.routers import advisor, auth, exam, flashcards, listening, planner, results, speaking, vocab
 
 app = FastAPI(title="Dutch A2 Blitz", version="1.0.0")
 
@@ -49,6 +50,7 @@ app.mount(
 )
 
 # API routers
+app.include_router(advisor.router)
 app.include_router(auth.router)
 app.include_router(vocab.router)
 app.include_router(flashcards.router)

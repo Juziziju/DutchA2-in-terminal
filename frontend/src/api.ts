@@ -162,6 +162,33 @@ export function submitReview(
   });
 }
 
+// ── Vocab Notebook ───────────────────────────────────────────────────────────
+
+export type VocabLevel = "new" | "hard" | "learning" | "familiar" | "mastered";
+
+export interface VocabNoteItem {
+  vocab_id: number;
+  dutch: string;
+  english: string;
+  category: string;
+  example_dutch: string;
+  example_english: string;
+  audio_file: string;
+  level: VocabLevel;
+  next_review: string | null;
+  ease_factor: number | null;
+  interval: number | null;
+}
+
+export interface VocabNotebookOut {
+  items: VocabNoteItem[];
+  counts: Record<VocabLevel, number>;
+}
+
+export function getVocabNotebook() {
+  return request<VocabNotebookOut>("GET", "/flashcards/notebook");
+}
+
 // ── Listening ─────────────────────────────────────────────────────────────────
 
 export interface DialogueLine {
@@ -611,6 +638,8 @@ export interface SpeakingSceneSummary {
   unlocked: boolean;
   attempts: number;
   avg_score: number | null;
+  is_custom?: boolean;
+  level?: string;
 }
 
 export interface SpeakingVocabItem {
@@ -698,6 +727,18 @@ export function getSpeakingQuestions(sceneId: string) {
 
 export function getSpeakingSentenceAudio(sceneId: string, index: number) {
   return request<{ audio_file: string }>("GET", `/speaking/tts/${sceneId}/${index}`);
+}
+
+export interface CreateCustomSceneResponse {
+  scene_id: string;
+  title_en: string;
+  title_nl: string;
+}
+
+export function createCustomScene(topic: string, level: string, adminPassword?: string) {
+  return request<CreateCustomSceneResponse>("POST", "/speaking/custom-scenes", {
+    topic, level, ...(adminPassword ? { admin_password: adminPassword } : {}),
+  });
 }
 
 export async function submitSpeakingRecording(
@@ -788,4 +829,47 @@ export function getMockExams() {
 
 export function getMockExamDetail(examId: string) {
   return request<MockExamDetail>("GET", `/speaking/mock-exams/${examId}`);
+}
+
+// ── Dashboard Insights ──────────────────────────────────────────────────────
+
+export interface VocabCategoryItem {
+  category: string;
+  mastered: number;
+  total: number;
+}
+
+export interface SkillSnapshotItem {
+  skill: string;
+  assessed_level: string;
+  avg_score: number;
+}
+
+export interface DashboardInsights {
+  days_until_exam: number | null;
+  exam_date: string | null;
+  vocab_categories: VocabCategoryItem[];
+  listening_trend_7d: number | null;
+  speaking_subscores: Record<string, number | null>;
+  planner_completion_rate_7d: number | null;
+  most_practiced_skill: string | null;
+  least_practiced_skill: string | null;
+  skill_practice_counts: Record<string, number>;
+  review_consistency_30d: number;
+  review_dates_30d: string[];
+  skill_snapshots: SkillSnapshotItem[];
+}
+
+export function getDashboardInsights() {
+  return request<DashboardInsights>("GET", "/results/dashboard/insights");
+}
+
+// ── Advisor ──────────────────────────────────────────────────────────────────
+
+export interface AdvisorResponse {
+  reply: string;
+}
+
+export function askAdvisor(message: string) {
+  return request<AdvisorResponse>("POST", "/advisor/ask", { message });
 }

@@ -36,7 +36,9 @@ def list_scenes(
     db: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
-    """Return all scenes with unlock status and average scores."""
+    """Return all scenes (built-in + custom) with unlock status and average scores."""
+    from backend.models.custom_scene import CustomScene
+
     scenes = get_scene_list()
     # Get user's completed scene sessions
     user_sessions = db.exec(
@@ -66,17 +68,59 @@ def list_scenes(
             "unlocked": unlocked,
             "attempts": len(scores),
             "avg_score": avg_score,
+            "is_custom": False,
+        })
+
+    # Append user's custom scenes
+    custom = db.exec(
+        select(CustomScene).where(CustomScene.user_id == user.id).order_by(col(CustomScene.created_at).desc())
+    ).all()
+    for cs in custom:
+        scores = completed_scenes.get(cs.scene_id, [])
+        avg_score = round(sum(scores) / len(scores)) if scores else None
+        result.append({
+            "id": cs.scene_id,
+            "title_en": cs.title_en,
+            "title_nl": cs.title_nl,
+            "order": 100,
+            "vocab_count": len(json.loads(cs.vocab_json)),
+            "sentence_count": len(json.loads(cs.sentences_json)),
+            "question_count": sum(len(v) for v in json.loads(cs.questions_json).values()),
+            "unlocked": True,
+            "attempts": len(scores),
+            "avg_score": avg_score,
+            "is_custom": True,
+            "level": cs.level,
         })
     return result
+
+
+def _find_custom_scene(scene_id: str, user_id: int, db: Session):
+    """Look up a custom scene from DB, return as dict or None."""
+    from backend.models.custom_scene import CustomScene
+    cs = db.exec(
+        select(CustomScene).where(CustomScene.scene_id == scene_id, CustomScene.user_id == user_id)
+    ).first()
+    if not cs:
+        return None
+    return {
+        "id": cs.scene_id,
+        "title_en": cs.title_en,
+        "title_nl": cs.title_nl,
+        "vocab": json.loads(cs.vocab_json),
+        "model_sentences": json.loads(cs.sentences_json),
+        "exam_questions": json.loads(cs.questions_json),
+    }
 
 
 @router.get("/scenes/{scene_id}")
 def scene_detail(
     scene_id: str,
-    _user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
 ):
     """Return full scene content (vocab + model sentences)."""
-    scene = get_scene(scene_id)
+    scene = get_scene(scene_id) or _find_custom_scene(scene_id, user.id, db)
     if not scene:
         raise HTTPException(status_code=404, detail="Scene not found")
     return {
@@ -91,10 +135,11 @@ def scene_detail(
 @router.get("/scenes/{scene_id}/questions")
 def scene_questions(
     scene_id: str,
-    _user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
 ):
     """Return exam questions for a scene."""
-    scene = get_scene(scene_id)
+    scene = get_scene(scene_id) or _find_custom_scene(scene_id, user.id, db)
     if not scene:
         raise HTTPException(status_code=404, detail="Scene not found")
     return scene["exam_questions"]
@@ -122,8 +167,19 @@ async def submit_recording(
     user: User = Depends(get_current_user),
 ):
     """Upload recording → STT → AI review → save + return feedback."""
-    # Validate question exists — check mock exams first, then scene questions
+    # Validate question exists — check mock exams, built-in scenes, then custom scenes
     question = get_mock_question(scene, question_id) or get_question(scene, question_id)
+    if not question:
+        # Check custom scenes
+        custom = _find_custom_scene(scene, user.id, db)
+        if custom:
+            for qtype in ("short", "long"):
+                for q in custom["exam_questions"].get(qtype, []):
+                    if q["id"] == question_id:
+                        question = q
+                        break
+                if question:
+                    break
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
 
@@ -360,23 +416,166 @@ def mock_exam_detail(
 def get_sentence_audio(
     scene_id: str,
     sentence_index: int,
-    _user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
 ):
     """Generate TTS for a model sentence and return the audio file path."""
-    scene = get_scene(scene_id)
+    scene = get_scene(scene_id) or _find_custom_scene(scene_id, user.id, db)
     if not scene:
         raise HTTPException(status_code=404, detail="Scene not found")
     sentences = scene["model_sentences"]
     if sentence_index < 0 or sentence_index >= len(sentences):
         raise HTTPException(status_code=404, detail="Sentence not found")
 
-    from backend.core.audio import AUDIO_LISTENING_DIR, _generate_mp3
+    from backend.config import AUDIO_LISTENING_DIR
+    from backend.core.audio import _generate_edge_tts, VOICE_FEMALE_1
+    from backend.core.storage import upload_file
 
     text = sentences[sentence_index]["text"]
     filename = f"speaking_{scene_id}_{sentence_index:02d}.mp3"
     path = AUDIO_LISTENING_DIR / filename
     if not path.exists():
         AUDIO_LISTENING_DIR.mkdir(parents=True, exist_ok=True)
-        _generate_mp3(text, path, lang="nl")
+        _generate_edge_tts(text, path, voice=VOICE_FEMALE_1)
+        try:
+            with open(path, "rb") as f:
+                upload_file("listening", filename, f.read())
+        except Exception:
+            pass
 
     return {"audio_file": filename}
+
+
+# ── Custom scene generation ─────────────────────────────────────────────────
+
+
+class CreateSceneRequest(BaseModel):
+    topic: str
+    level: str = "A2"
+    admin_password: str = ""
+
+
+class CreateSceneResponse(BaseModel):
+    scene_id: str
+    title_en: str
+    title_nl: str
+
+
+MAX_CUSTOM_SCENES = 5
+
+
+@router.post("/custom-scenes", response_model=CreateSceneResponse)
+def create_custom_scene(
+    req: CreateSceneRequest,
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Generate a custom speaking scene from a topic. Limited to 5 per user."""
+    from backend.core.qwen import generate_custom_scene
+    from backend.models.custom_scene import CustomScene
+
+    # Check limit (admin bypasses)
+    bypass = False
+    if user.username == "admin":
+        bypass = True
+    elif req.admin_password:
+        from backend.core.auth import verify_password
+        admin = db.exec(select(User).where(User.username == "admin")).first()
+        if admin and verify_password(req.admin_password, admin.hashed_password):
+            bypass = True
+
+    if not bypass:
+        count = len(db.exec(
+            select(CustomScene).where(CustomScene.user_id == user.id)
+        ).all())
+        if count >= MAX_CUSTOM_SCENES:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Custom scene limit reached ({MAX_CUSTOM_SCENES}). Contact admin for more.",
+            )
+
+    data = generate_custom_scene(req.topic, req.level)
+    scene_id = f"custom_{user.id}_{int(datetime.utcnow().timestamp())}"
+
+    cs = CustomScene(
+        user_id=user.id,
+        scene_id=scene_id,
+        title_en=data["title_en"],
+        title_nl=data["title_nl"],
+        level=req.level,
+        vocab_json=json.dumps(data["vocab"]),
+        sentences_json=json.dumps(data["model_sentences"]),
+        questions_json=json.dumps(data.get("exam_questions", {"short": [], "long": []})),
+    )
+    db.add(cs)
+    db.commit()
+    db.refresh(cs)
+
+    return CreateSceneResponse(scene_id=scene_id, title_en=data["title_en"], title_nl=data["title_nl"])
+
+
+@router.get("/custom-scenes")
+def list_custom_scenes(
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """List all custom scenes for this user."""
+    from backend.models.custom_scene import CustomScene
+
+    scenes = db.exec(
+        select(CustomScene).where(CustomScene.user_id == user.id).order_by(col(CustomScene.created_at).desc())
+    ).all()
+    return [
+        {
+            "id": s.scene_id,
+            "title_en": s.title_en,
+            "title_nl": s.title_nl,
+            "level": s.level,
+            "vocab_count": len(json.loads(s.vocab_json)),
+            "sentence_count": len(json.loads(s.sentences_json)),
+            "question_count": sum(len(v) for v in json.loads(s.questions_json).values()),
+            "created_at": s.created_at.isoformat(),
+        }
+        for s in scenes
+    ]
+
+
+@router.get("/custom-scenes/{scene_id}")
+def custom_scene_detail(
+    scene_id: str,
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Return full custom scene content."""
+    from backend.models.custom_scene import CustomScene
+
+    cs = db.exec(
+        select(CustomScene).where(CustomScene.scene_id == scene_id, CustomScene.user_id == user.id)
+    ).first()
+    if not cs:
+        raise HTTPException(status_code=404, detail="Custom scene not found")
+    return {
+        "id": cs.scene_id,
+        "title_en": cs.title_en,
+        "title_nl": cs.title_nl,
+        "level": cs.level,
+        "vocab": json.loads(cs.vocab_json),
+        "model_sentences": json.loads(cs.sentences_json),
+    }
+
+
+@router.get("/custom-scenes/{scene_id}/questions")
+def custom_scene_questions(
+    scene_id: str,
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Return exam questions for a custom scene."""
+    from backend.models.custom_scene import CustomScene
+
+    cs = db.exec(
+        select(CustomScene).where(CustomScene.scene_id == scene_id, CustomScene.user_id == user.id)
+    ).first()
+    if not cs:
+        raise HTTPException(status_code=404, detail="Custom scene not found")
+    return json.loads(cs.questions_json)

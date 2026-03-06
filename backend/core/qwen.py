@@ -266,14 +266,12 @@ def get_explanation(data: dict, questions: list[dict], user_answers: list[str], 
         )
 
     prompt = (
-        f"The student just completed a Dutch {level} listening exercise.\n\n"
-        f"Topic: {data['topic']}\n\n"
-        f"Dialogue transcript:\n{transcript}\n\n"
-        f"Questions and student answers:\n{qa_summary}"
-        f"Please explain in English, for each question, why the correct answer is right "
-        f"and (if the student was wrong) why their choice was incorrect. "
-        f"Reference specific lines from the dialogue to support each explanation. "
-        f"Keep it clear and encouraging for a {level} learner."
+        f"Dutch {level} listening exercise. Topic: {data['topic']}\n\n"
+        f"Dialogue:\n{transcript}\n\n"
+        f"Results:\n{qa_summary}"
+        f"For each wrong answer, write 1-2 sentences: which dialogue line gives the answer and why. "
+        f"For correct answers, just write 'Correct.' "
+        f"Be brief. No encouragement or filler. English only."
     )
 
     response = client.chat.completions.create(
@@ -282,3 +280,79 @@ def get_explanation(data: dict, questions: list[dict], user_answers: list[str], 
         temperature=0.5,
     )
     return response.choices[0].message.content.strip()
+
+
+# ── Custom scene generation ─────────────────────────────────────────────────
+
+SCENE_LEVEL_CONFIGS = {
+    "A1": {"vocab_count": 8, "sentence_count": 5, "short_q": 3, "long_q": 2, "desc": "basic vocabulary, simple present tense, short sentences"},
+    "A2": {"vocab_count": 12, "sentence_count": 8, "short_q": 4, "long_q": 3, "desc": "everyday topics, past tense allowed, compound sentences"},
+    "B1": {"vocab_count": 15, "sentence_count": 10, "short_q": 5, "long_q": 4, "desc": "opinions, comparisons, complex sentences, varied tenses"},
+}
+
+
+def generate_custom_scene(topic_en: str, level: str = "A2") -> dict:
+    """Generate a full speaking scene (vocab + sentences + questions) for a topic."""
+    if not DASHSCOPE_API_KEY:
+        raise RuntimeError("DASHSCOPE_API_KEY is not set")
+
+    cfg = SCENE_LEVEL_CONFIGS.get(level, SCENE_LEVEL_CONFIGS["A2"])
+    client = _get_client()
+
+    prompt = f"""Generate a Dutch {level} speaking exam scene about: "{topic_en}".
+
+Return ONLY valid JSON:
+{{
+  "title_en": "English title",
+  "title_nl": "Dutch title",
+  "vocab": [
+    {{"dutch": "phrase", "english": "translation", "example": "example sentence"}},
+    ...
+  ],
+  "model_sentences": [
+    {{"text": "Dutch sentence", "english": "English translation"}},
+    ...
+  ],
+  "exam_questions": {{
+    "short": [
+      {{"id": "q1", "prompt_nl": "Dutch question?", "prompt_en": "English?", "prep_seconds": 15, "record_seconds": 30, "expected_phrases": ["phrase1"], "model_answer": "Dutch model answer", "question_type": "short"}},
+      ...
+    ],
+    "long": [
+      {{"id": "q1l", "prompt_nl": "Dutch question?", "prompt_en": "English?", "prep_seconds": 30, "record_seconds": 60, "expected_phrases": ["phrase1"], "model_answer": "Dutch model answer", "question_type": "long"}},
+      ...
+    ]
+  }}
+}}
+
+Requirements:
+- {cfg['vocab_count']} vocab items with dutch, english, example
+- {cfg['sentence_count']} model sentences using the vocab
+- {cfg['short_q']} short questions (15s prep, 30s record) and {cfg['long_q']} long questions (30s prep, 60s record)
+- {level} level: {cfg['desc']}
+- All content in Dutch, translations in English
+- Questions should test speaking ability about this topic"""
+
+    last_err = None
+    for _ in range(2):
+        try:
+            response = client.chat.completions.create(
+                model="qwen-plus",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+            )
+            raw = response.choices[0].message.content.strip()
+            lines = raw.split("\n")
+            if lines[0].startswith("```"):
+                raw = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+            data = json.loads(raw)
+            assert "title_en" in data and "title_nl" in data
+            assert "vocab" in data and len(data["vocab"]) >= 3
+            assert "model_sentences" in data and len(data["model_sentences"]) >= 2
+            assert "exam_questions" in data
+            return data
+        except Exception as e:
+            last_err = e
+            time.sleep(1)
+
+    raise RuntimeError(f"Scene generation failed: {last_err}")

@@ -22,7 +22,8 @@ type Phase =
   | "shadow_play"
   | "shadow_record"
   | "shadow_review"
-  | "shadow_report";
+  | "shadow_report"
+  | "create_scene";
 
 interface CurrentQuestion extends api.SpeakingQuestion {
   question_type: "short" | "long";
@@ -476,9 +477,11 @@ export default function Speaking() {
     case "home":
       return <SpeakingHome scenes={scenes} onBlock1={openSceneList} onBlock2={openPracticeSetup} onBlock3={() => { loadHistory(); setPhase("review"); }} onBlock4={openShadowSetup} history={history} loadHistory={loadHistory} />;
     case "scene_list":
-      return <SceneListView scenes={scenes} onSelect={openSceneDetail} onBack={goHome} />;
+      return <SceneListView scenes={scenes} onSelect={openSceneDetail} onBack={goHome} onCreateScene={() => setPhase("create_scene")} />;
+    case "create_scene":
+      return <CreateSceneView onBack={openSceneList} onCreated={(sceneId) => { loadScenes(); openSceneDetail(sceneId); }} />;
     case "scene_detail":
-      return selectedScene ? <SceneDetailView scene={selectedScene} onBack={openSceneList} /> : null;
+      return selectedScene ? <SceneDetailView scene={selectedScene} onBack={openSceneList} onStartPractice={startPractice} /> : null;
     case "practice_setup":
       return <PracticeSetupView scenes={scenes} onStart={startPractice} onBack={goHome} />;
     case "mock_exam_list":
@@ -606,20 +609,71 @@ function SpeakingHome({
 
 
 function SceneListView({
-  scenes, onSelect, onBack,
+  scenes, onSelect, onBack, onCreateScene,
 }: {
   scenes: api.SpeakingSceneSummary[];
   onSelect: (id: string) => void;
   onBack: () => void;
+  onCreateScene: () => void;
 }) {
+  const builtIn = scenes.filter((s) => !s.is_custom);
+  const custom = scenes.filter((s) => s.is_custom);
+
   return (
     <div className="p-6 max-w-3xl mx-auto">
       <button onClick={onBack} className="text-blue-400 hover:text-blue-300 text-sm mb-4">
         ← Back
       </button>
-      <h1 className="text-2xl font-bold text-slate-800 mb-6">Exam Scenes</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-slate-800">Exam Scenes</h1>
+        <button
+          onClick={onCreateScene}
+          className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium"
+        >
+          + Create Scene
+        </button>
+      </div>
+
+      {/* Custom scenes */}
+      {custom.length > 0 && (
+        <>
+          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Your Scenes</h2>
+          <div className="space-y-3 mb-6">
+            {custom.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => onSelect(s.id)}
+                className="w-full rounded-xl p-4 text-left transition-colors border bg-blue-900/30 hover:bg-blue-900/50 border-blue-700/50 cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-white font-semibold">{s.title_en}</h3>
+                      {s.level && (
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-blue-700/50 text-blue-300">{s.level}</span>
+                      )}
+                    </div>
+                    <p className="text-sm text-slate-400">{s.title_nl}</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {s.vocab_count} vocab · {s.sentence_count} sentences · {s.question_count} questions
+                    </p>
+                  </div>
+                  {s.avg_score !== null && (
+                    <div className={`text-lg font-bold ${s.avg_score >= 70 ? "text-green-400" : s.avg_score >= 50 ? "text-blue-400" : "text-red-400"}`}>
+                      {s.avg_score}%
+                    </div>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Built-in scenes */}
+      <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Built-in Scenes</h2>
       <div className="space-y-3">
-        {scenes.map((s) => (
+        {builtIn.map((s) => (
           <button
             key={s.id}
             onClick={() => onSelect(s.id)}
@@ -650,14 +704,163 @@ function SceneListView({
 }
 
 
+function CreateSceneView({
+  onBack, onCreated,
+}: {
+  onBack: () => void;
+  onCreated: (sceneId: string) => void;
+}) {
+  const [topic, setTopic] = useState("");
+  const [level, setLevel] = useState<"A1" | "A2" | "B1">("A2");
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState("");
+  const [showAdminPopup, setShowAdminPopup] = useState(false);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [adminError, setAdminError] = useState("");
+
+  const doCreate = async (adminPw?: string) => {
+    if (!topic.trim()) return;
+    setGenerating(true);
+    setError("");
+    try {
+      const result = await api.createCustomScene(topic.trim(), level, adminPw);
+      onCreated(result.scene_id);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to generate scene";
+      if (msg.includes("limit reached")) {
+        setShowAdminPopup(true);
+        setGenerating(false);
+      } else {
+        setError(msg);
+        setGenerating(false);
+      }
+    }
+  };
+
+  const handleCreate = () => doCreate();
+
+  const handleAdminSubmit = async () => {
+    if (!adminPassword.trim()) return;
+    setAdminError("");
+    setShowAdminPopup(false);
+    await doCreate(adminPassword.trim());
+    if (!generating) {
+      // If it failed again, the error will be set
+      setAdminPassword("");
+    }
+  };
+
+  return (
+    <div className="p-6 max-w-2xl mx-auto">
+      <button onClick={onBack} className="text-blue-400 hover:text-blue-300 text-sm mb-4">
+        ← Back
+      </button>
+      <h1 className="text-2xl font-bold text-slate-800 mb-6">Create Custom Scene</h1>
+
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-600 mb-2">Topic (in English)</label>
+          <input
+            type="text"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            placeholder="e.g. Visiting the doctor, Ordering food at a restaurant..."
+            className="w-full rounded-lg border border-slate-600 bg-slate-800 text-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={generating}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-600 mb-2">Difficulty Level</label>
+          <div className="flex gap-3">
+            {(["A1", "A2", "B1"] as const).map((l) => (
+              <button
+                key={l}
+                onClick={() => setLevel(l)}
+                disabled={generating}
+                className={`flex-1 py-3 rounded-lg font-semibold text-sm transition-colors ${
+                  level === l
+                    ? "bg-blue-600 text-white"
+                    : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                }`}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
+
+        <button
+          onClick={handleCreate}
+          disabled={!topic.trim() || generating}
+          className="w-full py-3 rounded-lg font-semibold transition-colors bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {generating ? "Generating scene... (10-20s)" : "Generate Scene"}
+        </button>
+
+        <p className="text-xs text-slate-500 text-center">
+          AI will generate vocabulary, model sentences, and exam questions for your topic. Limited to 5 custom scenes per account.
+        </p>
+      </div>
+
+      {/* Admin password popup */}
+      {showAdminPopup && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 mx-4 max-w-sm w-full shadow-xl">
+            <h3 className="text-lg font-bold text-slate-800 mb-2">Scene Limit Reached</h3>
+            <p className="text-sm text-slate-600 mb-4">
+              You've reached the limit of 5 custom scenes. Enter the admin password to unlock more.
+            </p>
+            <input
+              type="password"
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAdminSubmit()}
+              placeholder="Admin password"
+              className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              autoFocus
+            />
+            {adminError && <p className="text-xs text-red-500 mb-2">{adminError}</p>}
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowAdminPopup(false); setAdminPassword(""); }}
+                className="flex-1 py-2 rounded-lg border border-slate-300 text-slate-600 text-sm hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAdminSubmit}
+                disabled={!adminPassword.trim()}
+                className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+              >
+                Unlock
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 function SceneDetailView({
-  scene, onBack,
+  scene, onBack, onStartPractice,
 }: {
   scene: api.SpeakingSceneDetail;
   onBack: () => void;
+  onStartPractice: (sceneId: string, filter: "all" | "short" | "long") => void;
 }) {
   const [playingIdx, setPlayingIdx] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [questions, setQuestions] = useState<api.SpeakingQuestions | null>(null);
+  const [showQuestions, setShowQuestions] = useState(false);
 
   const playSentence = async (idx: number) => {
     try {
@@ -676,13 +879,30 @@ function SceneDetailView({
     }
   };
 
+  const loadQuestions = async () => {
+    if (questions) { setShowQuestions(!showQuestions); return; }
+    try {
+      const qs = await api.getSpeakingQuestions(scene.id);
+      setQuestions(qs);
+      setShowQuestions(true);
+    } catch { /* ignore */ }
+  };
+
   return (
     <div className="p-6 max-w-3xl mx-auto">
       <button onClick={onBack} className="text-blue-400 hover:text-blue-300 text-sm mb-4">
         ← Back to scenes
       </button>
       <h1 className="text-2xl font-bold text-slate-800 mb-1">{scene.title_en}</h1>
-      <p className="text-slate-500 mb-6">{scene.title_nl}</p>
+      <p className="text-slate-500 mb-4">{scene.title_nl}</p>
+
+      {/* Quick start practice */}
+      <button
+        onClick={() => onStartPractice(scene.id, "all")}
+        className="w-full mb-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+      >
+        Start Practice
+      </button>
 
       {/* Vocab */}
       <h2 className="text-lg font-semibold text-slate-800 mb-3">Vocabulary</h2>
@@ -698,7 +918,7 @@ function SceneDetailView({
 
       {/* Model sentences */}
       <h2 className="text-lg font-semibold text-slate-800 mb-3">Model Sentences</h2>
-      <div className="space-y-2">
+      <div className="space-y-2 mb-8">
         {scene.model_sentences.map((s, i) => (
           <div key={i} className="bg-slate-800 rounded-lg p-3 border border-slate-700 flex items-start gap-3">
             <button
@@ -717,6 +937,44 @@ function SceneDetailView({
           </div>
         ))}
       </div>
+
+      {/* Questions (expandable) */}
+      <button
+        onClick={loadQuestions}
+        className="text-blue-400 hover:text-blue-300 text-sm font-medium mb-3"
+      >
+        {showQuestions ? "▼ Hide Exam Questions" : "▶ Show Exam Questions"}
+      </button>
+      {showQuestions && questions && (
+        <div className="space-y-4">
+          {questions.short.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-slate-500 uppercase mb-2">Short Questions (30s)</h3>
+              <div className="space-y-2">
+                {questions.short.map((q, i) => (
+                  <div key={i} className="bg-slate-800 rounded-lg p-3 border border-slate-700">
+                    <p className="text-white text-sm">{q.prompt_nl}</p>
+                    <p className="text-slate-400 text-xs">{q.prompt_en}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {questions.long.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-slate-500 uppercase mb-2">Long Questions (60s)</h3>
+              <div className="space-y-2">
+                {questions.long.map((q, i) => (
+                  <div key={i} className="bg-slate-800 rounded-lg p-3 border border-slate-700">
+                    <p className="text-white text-sm">{q.prompt_nl}</p>
+                    <p className="text-slate-400 text-xs">{q.prompt_en}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

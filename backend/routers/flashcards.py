@@ -2,6 +2,7 @@
 
 import random
 from datetime import date
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -232,3 +233,92 @@ def submit_review(
         ease_factor=new_state["ease_factor"],
         mastered=False,
     )
+
+
+# ── Vocabulary Notebook ─────────────────────────────────────────────────────
+
+
+class VocabNoteItem(BaseModel):
+    vocab_id: int
+    dutch: str
+    english: str
+    category: str
+    example_dutch: str
+    example_english: str
+    audio_file: str
+    level: str  # "new" | "learning" | "familiar" | "mastered"
+    next_review: Optional[str]
+    ease_factor: Optional[float]
+    interval: Optional[int]
+
+
+class VocabNotebookOut(BaseModel):
+    items: list[VocabNoteItem]
+    counts: dict[str, int]  # level -> count
+
+
+def _classify_level(prog_nl: Optional[FlashcardProgress], prog_en: Optional[FlashcardProgress]) -> str:
+    """Classify a vocab word's memorization level based on best progress across directions."""
+    if not prog_nl and not prog_en:
+        return "new"
+    best = None
+    for p in (prog_nl, prog_en):
+        if p is None:
+            continue
+        if p.mastered:
+            return "mastered"
+        if best is None or p.repetitions > best.repetitions:
+            best = p
+    if best is None or best.repetitions == 0:
+        return "new"
+    if best.repetitions <= 2 and best.ease_factor < 2.2:
+        return "hard"
+    if best.repetitions <= 2:
+        return "learning"
+    return "familiar"
+
+
+@router.get("/notebook", response_model=VocabNotebookOut)
+def get_vocab_notebook(
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Return all vocab with per-user memorization levels."""
+    all_vocab = db.exec(select(Vocab)).all()
+    progress_rows = db.exec(
+        select(FlashcardProgress).where(FlashcardProgress.user_id == user.id)
+    ).all()
+    prog_map: dict[tuple[int, str], FlashcardProgress] = {
+        (p.vocab_id, p.direction): p for p in progress_rows
+    }
+
+    items: list[VocabNoteItem] = []
+    counts: dict[str, int] = {"new": 0, "hard": 0, "learning": 0, "familiar": 0, "mastered": 0}
+
+    for v in all_vocab:
+        prog_nl = prog_map.get((v.id, "nl_en"))
+        prog_en = prog_map.get((v.id, "en_nl"))
+        level = _classify_level(prog_nl, prog_en)
+        counts[level] += 1
+
+        # Pick the more advanced progress for display
+        best_prog = None
+        for p in (prog_nl, prog_en):
+            if p and (best_prog is None or p.repetitions > best_prog.repetitions):
+                best_prog = p
+
+        items.append(VocabNoteItem(
+            vocab_id=v.id,
+            dutch=v.dutch,
+            english=v.english,
+            category=v.category,
+            example_dutch=v.example_dutch,
+            example_english=v.example_english,
+            audio_file=v.audio_file,
+            level=level,
+            next_review=best_prog.next_review.isoformat() if best_prog and best_prog.repetitions > 0 else None,
+            ease_factor=round(best_prog.ease_factor, 2) if best_prog else None,
+            interval=best_prog.interval if best_prog else None,
+        ))
+
+    return VocabNotebookOut(items=items, counts=counts)
