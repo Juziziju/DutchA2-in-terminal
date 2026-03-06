@@ -8,10 +8,14 @@ import {
   FlashcardStats,
   ListeningHistoryItem,
   TrainingSummary,
+  PlannerStatus,
+  PlannerDailyPlan,
   getExamResults,
   getFlashcardResults,
   getListeningResults,
   getDashboardTraining,
+  getPlannerStatus,
+  getTodayPlan,
 } from "../api";
 
 function calcStreak(listening: ListeningHistoryItem[]): number {
@@ -46,6 +50,8 @@ export default function Dashboard() {
   const [listening, setListening] = useState<ListeningHistoryItem[]>([]);
   const [exams, setExams] = useState<ExamHistoryItem[]>([]);
   const [training, setTraining] = useState<TrainingSummary | null>(null);
+  const [plannerStatus, setPlannerStatus] = useState<PlannerStatus | null>(null);
+  const [todayPlan, setTodayPlan] = useState<PlannerDailyPlan | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -53,7 +59,15 @@ export default function Dashboard() {
       .then(([fc, l, e]) => { setFcStats(fc); setListening(l); setExams(e); })
       .catch(() => {});
     const tr = getDashboardTraining(30).then(setTraining).catch(() => {});
-    Promise.all([core, tr]).finally(() => setLoading(false));
+    const planner = getPlannerStatus()
+      .then(s => {
+        setPlannerStatus(s);
+        if (s.planner_enabled && s.step === "ready") {
+          return getTodayPlan().then(setTodayPlan).catch(() => {});
+        }
+      })
+      .catch(() => {});
+    Promise.all([core, tr, planner]).finally(() => setLoading(false));
   }, []);
 
   const streak = calcStreak(listening);
@@ -113,6 +127,26 @@ export default function Dashboard() {
           />
         </div>
       )}
+
+      {/* Planner Card */}
+      {!loading && plannerStatus?.planner_enabled && todayPlan && (() => {
+        const total = todayPlan.tasks.length;
+        const done = todayPlan.tasks.filter(t => t.status === "completed").length;
+        const pct = total > 0 ? Math.round(done / total * 100) : 0;
+        return (
+          <div
+            className="bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl p-5 mb-8 text-white cursor-pointer hover:shadow-lg transition"
+            onClick={() => nav("/planner")}
+          >
+            <p className="text-sm font-medium opacity-80 mb-1">Today's Plan</p>
+            <p className="text-lg font-bold">{todayPlan.focus_headline}</p>
+            <div className="mt-3 bg-white/20 rounded-full h-2">
+              <div className="bg-white rounded-full h-2 transition-all" style={{ width: `${pct}%` }} />
+            </div>
+            <p className="text-xs opacity-70 mt-1">{done}/{total} tasks completed ({pct}%)</p>
+          </div>
+        );
+      })()}
 
       {/* Training Overview Card */}
       {!loading && training && training.total_sessions > 0 && (

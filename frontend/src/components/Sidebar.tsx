@@ -85,6 +85,7 @@ export default function Sidebar() {
 
           <SidebarItem icon={<BookIcon />} label="Study" submenuKey="study">
             <SidebarSubItem to="/study/listening" label="Listening" badge={active.listening ? <ActiveDot /> : undefined} />
+            <SidebarSubItem to="/study/speaking" label="Speaking" />
             <SidebarSubItem to="/study/reading" label="Reading" />
             <SidebarSubItem to="/study/writing" label="Writing" />
             <SidebarSubItem to="/study/knm" label="KNM" />

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   PlannerProfile,
   PlannerStatus,
@@ -295,7 +296,7 @@ function PlacementTest({ profile, onDone }: { profile: PlannerProfile; onDone: (
         </button>
         <button
           onClick={async () => {
-            await updatePlannerProfile({ current_level: "A1" });
+            await updatePlannerProfile({ current_level: "A1", placement_completed: true });
             onDone();
           }}
           className="block mx-auto mt-4 text-sm text-slate-400 hover:text-slate-600"
@@ -425,6 +426,15 @@ function PlacementTest({ profile, onDone }: { profile: PlannerProfile; onDone: (
             rows={6}
             className="w-full border border-slate-200 rounded-xl p-4 text-sm focus:outline-none focus:border-blue-400"
           />
+          {step === "submitting" && (
+            <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-xl text-sm text-blue-700">
+              <svg className="animate-spin h-5 w-5 text-blue-600" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              AI is grading your writing...
+            </div>
+          )}
         </div>
       )}
 
@@ -537,9 +547,9 @@ function DailyView({ profile, onDisable }: { profile: PlannerProfile; onDisable:
     }
   }
 
-  async function handleComplete(taskId: number) {
+  async function handleComplete(taskId: number, score: number) {
     try {
-      await completeTask(taskId, {});
+      await completeTask(taskId, { score });
       loadPlan();
     } catch {}
   }
@@ -618,7 +628,7 @@ function DailyView({ profile, onDisable }: { profile: PlannerProfile; onDisable:
 
 function TodayPlan({ plan, onComplete, onSkip, onRegenerate }: {
   plan: PlannerDailyPlan;
-  onComplete: (id: number) => void;
+  onComplete: (id: number, score: number) => void;
   onSkip: (id: number) => void;
   onRegenerate: () => void;
 }) {
@@ -670,15 +680,34 @@ function TodayPlan({ plan, onComplete, onSkip, onRegenerate }: {
   );
 }
 
+const TASK_TYPE_ROUTES: Record<string, string> = {
+  vocab_review: "/vocab-refresh",
+  listening_quiz: "/study/listening",
+  intensive: "/study/listening",
+  reading: "/study/reading",
+  writing: "/study/writing",
+  shadow_reading: "/study/listening",
+};
+
+const SCORE_OPTIONS = [
+  { label: "Poor", value: 25, color: "bg-red-100 text-red-700 hover:bg-red-200" },
+  { label: "OK", value: 50, color: "bg-amber-100 text-amber-700 hover:bg-amber-200" },
+  { label: "Good", value: 75, color: "bg-blue-100 text-blue-700 hover:bg-blue-200" },
+  { label: "Great", value: 100, color: "bg-green-100 text-green-700 hover:bg-green-200" },
+];
+
 function TaskCard({ task, onComplete, onSkip }: {
   task: PlannerTask;
-  onComplete: (id: number) => void;
+  onComplete: (id: number, score: number) => void;
   onSkip: (id: number) => void;
 }) {
+  const nav = useNavigate();
+  const [showScore, setShowScore] = useState(false);
   const typeLabel = TASK_TYPE_LABELS[task.task_type] ?? task.task_type;
   const typeColor = TASK_TYPE_COLORS[task.task_type] ?? "bg-slate-100 text-slate-600";
   const isDone = task.status === "completed";
   const isSkipped = task.status === "skipped";
+  const route = TASK_TYPE_ROUTES[task.task_type];
 
   return (
     <div className={`bg-white rounded-xl border p-4 transition ${
@@ -702,8 +731,16 @@ function TaskCard({ task, onComplete, onSkip }: {
 
         {task.status === "pending" && (
           <div className="flex gap-1.5 flex-shrink-0">
+            {route && (
+              <button
+                onClick={() => nav(route)}
+                className="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-200 transition font-medium"
+              >
+                Start
+              </button>
+            )}
             <button
-              onClick={() => onComplete(task.id)}
+              onClick={() => setShowScore(true)}
               className="text-xs bg-green-100 text-green-700 px-3 py-1.5 rounded-lg hover:bg-green-200 transition font-medium"
             >
               Done
@@ -717,6 +754,30 @@ function TaskCard({ task, onComplete, onSkip }: {
           </div>
         )}
       </div>
+
+      {/* Score prompt */}
+      {showScore && (
+        <div className="mt-3 pt-3 border-t border-slate-100">
+          <p className="text-xs text-slate-500 mb-2">How did it go?</p>
+          <div className="flex gap-2">
+            {SCORE_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => { setShowScore(false); onComplete(task.id, opt.value); }}
+                className={`flex-1 text-xs px-2 py-1.5 rounded-lg font-medium transition ${opt.color}`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setShowScore(false)}
+            className="text-[10px] text-slate-400 hover:text-slate-600 mt-2"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
     </div>
   );
 }

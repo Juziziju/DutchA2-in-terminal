@@ -9,6 +9,7 @@ import MockExam from "./pages/MockExam";
 import Planner from "./pages/Planner";
 import Reading from "./pages/Reading";
 import Settings from "./pages/Settings";
+import Speaking from "./pages/Speaking";
 import StudyMaterial from "./pages/StudyMaterial";
 import Writing from "./pages/Writing";
 
@@ -21,6 +22,7 @@ export default function App() {
           <Route index element={<Dashboard />} />
           <Route path="study/listening" element={<Listening />} />
           <Route path="study/reading" element={<Reading />} />
+          <Route path="study/speaking" element={<Speaking />} />
           <Route path="study/writing" element={<Writing />} />
           <Route path="study/knm" element={<KNMExercise />} />
           <Route path="vocab-refresh" element={<Flashcards />} />

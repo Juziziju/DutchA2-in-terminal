@@ -552,3 +552,137 @@ export function getPlannerHistory(days = 7) { return request<PlannerHistoryItem[
 export function getWeeklyReport() { return request<PlannerWeeklyReport>("GET", "/planner/report/weekly"); }
 export function getRoadmap() { return request<PlannerRoadmap>("GET", "/planner/roadmap"); }
 export function regenerateRoadmap() { return request<PlannerRoadmap>("POST", "/planner/roadmap/regenerate"); }
+
+// ── Speaking ─────────────────────────────────────────────────────────────────
+
+export interface SpeakingSceneSummary {
+  id: string;
+  title_en: string;
+  title_nl: string;
+  order: number;
+  vocab_count: number;
+  sentence_count: number;
+  question_count: number;
+  unlocked: boolean;
+  attempts: number;
+  avg_score: number | null;
+}
+
+export interface SpeakingVocabItem {
+  dutch: string;
+  english: string;
+  example: string;
+}
+
+export interface SpeakingModelSentence {
+  text: string;
+  english: string;
+}
+
+export interface SpeakingSceneDetail {
+  id: string;
+  title_en: string;
+  title_nl: string;
+  vocab: SpeakingVocabItem[];
+  model_sentences: SpeakingModelSentence[];
+}
+
+export interface SpeakingQuestion {
+  id: string;
+  prompt_nl: string;
+  prompt_en: string;
+  prep_seconds: number;
+  record_seconds: number;
+  expected_phrases: string[];
+  model_answer: string;
+}
+
+export interface SpeakingQuestions {
+  short: SpeakingQuestion[];
+  long: SpeakingQuestion[];
+}
+
+export interface SpeakingGrammarError {
+  error: string;
+  correction: string;
+}
+
+export interface SpeakingFeedback {
+  score: number;
+  vocabulary_score: number;
+  grammar_score: number;
+  completeness_score: number;
+  matched_phrases: string[];
+  missing_phrases: string[];
+  grammar_errors: SpeakingGrammarError[];
+  feedback_en: string;
+  improved_answer: string;
+}
+
+export interface SpeakingSubmitResponse {
+  session_id: number;
+  transcript: string;
+  feedback: SpeakingFeedback;
+  score_pct: number;
+  model_answer: string;
+}
+
+export interface SpeakingHistoryItem {
+  id: number;
+  scene: string;
+  question_id: string;
+  question_type: string;
+  mode: string;
+  transcript: string | null;
+  score_pct: number | null;
+  date: string;
+  feedback: SpeakingFeedback | null;
+}
+
+export function getSpeakingScenes() {
+  return request<SpeakingSceneSummary[]>("GET", "/speaking/scenes");
+}
+
+export function getSpeakingSceneDetail(sceneId: string) {
+  return request<SpeakingSceneDetail>("GET", `/speaking/scenes/${sceneId}`);
+}
+
+export function getSpeakingQuestions(sceneId: string) {
+  return request<SpeakingQuestions>("GET", `/speaking/scenes/${sceneId}/questions`);
+}
+
+export function getSpeakingSentenceAudio(sceneId: string, index: number) {
+  return request<{ audio_file: string }>("GET", `/speaking/tts/${sceneId}/${index}`);
+}
+
+export async function submitSpeakingRecording(
+  audio: Blob,
+  scene: string,
+  questionId: string,
+  questionType: string,
+  mode: string,
+): Promise<SpeakingSubmitResponse> {
+  const token = getToken();
+  const form = new FormData();
+  form.append("audio", audio, "recording.webm");
+  form.append("scene", scene);
+  form.append("question_id", questionId);
+  form.append("question_type", questionType);
+  form.append("mode", mode);
+
+  const res = await fetch(BASE + "/speaking/submit-recording", {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail ?? "Upload failed");
+  }
+  return res.json();
+}
+
+export function getSpeakingHistory() {
+  return request<SpeakingHistoryItem[]>("GET", "/speaking/history");
+}

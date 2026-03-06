@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend.config import AUDIO_DIR, AUDIO_LISTENING_DIR, ROOT_DIR
+from backend.config import AUDIO_DIR, AUDIO_LISTENING_DIR, AUDIO_SPEAKING_DIR, ROOT_DIR
 from backend.database import create_db_and_tables
 from backend.models.review_log import FlashcardReviewLog  # noqa: F401 — ensure table is created
 from backend.models.user_profile import UserProfile  # noqa: F401
@@ -16,7 +16,8 @@ from backend.models.placement import PlacementResult  # noqa: F401
 from backend.models.daily_plan import DailyPlan, TaskLog  # noqa: F401
 from backend.models.skill_snapshot import SkillSnapshot  # noqa: F401
 from backend.models.weekly_report import WeeklyReport, Roadmap  # noqa: F401
-from backend.routers import auth, exam, flashcards, listening, planner, results, vocab
+from backend.models.speaking import SpeakingSession  # noqa: F401
+from backend.routers import auth, exam, flashcards, listening, planner, results, speaking, vocab
 
 app = FastAPI(title="Dutch A2 Blitz", version="1.0.0")
 
@@ -33,12 +34,18 @@ app.add_middleware(
 # Static audio files
 AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 AUDIO_LISTENING_DIR.mkdir(parents=True, exist_ok=True)
+AUDIO_SPEAKING_DIR.mkdir(parents=True, exist_ok=True)
 
 app.mount("/audio", StaticFiles(directory=str(AUDIO_DIR)), name="audio")
 app.mount(
     "/audio_listening",
     StaticFiles(directory=str(AUDIO_LISTENING_DIR)),
     name="audio_listening",
+)
+app.mount(
+    "/audio_speaking",
+    StaticFiles(directory=str(AUDIO_SPEAKING_DIR)),
+    name="audio_speaking",
 )
 
 # API routers
@@ -49,6 +56,7 @@ app.include_router(listening.router)
 app.include_router(exam.router)
 app.include_router(results.router)
 app.include_router(planner.router)
+app.include_router(speaking.router)
 
 
 @app.on_event("startup")

@@ -42,6 +42,7 @@ class ProfileUpdate(BaseModel):
     daily_minutes: Optional[int] = None
     current_level: Optional[str] = None
     exam_date: Optional[date] = None
+    placement_completed: Optional[bool] = None
 
 
 class ProfileResponse(BaseModel):
@@ -306,6 +307,8 @@ def update_profile(
         profile.current_level = req.current_level
     if req.exam_date is not None:
         profile.exam_date = req.exam_date
+    if req.placement_completed is not None:
+        profile.placement_completed = req.placement_completed
 
     # Check if onboarding is complete
     if profile.goal and profile.timeline_months and profile.daily_minutes:

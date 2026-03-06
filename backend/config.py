@@ -42,6 +42,7 @@ DATABASE_URL: str = _db_url
 
 AUDIO_DIR: Path = ROOT_DIR / "audio"
 AUDIO_LISTENING_DIR: Path = ROOT_DIR / "audio_listening"
+AUDIO_SPEAKING_DIR: Path = ROOT_DIR / "audio_speaking"
 VOCAB_CSV: Path = ROOT_DIR / "vocab_input.csv"
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
