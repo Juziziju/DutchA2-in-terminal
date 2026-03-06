@@ -773,6 +773,101 @@ export function getSpeakingHistory() {
   return request<SpeakingHistoryItem[]>("GET", "/speaking/history");
 }
 
+// ── Speaking History (Paginated) ─────────────────────────────────────────────
+
+export interface SpeakingHistoryPage {
+  items: SpeakingHistoryItem[];
+  total: number;
+  page: number;
+  per_page: number;
+  pages: number;
+}
+
+export function getSpeakingHistoryPaged(
+  page: number,
+  perPage: number,
+  mode?: string,
+  scene?: string,
+): Promise<SpeakingHistoryPage> {
+  const params: Record<string, string> = { page: String(page), per_page: String(perPage) };
+  if (mode) params.mode = mode;
+  if (scene) params.scene = scene;
+  return request<SpeakingHistoryPage>("GET", "/speaking/history", undefined, params);
+}
+
+// ── Speaking Progress ────────────────────────────────────────────────────────
+
+export interface WeeklyTrend {
+  week: string;
+  avg_score: number | null;
+  avg_vocab: number | null;
+  avg_grammar: number | null;
+  avg_completeness: number | null;
+  session_count: number;
+}
+
+export interface MissedWord {
+  phrase: string;
+  count: number;
+  last_seen: string;
+}
+
+export interface ShadowMiss {
+  word: string;
+  miss_count: number;
+}
+
+export interface GrammarPattern {
+  error: string;
+  correction: string;
+  count: number;
+}
+
+export interface WeakAreas {
+  weakest: string | null;
+  strongest: string | null;
+  vocab_avg: number | null;
+  grammar_avg: number | null;
+  completeness_avg: number | null;
+}
+
+export interface ModeStats {
+  by_mode: Record<string, number>;
+  by_scene: Record<string, number>;
+}
+
+export interface WeekComparison {
+  this_week_avg: number | null;
+  last_week_avg: number | null;
+  delta: number | null;
+}
+
+export interface SpeakingProgressData {
+  weekly_trends: WeeklyTrend[];
+  weak_areas: WeakAreas;
+  missed_words: MissedWord[];
+  shadow_misses: ShadowMiss[];
+  grammar_patterns: GrammarPattern[];
+  mode_stats: ModeStats;
+  comparison: WeekComparison;
+  total_sessions: number;
+}
+
+export interface SpeakingAIInsight {
+  summary: string;
+  patterns: string[];
+  focus_areas: string[];
+  suggested_scene_topic: string | null;
+}
+
+export function getSpeakingProgress() {
+  return request<SpeakingProgressData>("GET", "/speaking/progress");
+}
+
+export function getSpeakingAIInsight() {
+  return request<SpeakingAIInsight>("GET", "/speaking/progress/ai-insight");
+}
+
 export interface ShadowSubmitResponse {
   session_id: number;
   transcript: string;

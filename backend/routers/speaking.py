@@ -4,13 +4,24 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from typing import Optional
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel
-from sqlmodel import Session, select, col
+from sqlmodel import Session, select, col, func
 
 from backend.config import AUDIO_SPEAKING_DIR
 from backend.core.audio import new_session_prefix
-from backend.core.speaking_ai import review_shadow, review_speaking, transcribe_audio
+from backend.core.speaking_ai import analyze_speaking_patterns, review_shadow, review_speaking, transcribe_audio
+from backend.core.speaking_analysis import (
+    aggregate_grammar_errors,
+    aggregate_missed_words,
+    aggregate_shadow_misses,
+    compute_comparison,
+    compute_mode_stats,
+    compute_weak_areas,
+    compute_weekly_trends,
+)
 from backend.core.speaking_bank import (
     SPEAKING_SCENES,
     get_mock_exam,
@@ -193,7 +204,7 @@ async def submit_recording(
     content = await audio.read()
     if len(content) > 5 * 1024 * 1024:  # 5MB limit
         raise HTTPException(status_code=413, detail="Audio file too large (max 5MB)")
-    if len(content) < 1000:  # ~1KB minimum
+    if len(content) < 100:
         raise HTTPException(status_code=400, detail="Recording too short")
 
     with open(audio_path, "wb") as f:
@@ -281,7 +292,7 @@ async def submit_shadow(
     user: User = Depends(get_current_user),
 ):
     """Upload shadow-reading recording → STT → compare to original sentence."""
-    scene = get_scene(scene_id)
+    scene = get_scene(scene_id) or _find_custom_scene(scene_id, user.id, db)
     if not scene:
         raise HTTPException(status_code=404, detail="Scene not found")
     sentences = scene["model_sentences"]
@@ -300,7 +311,7 @@ async def submit_shadow(
     content = await audio.read()
     if len(content) > 5 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Audio file too large (max 5MB)")
-    if len(content) < 1000:
+    if len(content) < 100:
         raise HTTPException(status_code=400, detail="Recording too short")
 
     with open(audio_path, "wb") as f:
@@ -359,19 +370,27 @@ async def submit_shadow(
 
 @router.get("/history")
 def speaking_history(
+    page: int = Query(default=0, ge=0),
+    per_page: int = Query(default=0, ge=0, le=100),
+    mode: Optional[str] = Query(default=None),
+    scene: Optional[str] = Query(default=None),
     db: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
-    """Return user's speaking practice history."""
-    sessions = db.exec(
-        select(SpeakingSession)
-        .where(SpeakingSession.user_id == user.id)
-        .order_by(col(SpeakingSession.date).desc())
-        .limit(50)
-    ).all()
+    """Return user's speaking practice history. Supports pagination + filtering.
 
-    return [
-        {
+    If page/per_page are 0 (default), returns the old flat-list format (first 50).
+    Otherwise returns paginated format with total/pages metadata.
+    """
+    # Build base query with filters
+    base = select(SpeakingSession).where(SpeakingSession.user_id == user.id)
+    if mode:
+        base = base.where(SpeakingSession.mode == mode)
+    if scene:
+        base = base.where(SpeakingSession.scene == scene)
+
+    def _serialize(s: SpeakingSession) -> dict:
+        return {
             "id": s.id,
             "scene": s.scene,
             "question_id": s.question_id,
@@ -382,8 +401,100 @@ def speaking_history(
             "date": s.date.isoformat(),
             "feedback": json.loads(s.feedback_json) if s.feedback_json else {},
         }
-        for s in sessions
-    ]
+
+    # Old format: no pagination params → flat list
+    if page == 0 and per_page == 0:
+        sessions = db.exec(
+            base.order_by(col(SpeakingSession.date).desc()).limit(50)
+        ).all()
+        return [_serialize(s) for s in sessions]
+
+    # Paginated format
+    if per_page == 0:
+        per_page = 20
+    # Count total
+    count_q = select(func.count()).select_from(SpeakingSession).where(SpeakingSession.user_id == user.id)
+    if mode:
+        count_q = count_q.where(SpeakingSession.mode == mode)
+    if scene:
+        count_q = count_q.where(SpeakingSession.scene == scene)
+    total = db.exec(count_q).one()
+
+    pages = max(1, (total + per_page - 1) // per_page)
+    offset = (page - 1) * per_page if page >= 1 else 0
+
+    sessions = db.exec(
+        base.order_by(col(SpeakingSession.date).desc())
+        .offset(offset)
+        .limit(per_page)
+    ).all()
+
+    return {
+        "items": [_serialize(s) for s in sessions],
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "pages": pages,
+    }
+
+
+# ── Progress & AI Insight ──────────────────────────────────────────────────
+
+
+def _get_all_sessions(user_id: int, db: Session) -> list[SpeakingSession]:
+    """Fetch all speaking sessions for a user."""
+    return list(db.exec(
+        select(SpeakingSession)
+        .where(SpeakingSession.user_id == user_id)
+        .order_by(col(SpeakingSession.date).desc())
+    ).all())
+
+
+@router.get("/progress")
+def speaking_progress(
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Fast data-only progress endpoint (no LLM call)."""
+    sessions = _get_all_sessions(user.id, db)
+    return {
+        "weekly_trends": compute_weekly_trends(sessions),
+        "weak_areas": compute_weak_areas(sessions),
+        "missed_words": aggregate_missed_words(sessions),
+        "shadow_misses": aggregate_shadow_misses(sessions),
+        "grammar_patterns": aggregate_grammar_errors(sessions),
+        "mode_stats": compute_mode_stats(sessions),
+        "comparison": compute_comparison(sessions),
+        "total_sessions": len(sessions),
+    }
+
+
+@router.get("/progress/ai-insight")
+def speaking_ai_insight(
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Slow LLM-powered insight endpoint."""
+    sessions = _get_all_sessions(user.id, db)
+    if not sessions:
+        return {
+            "summary": "No speaking sessions yet. Start practicing to get AI insights!",
+            "patterns": [],
+            "focus_areas": [],
+            "suggested_scene_topic": None,
+        }
+
+    data = {
+        "missed_words": aggregate_missed_words(sessions),
+        "shadow_misses": aggregate_shadow_misses(sessions),
+        "grammar_patterns": aggregate_grammar_errors(sessions),
+        "weak_areas": compute_weak_areas(sessions),
+        "comparison": compute_comparison(sessions),
+        "total_sessions": len(sessions),
+        "mode_stats": compute_mode_stats(sessions),
+    }
+
+    return analyze_speaking_patterns(data)
 
 
 # ── Mock exam endpoints ──────────────────────────────────────────────────────

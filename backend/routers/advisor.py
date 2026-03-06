@@ -138,6 +138,19 @@ def _gather_data(user: User, db: Session) -> dict:
         "avg_score": round(sum(r.score_pct for r in scored_speaking) / len(scored_speaking), 1) if scored_speaking else None,
     }
 
+    # 6b. Speaking analysis (aggregated, no LLM call)
+    from backend.core.speaking_analysis import (
+        aggregate_missed_words,
+        aggregate_grammar_errors,
+        compute_weak_areas,
+    )
+    all_speaking = db.exec(
+        select(SpeakingSession).where(SpeakingSession.user_id == user.id)
+    ).all()
+    speaking["top_missed_words"] = aggregate_missed_words(list(all_speaking))[:5]
+    speaking["top_grammar_patterns"] = aggregate_grammar_errors(list(all_speaking))[:3]
+    speaking["weak_areas"] = compute_weak_areas(list(all_speaking))
+
     # 7. Latest exam
     latest_exam = db.exec(
         select(ExamResult)

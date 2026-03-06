@@ -4,6 +4,8 @@ import CountdownTimer from "../components/CountdownTimer";
 import { useAudioRecorder } from "../hooks/useAudioRecorder";
 import * as api from "../api";
 import { listeningAudioUrl } from "../api";
+import HistoryViewNew from "../components/speaking/HistoryView";
+import ProgressReport from "../components/speaking/ProgressReport";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,7 +25,8 @@ type Phase =
   | "shadow_record"
   | "shadow_review"
   | "shadow_report"
-  | "create_scene";
+  | "create_scene"
+  | "progress";
 
 interface CurrentQuestion extends api.SpeakingQuestion {
   question_type: "short" | "long";
@@ -404,6 +407,12 @@ export default function Speaking() {
   };
 
   const selectShadowScene = async (sceneId: string) => {
+    // Acquire mic on user gesture (before auto-record flow starts)
+    const micErr = await recorder.acquireStream();
+    if (micErr) {
+      setError(`Microphone error: ${micErr}`);
+      return;
+    }
     setLoading(true);
     try {
       const detail = await api.getSpeakingSceneDetail(sceneId);
@@ -420,12 +429,6 @@ export default function Speaking() {
   };
 
   const startShadowRecording = async () => {
-    // Acquire mic stream on user gesture
-    const micErr = await recorder.acquireStream();
-    if (micErr) {
-      setError(`Microphone error: ${micErr}`);
-      return;
-    }
     setPhase("shadow_record");
     await recorder.start();
   };
@@ -475,7 +478,7 @@ export default function Speaking() {
 
   switch (phase) {
     case "home":
-      return <SpeakingHome scenes={scenes} onBlock1={openSceneList} onBlock2={openPracticeSetup} onBlock3={() => { loadHistory(); setPhase("review"); }} onBlock4={openShadowSetup} history={history} loadHistory={loadHistory} />;
+      return <SpeakingHome scenes={scenes} onBlock1={openSceneList} onBlock2={openPracticeSetup} onBlock3={() => { loadHistory(); setPhase("review"); }} onBlock4={openShadowSetup} onProgress={() => setPhase("progress")} history={history} loadHistory={loadHistory} />;
     case "scene_list":
       return <SceneListView scenes={scenes} onSelect={openSceneDetail} onBack={goHome} onCreateScene={() => setPhase("create_scene")} />;
     case "create_scene":
@@ -512,7 +515,14 @@ export default function Speaking() {
     case "uploading":
       return <UploadingView />;
     case "review":
-      return reviewData ? <ReviewView data={reviewData} question={currentQuestion} onNext={nextQuestion} onReRecord={reRecord} onHome={goHome} hasMore={questionIndex + 1 < questions.length} /> : <HistoryView history={history} onBack={goHome} loadHistory={loadHistory} />;
+      return reviewData ? <ReviewView data={reviewData} question={currentQuestion} onNext={nextQuestion} onReRecord={reRecord} onHome={goHome} hasMore={questionIndex + 1 < questions.length} /> : <HistoryViewNew onBack={goHome} />;
+    case "progress":
+      return <ProgressReport onBack={goHome} onGenerateScene={async (topic) => {
+        try {
+          const res = await api.createCustomScene(topic, "A2");
+          openSceneDetail(res.scene_id);
+        } catch { /* ignore */ }
+      }} />;
     case "session_report":
       return <SessionReportView results={sessionResults} onHome={goHome} />;
     case "shadow_setup":
@@ -551,13 +561,14 @@ export default function Speaking() {
 // ── Sub-views ───────────────────────────────────────────────────────────────
 
 function SpeakingHome({
-  scenes, onBlock1, onBlock2, onBlock3, onBlock4, history, loadHistory,
+  scenes, onBlock1, onBlock2, onBlock3, onBlock4, onProgress, history, loadHistory,
 }: {
   scenes: api.SpeakingSceneSummary[];
   onBlock1: () => void;
   onBlock2: () => void;
   onBlock3: () => void;
   onBlock4: () => void;
+  onProgress: () => void;
   history: api.SpeakingHistoryItem[];
   loadHistory: () => void;
 }) {
@@ -595,17 +606,24 @@ function SpeakingHome({
             {avgScore !== null && <span>Avg score: {avgScore}%</span>}
           </div>
         </button>
-        {/* Block 4 — Shadow Reading */}
+        {/* Progress Report */}
+        <button onClick={onProgress} className="bg-gradient-to-br from-indigo-900/40 to-slate-800 hover:from-indigo-800/40 hover:to-slate-700 rounded-xl p-6 text-left transition-colors border border-indigo-700/30">
+          <div className="text-3xl mb-3">📊</div>
+          <h2 className="text-lg font-bold text-white mb-1">Progress Report</h2>
+          <p className="text-sm text-slate-400 mb-3">Track improvement, see patterns, and get AI suggestions</p>
+          <div className="text-xs text-slate-500">Charts, trends & insights</div>
+        </button>
+        {/* Shadow Reading */}
         <button onClick={onBlock4} className="bg-slate-800 hover:bg-slate-700 rounded-xl p-6 text-left transition-colors border border-slate-700">
           <div className="text-3xl mb-3">🔊</div>
           <h2 className="text-lg font-bold text-white mb-1">Shadow Reading</h2>
           <p className="text-sm text-slate-400 mb-3">Listen to model sentences, repeat, and compare your pronunciation</p>
           <div className="text-xs text-slate-500">Improve pronunciation & fluency</div>
         </button>
-        {/* Block 5 — Freestyle Talk */}
+        {/* Freestyle Talk */}
         <Link
           to="/study/speaking/freestyle"
-          className="bg-gradient-to-br from-sky-900/60 to-slate-800 hover:from-sky-800/60 hover:to-slate-700 rounded-xl p-6 text-left transition-colors border border-sky-700/40 md:col-span-2"
+          className="bg-gradient-to-br from-sky-900/60 to-slate-800 hover:from-sky-800/60 hover:to-slate-700 rounded-xl p-6 text-left transition-colors border border-sky-700/40"
         >
           <div className="flex items-center gap-2 mb-3">
             <div className="text-3xl">💬</div>
@@ -1388,46 +1406,6 @@ function ReviewView({
 }
 
 
-function HistoryView({
-  history, onBack, loadHistory,
-}: {
-  history: api.SpeakingHistoryItem[];
-  onBack: () => void;
-  loadHistory: () => void;
-}) {
-  useEffect(() => { loadHistory(); }, [loadHistory]);
-
-  return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <button onClick={onBack} className="text-blue-400 hover:text-blue-300 text-sm mb-4">
-        ← Back
-      </button>
-      <h1 className="text-2xl font-bold text-slate-800 mb-6">Speaking History</h1>
-      {history.length === 0 ? (
-        <p className="text-slate-500">No recordings yet. Start a practice session!</p>
-      ) : (
-        <div className="space-y-3">
-          {history.map((h) => (
-            <div key={h.id} className="bg-slate-800 rounded-lg p-4 border border-slate-700">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-white font-medium">{h.scene} — {h.question_id}</span>
-                <span className={`font-bold ${(h.score_pct ?? 0) >= 70 ? "text-green-400" : (h.score_pct ?? 0) >= 50 ? "text-blue-400" : "text-red-400"}`}>
-                  {h.score_pct ?? "—"}%
-                </span>
-              </div>
-              <div className="text-xs text-slate-500">
-                {new Date(h.date).toLocaleString()} · {h.question_type} · {h.mode}
-              </div>
-              {h.transcript && (
-                <p className="text-sm text-slate-400 mt-2 line-clamp-2">{h.transcript}</p>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 
 // ── Session Report View (Record Practice / Mock Exam) ────────────────────────
@@ -1637,20 +1615,9 @@ function ShadowPlayView({
 }) {
   const sentence = scene.model_sentences[sentenceIndex];
   const [playing, setPlaying] = useState(false);
-  const [hasPlayed, setHasPlayed] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Auto-play on mount (for continuous mode after first sentence)
-  const autoPlayedRef = useRef(false);
-  useEffect(() => {
-    if (sentenceIndex > 0 && !autoPlayedRef.current) {
-      autoPlayedRef.current = true;
-      playSentence();
-    }
-    return () => { autoPlayedRef.current = false; };
-  }, [sentenceIndex]);
-
-  const playSentence = async () => {
+  const playSentence = useCallback(async () => {
     try {
       setPlaying(true);
       const { audio_file } = await api.getSpeakingSentenceAudio(scene.id, sentenceIndex);
@@ -1659,24 +1626,38 @@ function ShadowPlayView({
       }
       const audio = new Audio(listeningAudioUrl(audio_file));
       audioRef.current = audio;
-      audio.onended = () => { setPlaying(false); setHasPlayed(true); };
+      audio.onended = () => {
+        setPlaying(false);
+        // Auto-start recording after playback finishes
+        onStartRecording();
+      };
       audio.onerror = () => { setPlaying(false); };
       await audio.play();
     } catch {
       setPlaying(false);
     }
-  };
+  }, [scene.id, sentenceIndex, onStartRecording]);
+
+  // Auto-play on mount
+  const autoPlayedRef = useRef(false);
+  useEffect(() => {
+    if (!autoPlayedRef.current) {
+      autoPlayedRef.current = true;
+      playSentence();
+    }
+    return () => { autoPlayedRef.current = false; };
+  }, [sentenceIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="p-6 max-w-2xl mx-auto flex flex-col items-center">
       <button onClick={onBack} className="self-start text-blue-400 hover:text-blue-300 text-sm mb-4">
-        ← Back
+        &larr; Back
       </button>
       <div className="text-xs text-slate-500 mb-1 flex items-center gap-2">
         <span>Sentence {sentenceIndex + 1} of {scene.model_sentences.length}</span>
         {analyzedCount > 0 && (
           <>
-            <span>·</span>
+            <span>&middot;</span>
             <span>{analyzedCount} analyzed</span>
           </>
         )}
@@ -1697,16 +1678,8 @@ function ShadowPlayView({
         {playing ? "⏸" : "▶"}
       </button>
       <p className="text-slate-500 text-sm mb-6">
-        {hasPlayed ? "Listen again or start recording" : "Listen to the sentence first"}
+        {playing ? "Playing... recording starts automatically after" : "Click play to listen, recording starts after playback"}
       </p>
-
-      <button
-        onClick={onStartRecording}
-        disabled={!hasPlayed}
-        className="w-full py-3 rounded-lg font-semibold transition-colors bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        Start Recording
-      </button>
     </div>
   );
 }
@@ -1723,6 +1696,18 @@ function ShadowRecordView({
   onBack: () => void;
 }) {
   const sentence = scene.model_sentences[sentenceIndex];
+
+  // Spacebar to stop recording
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.code === "Space" && !e.repeat) {
+        e.preventDefault();
+        onStop();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onStop]);
 
   if (recorder.permissionDenied || recorder.error) {
     const title = recorder.permissionDenied ? "Microphone Access Denied" : "Recording Error";
@@ -1771,7 +1756,9 @@ function ShadowRecordView({
         color="#ef4444"
       />
 
-      <div className="mt-6 flex gap-3">
+      <p className="text-slate-500 text-xs mt-4 mb-2">Press <kbd className="px-1.5 py-0.5 bg-slate-200 rounded text-slate-700 text-xs font-mono">Space</kbd> to stop</p>
+
+      <div className="mt-3 flex gap-3">
         <button
           onClick={onBack}
           className="px-6 py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium"
@@ -1798,6 +1785,18 @@ function ShadowReviewView({
   onBack: () => void;
   hasMore: boolean;
 }) {
+  // Spacebar for next sentence (or done)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.code === "Space" && !e.repeat) {
+        e.preventDefault();
+        if (hasMore) onNext(); else onBack();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [hasMore, onNext, onBack]);
+
   const scoreColor = data.similarity_score >= 70 ? "text-green-400" : data.similarity_score >= 50 ? "text-blue-400" : "text-red-400";
 
   return (
@@ -1850,6 +1849,9 @@ function ShadowReviewView({
           </button>
         )}
       </div>
+      <p className="text-slate-400 text-xs mt-3 text-center">
+        Press <kbd className="px-1.5 py-0.5 bg-slate-200 rounded text-slate-700 text-xs font-mono">Space</kbd> for {hasMore ? "next sentence" : "done"}
+      </p>
     </div>
   );
 }
