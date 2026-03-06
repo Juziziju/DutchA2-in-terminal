@@ -233,12 +233,20 @@ export default function Flashcards() {
             </div>
           ))}
         </div>
-        <button
-          onClick={reset}
-          className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700"
-        >
-          New session
-        </button>
+        <div className="flex gap-3 w-full max-w-xs">
+          <button
+            onClick={reset}
+            className="flex-1 border border-slate-300 text-slate-600 px-4 py-2 rounded-xl font-semibold hover:bg-slate-50"
+          >
+            Back
+          </button>
+          <button
+            onClick={reset}
+            className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700"
+          >
+            New session
+          </button>
+        </div>
       </Screen>
     );
   }

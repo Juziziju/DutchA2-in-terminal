@@ -10,9 +10,12 @@ from sqlmodel import Session, select, col
 
 from backend.config import AUDIO_SPEAKING_DIR
 from backend.core.audio import new_session_prefix
-from backend.core.speaking_ai import review_speaking, transcribe_audio
+from backend.core.speaking_ai import review_shadow, review_speaking, transcribe_audio
 from backend.core.speaking_bank import (
     SPEAKING_SCENES,
+    get_mock_exam,
+    get_mock_exam_list,
+    get_mock_question,
     get_question,
     get_scene,
     get_scene_list,
@@ -119,8 +122,8 @@ async def submit_recording(
     user: User = Depends(get_current_user),
 ):
     """Upload recording → STT → AI review → save + return feedback."""
-    # Validate question exists
-    question = get_question(scene, question_id)
+    # Validate question exists — check mock exams first, then scene questions
+    question = get_mock_question(scene, question_id) or get_question(scene, question_id)
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
 
@@ -200,6 +203,101 @@ async def submit_recording(
     )
 
 
+# ── Shadow reading submission ─────────────────────────────────────────────────
+
+
+class SubmitShadowResponse(BaseModel):
+    session_id: int
+    transcript: str
+    similarity_score: int
+    word_matches: list[str]
+    word_misses: list[str]
+    feedback: str
+    original_sentence: str
+
+
+@router.post("/submit-shadow", response_model=SubmitShadowResponse)
+async def submit_shadow(
+    audio: UploadFile = File(...),
+    scene_id: str = Form(...),
+    sentence_index: int = Form(...),
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Upload shadow-reading recording → STT → compare to original sentence."""
+    scene = get_scene(scene_id)
+    if not scene:
+        raise HTTPException(status_code=404, detail="Scene not found")
+    sentences = scene["model_sentences"]
+    if sentence_index < 0 or sentence_index >= len(sentences):
+        raise HTTPException(status_code=404, detail="Sentence not found")
+
+    original_sentence = sentences[sentence_index]["text"]
+
+    # Save audio file
+    AUDIO_SPEAKING_DIR.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    ext = Path(audio.filename or "recording.webm").suffix or ".webm"
+    filename = f"{user.id}_shadow_{timestamp}{ext}"
+    audio_path = AUDIO_SPEAKING_DIR / filename
+
+    content = await audio.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Audio file too large (max 5MB)")
+    if len(content) < 1000:
+        raise HTTPException(status_code=400, detail="Recording too short")
+
+    with open(audio_path, "wb") as f:
+        f.write(content)
+
+    # STT transcription
+    try:
+        transcript = transcribe_audio(audio_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Transcription failed: {e}")
+
+    if not transcript.strip():
+        transcript = "(no speech detected)"
+
+    # AI comparison
+    try:
+        result = review_shadow(transcript=transcript, original_sentence=original_sentence)
+    except Exception as e:
+        result = {
+            "similarity_score": 0,
+            "word_matches": [],
+            "word_misses": original_sentence.split(),
+            "feedback": f"AI review failed: {e}",
+        }
+
+    # Save to DB
+    session_record = SpeakingSession(
+        user_id=user.id,
+        scene=scene_id,
+        question_id=f"shadow_{sentence_index}",
+        question_type="shadow",
+        mode="shadow_reading",
+        audio_file=filename,
+        transcript=transcript,
+        feedback_json=json.dumps(result, ensure_ascii=False),
+        score_pct=result.get("similarity_score", 0),
+        date=datetime.utcnow(),
+    )
+    db.add(session_record)
+    db.commit()
+    db.refresh(session_record)
+
+    return SubmitShadowResponse(
+        session_id=session_record.id,
+        transcript=transcript,
+        similarity_score=result.get("similarity_score", 0),
+        word_matches=result.get("word_matches", []),
+        word_misses=result.get("word_misses", []),
+        feedback=result.get("feedback", ""),
+        original_sentence=original_sentence,
+    )
+
+
 # ── History ──────────────────────────────────────────────────────────────────
 
 
@@ -230,6 +328,29 @@ def speaking_history(
         }
         for s in sessions
     ]
+
+
+# ── Mock exam endpoints ──────────────────────────────────────────────────────
+
+
+@router.get("/mock-exams")
+def list_mock_exams(
+    _user: User = Depends(get_current_user),
+):
+    """Return available mock exam sets."""
+    return get_mock_exam_list()
+
+
+@router.get("/mock-exams/{exam_id}")
+def mock_exam_detail(
+    exam_id: str,
+    _user: User = Depends(get_current_user),
+):
+    """Return full mock exam with all questions."""
+    exam = get_mock_exam(exam_id)
+    if not exam:
+        raise HTTPException(status_code=404, detail="Mock exam not found")
+    return exam
 
 
 # ── TTS for model sentences ─────────────────────────────────────────────────

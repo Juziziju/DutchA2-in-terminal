@@ -80,7 +80,13 @@ def get_session_cards(
 
     random.shuffle(due)
     random.shuffle(new)
-    new = new[:MAX_NEW_CARDS]
+
+    # Due cards are top priority — only add new cards if there's room
+    MAX_SESSION = 30
+    if len(due) >= MAX_SESSION:
+        new = []
+    else:
+        new = new[:min(MAX_NEW_CARDS, MAX_SESSION - len(due))]
 
     due_count = len(due)
     new_count = len(new)

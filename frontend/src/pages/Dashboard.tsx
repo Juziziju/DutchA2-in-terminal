@@ -13,28 +13,11 @@ import {
   getExamResults,
   getFlashcardResults,
   getListeningResults,
+  getStreak,
   getDashboardTraining,
   getPlannerStatus,
   getTodayPlan,
 } from "../api";
-
-function calcStreak(listening: ListeningHistoryItem[]): number {
-  if (listening.length === 0) return 0;
-  const days = new Set(listening.map((l) => l.date.split("T")[0]));
-  const sorted = [...days].sort().reverse();
-  let streak = 0;
-  const d = new Date();
-  for (let i = 0; i < 365; i++) {
-    const dateStr = d.toISOString().split("T")[0];
-    if (sorted.includes(dateStr)) {
-      streak++;
-    } else if (i > 0) {
-      break;
-    }
-    d.setDate(d.getDate() - 1);
-  }
-  return streak;
-}
 
 function fmtMinutes(mins: number): string {
   if (mins < 60) return `${mins}m`;
@@ -52,6 +35,7 @@ export default function Dashboard() {
   const [training, setTraining] = useState<TrainingSummary | null>(null);
   const [plannerStatus, setPlannerStatus] = useState<PlannerStatus | null>(null);
   const [todayPlan, setTodayPlan] = useState<PlannerDailyPlan | null>(null);
+  const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -59,6 +43,7 @@ export default function Dashboard() {
       .then(([fc, l, e]) => { setFcStats(fc); setListening(l); setExams(e); })
       .catch(() => {});
     const tr = getDashboardTraining(30).then(setTraining).catch(() => {});
+    const sk = getStreak().then(r => setStreak(r.streak)).catch(() => {});
     const planner = getPlannerStatus()
       .then(s => {
         setPlannerStatus(s);
@@ -67,10 +52,8 @@ export default function Dashboard() {
         }
       })
       .catch(() => {});
-    Promise.all([core, tr, planner]).finally(() => setLoading(false));
+    Promise.all([core, tr, sk, planner]).finally(() => setLoading(false));
   }, []);
-
-  const streak = calcStreak(listening);
   const latestExam = exams[0];
 
   // Aggregate daily chart data: merge quiz + intensive per day

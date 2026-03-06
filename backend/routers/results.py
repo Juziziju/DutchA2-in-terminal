@@ -13,6 +13,7 @@ from backend.models.exam import ExamResult
 from backend.models.listening import ListeningSession
 from backend.models.progress import FlashcardProgress
 from backend.models.review_log import FlashcardReviewLog
+from backend.models.speaking import SpeakingSession
 from backend.models.user import User
 from backend.models.vocab import Vocab
 from backend.routers.auth import get_current_user
@@ -184,6 +185,67 @@ def dashboard_training(
         avg_score_intensive=round(sum(r.score_pct for r in intensive_rows) / len(intensive_rows), 1) if intensive_rows else None,
         daily=daily,
     )
+
+
+# ── Streak (all activity) ────────────────────────────────────────────────────
+
+
+@router.get("/streak")
+def get_streak(
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Calculate study streak from ALL activity: flashcards, listening, speaking, exams."""
+    active_dates: set[str] = set()
+
+    # Flashcard review logs
+    fc_logs = db.exec(
+        select(FlashcardReviewLog).where(FlashcardReviewLog.user_id == user.id)
+    ).all()
+    for log in fc_logs:
+        d = log.created_at.strftime("%Y-%m-%d") if hasattr(log.created_at, "strftime") else str(log.created_at)[:10]
+        active_dates.add(d)
+
+    # Listening sessions
+    ls_rows = db.exec(
+        select(ListeningSession).where(ListeningSession.user_id == user.id)
+    ).all()
+    for r in ls_rows:
+        d = r.date.strftime("%Y-%m-%d") if hasattr(r.date, "strftime") else str(r.date)[:10]
+        active_dates.add(d)
+
+    # Speaking sessions
+    sp_rows = db.exec(
+        select(SpeakingSession).where(SpeakingSession.user_id == user.id)
+    ).all()
+    for r in sp_rows:
+        d = r.date.strftime("%Y-%m-%d") if hasattr(r.date, "strftime") else str(r.date)[:10]
+        active_dates.add(d)
+
+    # Exam results
+    ex_rows = db.exec(
+        select(ExamResult).where(ExamResult.user_id == user.id)
+    ).all()
+    for r in ex_rows:
+        d = r.date.strftime("%Y-%m-%d") if hasattr(r.date, "strftime") else str(r.date)[:10]
+        active_dates.add(d)
+
+    # Calculate streak: count consecutive days backwards from today
+    if not active_dates:
+        return {"streak": 0, "active_dates": []}
+
+    today = date.today()
+    streak = 0
+    d = today
+    for i in range(365):
+        ds = d.isoformat()
+        if ds in active_dates:
+            streak += 1
+        elif i > 0:
+            break
+        d -= timedelta(days=1)
+
+    return {"streak": streak, "active_dates": sorted(active_dates)[-30:]}
 
 
 # ── Trend endpoints ──────────────────────────────────────────────────────────

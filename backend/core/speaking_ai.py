@@ -105,3 +105,50 @@ Grade this response. Return only valid JSON."""
             "feedback_en": "Could not parse AI feedback. Please try again.",
             "improved_answer": model_answer,
         }
+
+
+def review_shadow(transcript: str, original_sentence: str) -> dict:
+    """Compare a shadow-reading transcript to the original sentence. Returns similarity feedback."""
+    if not AI_API_KEY:
+        raise RuntimeError("AI_API_KEY / DASHSCOPE_API_KEY is not set")
+
+    client = _get_client()
+
+    system_prompt = """You are a Dutch pronunciation coach. Compare a student's spoken transcript to the original Dutch sentence.
+
+Return ONLY valid JSON:
+{
+  "similarity_score": <0-100>,
+  "word_matches": ["words the student said correctly"],
+  "word_misses": ["words the student missed or mispronounced"],
+  "feedback": "1-2 sentences of feedback in English"
+}"""
+
+    user_msg = f"""Original sentence: {original_sentence}
+Student's transcript: {transcript}
+
+Compare and return only valid JSON."""
+
+    response = client.chat.completions.create(
+        model=AI_MODEL,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_msg},
+        ],
+        temperature=0.3,
+    )
+
+    raw = response.choices[0].message.content.strip()
+    if raw.startswith("```"):
+        lines = raw.splitlines()
+        raw = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return {
+            "similarity_score": 0,
+            "word_matches": [],
+            "word_misses": original_sentence.split(),
+            "feedback": "Could not parse AI feedback. Please try again.",
+        }

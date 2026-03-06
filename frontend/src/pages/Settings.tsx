@@ -1,10 +1,13 @@
-import { useEffect, useState } from "react";
-import { syncVocab, getPlannerProfile, enablePlanner, disablePlanner, PlannerProfile } from "../api";
+import { useEffect, useRef, useState } from "react";
+import { syncVocab, uploadVocabCsv, getPlannerProfile, enablePlanner, disablePlanner, PlannerProfile } from "../api";
 
 export default function Settings() {
   const username = localStorage.getItem("username") ?? "learner";
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadMsg, setUploadMsg] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [plannerProfile, setPlannerProfile] = useState<PlannerProfile | null>(null);
   const [togglingPlanner, setTogglingPlanner] = useState(false);
 
@@ -50,6 +53,50 @@ export default function Settings() {
           >
             {syncing ? "Syncing..." : "Sync"}
           </button>
+        </div>
+      </div>
+
+      {/* Upload vocab CSV */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold">Upload Vocab CSV</h3>
+            <p className="text-xs text-slate-500">Upload a CSV with columns: dutch, english, category, example_dutch, example_english</p>
+            {uploadMsg && <p className="text-xs text-blue-600 mt-1">{uploadMsg}</p>}
+          </div>
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                setUploading(true);
+                setUploadMsg("");
+                try {
+                  const r = await uploadVocabCsv(file);
+                  let msg = `Added ${r.added} words, skipped ${r.skipped}`;
+                  if (r.audio_errors) msg += `, ${r.audio_errors} audio errors`;
+                  if (r.columns_detected) msg += ` | Columns: ${r.columns_detected.join(", ")}`;
+                  setUploadMsg(msg);
+                } catch (err: unknown) {
+                  setUploadMsg(err instanceof Error ? err.message : "Upload failed");
+                } finally {
+                  setUploading(false);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }
+              }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="text-sm bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg disabled:opacity-50"
+            >
+              {uploading ? "Uploading..." : "Upload"}
+            </button>
+          </div>
         </div>
       </div>
 

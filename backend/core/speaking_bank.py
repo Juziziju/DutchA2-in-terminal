@@ -243,6 +243,427 @@ SPEAKING_SCENES: dict = {
 }
 
 
+
+# ── Mock exam bank — real inburgering A2 speaking exam questions ─────────────
+# Sources: DUO oefenexamens, Dik Verhaar spreekoefeningen, Uilentaal, NT2 TaalMenu
+# Format after March 2025: recording-only (no multiple choice), ~24 questions in 35 min
+# Short = 15s prep → 30s record; Long = 30s prep → 60s record
+
+MOCK_EXAM_SETS: list[dict] = [
+    # ── Mock Exam 1 ──────────────────────────────────────────────────────────
+    {
+        "id": "mock_1",
+        "title": "Practice Exam 1",
+        "short": [
+            {
+                "id": "m1_s01",
+                "prompt_nl": "Eet u vaak brood? Vertel ook waarom.",
+                "prompt_en": "Do you often eat bread? Also tell why.",
+                "prep_seconds": 15, "record_seconds": 30,
+                "expected_phrases": ["brood", "eet", "omdat", "lekker", "ontbijt"],
+                "model_answer": "Ja, ik eet elke dag brood. Ik eet brood bij het ontbijt omdat het lekker en goedkoop is.",
+            },
+            {
+                "id": "m1_s02",
+                "prompt_nl": "Naar welke muziek luistert u graag?",
+                "prompt_en": "What music do you enjoy listening to?",
+                "prep_seconds": 15, "record_seconds": 30,
+                "expected_phrases": ["luister", "muziek", "graag", "leuk"],
+                "model_answer": "Ik luister graag naar popmuziek. Ik luister het bijna elke dag.",
+            },
+            {
+                "id": "m1_s03",
+                "prompt_nl": "Hebt u een rijbewijs?",
+                "prompt_en": "Do you have a driver's license?",
+                "prep_seconds": 15, "record_seconds": 30,
+                "expected_phrases": ["rijbewijs", "ja", "nee", "auto"],
+                "model_answer": "Nee, ik heb geen rijbewijs. Ik reis meestal met de bus of de fiets.",
+            },
+            {
+                "id": "m1_s04",
+                "prompt_nl": "Wat voor groente eet u vaak? Vertel ook waarom.",
+                "prompt_en": "What vegetables do you eat often? Also tell why.",
+                "prep_seconds": 15, "record_seconds": 30,
+                "expected_phrases": ["groente", "eet", "gezond", "lekker"],
+                "model_answer": "Ik eet vaak tomaten en paprika. Ik vind groente gezond en lekker.",
+            },
+            {
+                "id": "m1_s05",
+                "prompt_nl": "Hoe vaak gebruikt u een computer? Vertel ook waarvoor u de computer gebruikt.",
+                "prompt_en": "How often do you use a computer? Also tell what you use the computer for.",
+                "prep_seconds": 15, "record_seconds": 30,
+                "expected_phrases": ["computer", "gebruik", "elke dag", "internet", "werken"],
+                "model_answer": "Ik gebruik elke dag een computer. Ik gebruik de computer voor mijn werk en om op internet te kijken.",
+            },
+            {
+                "id": "m1_s06",
+                "prompt_nl": "Reist u liever met de trein of de auto? Vertel ook waarom.",
+                "prompt_en": "Do you prefer to travel by train or car? Also tell why.",
+                "prep_seconds": 15, "record_seconds": 30,
+                "expected_phrases": ["trein", "auto", "liever", "omdat", "snel", "makkelijk"],
+                "model_answer": "Ik reis liever met de trein omdat het makkelijk is. Je hoeft niet te parkeren.",
+            },
+            {
+                "id": "m1_s07",
+                "prompt_nl": "Wat vindt u van het weer in Nederland? Vertel ook hoe het weer in uw eigen land is.",
+                "prompt_en": "What do you think of the weather in the Netherlands? Also tell how the weather in your own country is.",
+                "prep_seconds": 15, "record_seconds": 30,
+                "expected_phrases": ["weer", "koud", "regen", "eigen land", "warm", "zon"],
+                "model_answer": "Het weer in Nederland vind ik koud en nat. In mijn eigen land is het weer warm en zonnig.",
+            },
+            {
+                "id": "m1_s08",
+                "prompt_nl": "Wat vindt u van wandelen?",
+                "prompt_en": "What do you think about walking?",
+                "prep_seconds": 15, "record_seconds": 30,
+                "expected_phrases": ["wandelen", "leuk", "gezond", "buiten"],
+                "model_answer": "Ik vind wandelen leuk omdat het gezond is. Ik wandel graag in het park.",
+            },
+        ],
+        "long": [
+            {
+                "id": "m1_l01",
+                "prompt_nl": "Wat doet u het liefst in het weekend? Vertel ook wat u niet graag doet in het weekend.",
+                "prompt_en": "What do you prefer to do on the weekend? Also tell what you don't like to do on the weekend.",
+                "prep_seconds": 30, "record_seconds": 60,
+                "expected_phrases": ["weekend", "liefst", "graag", "niet leuk", "vrije tijd"],
+                "model_answer": "In het weekend slaap ik graag lang. Dan doe ik boodschappen en ga ik wandelen in het park. Ik vind schoonmaken niet leuk, maar dat moet ik ook in het weekend doen. 's Avonds kook ik lekker eten.",
+            },
+            {
+                "id": "m1_l02",
+                "prompt_nl": "Wat voor eten eet u het liefst? Vertel ook waarom.",
+                "prompt_en": "What food do you like most? Also tell why.",
+                "prep_seconds": 30, "record_seconds": 60,
+                "expected_phrases": ["eten", "liefst", "lekker", "koken", "omdat"],
+                "model_answer": "Ik eet het liefst rijst met kip en groente. Ik vind dat lekker omdat mijn moeder dat ook altijd kookte. Ik kook het zelf ook vaak. Soms eet ik ook graag pizza.",
+            },
+            {
+                "id": "m1_l03",
+                "prompt_nl": "Wat vindt u leuk om te koken? Vertel ook hoe u dat maakt.",
+                "prompt_en": "What do you like to cook? Also tell how you make it.",
+                "prep_seconds": 30, "record_seconds": 60,
+                "expected_phrases": ["koken", "leuk", "maak", "eerst", "dan", "nodig"],
+                "model_answer": "Ik vind het leuk om soep te koken. Ik heb groente, water en kruiden nodig. Eerst snijd ik de groente. Dan doe ik alles in een pan met water. Het moet een half uur koken.",
+            },
+            {
+                "id": "m1_l04",
+                "prompt_nl": "Veel Nederlanders eten om zes uur 's avonds. Wat vindt u daarvan? Zeg ook hoe laat u zelf meestal eet.",
+                "prompt_en": "Many Dutch people eat at 6 PM. What do you think about that? Also say what time you usually eat.",
+                "prep_seconds": 30, "record_seconds": 60,
+                "expected_phrases": ["eten", "uur", "vind", "zelf", "meestal", "avond"],
+                "model_answer": "Ik vind dat vroeg. In mijn eigen land eten we om acht uur. Maar nu in Nederland eet ik ook om zes uur, omdat mijn kinderen dan honger hebben. Ik ben er nu aan gewend.",
+            },
+            {
+                "id": "m1_l05",
+                "prompt_nl": "Welke dingen vindt u leuk in Nederland? Vertel ook welke dingen u leuk vindt in uw eigen land.",
+                "prompt_en": "What things do you like about the Netherlands? Also tell what things you like about your own country.",
+                "prep_seconds": 30, "record_seconds": 60,
+                "expected_phrases": ["Nederland", "leuk", "eigen land", "vind"],
+                "model_answer": "In Nederland vind ik de fietspaden leuk. Het is ook veilig en schoon. In mijn eigen land vind ik het eten lekker en de mensen zijn heel gastvrij. Ik mis het warme weer.",
+            },
+            {
+                "id": "m1_l06",
+                "prompt_nl": "Wat doet u graag in uw vrije tijd? Vertel ook hoe vaak u dat doet.",
+                "prompt_en": "What do you like to do in your free time? Also tell how often you do it.",
+                "prep_seconds": 30, "record_seconds": 60,
+                "expected_phrases": ["vrije tijd", "graag", "hoe vaak", "keer per week"],
+                "model_answer": "In mijn vrije tijd ga ik graag wandelen en koken. Ik wandel twee keer per week in het park. Ik kook elke avond. Soms lees ik ook een boek.",
+            },
+            {
+                "id": "m1_l07",
+                "prompt_nl": "Wat voor werk doet u nu? Vertel ook wat voor werk u vroeger hebt gedaan.",
+                "prompt_en": "What work do you do now? Also tell what kind of work you did before.",
+                "prep_seconds": 30, "record_seconds": 60,
+                "expected_phrases": ["werk", "nu", "vroeger", "gedaan", "gewerkt"],
+                "model_answer": "Nu werk ik als schoonmaker in een hotel. Ik werk daar drie dagen per week. Vroeger heb ik als kok gewerkt in mijn eigen land. Dat vond ik leuk werk.",
+            },
+            {
+                "id": "m1_l08",
+                "prompt_nl": "Wat voor hobby's heeft u nu? Vertel ook wat voor hobby's u vroeger had.",
+                "prompt_en": "What hobbies do you have now? Also tell what hobbies you had before.",
+                "prep_seconds": 30, "record_seconds": 60,
+                "expected_phrases": ["hobby", "nu", "vroeger", "had", "leuk"],
+                "model_answer": "Nu is mijn hobby wandelen en koken. Ik vind dat leuk en ontspannend. Vroeger had ik andere hobby's. Ik speelde veel voetbal met mijn vrienden. Dat kan hier ook, maar ik heb minder tijd.",
+            },
+        ],
+    },
+    # ── Mock Exam 2 ──────────────────────────────────────────────────────────
+    {
+        "id": "mock_2",
+        "title": "Practice Exam 2",
+        "short": [
+            {
+                "id": "m2_s01",
+                "prompt_nl": "Waar doet u meestal boodschappen? Vertel ook waarom.",
+                "prompt_en": "Where do you usually do groceries? Also tell why.",
+                "prep_seconds": 15, "record_seconds": 30,
+                "expected_phrases": ["boodschappen", "supermarkt", "omdat", "dichtbij"],
+                "model_answer": "Ik doe meestal boodschappen bij de Albert Heijn. Die is dichtbij mijn huis.",
+            },
+            {
+                "id": "m2_s02",
+                "prompt_nl": "Wat vindt u een leuk programma op de televisie? Vertel ook hoe vaak u televisie kijkt.",
+                "prompt_en": "What TV show do you like? Also tell how often you watch TV.",
+                "prep_seconds": 15, "record_seconds": 30,
+                "expected_phrases": ["televisie", "programma", "kijk", "leuk", "vaak"],
+                "model_answer": "Ik vind het journaal een leuk programma. Ik kijk elke avond televisie, ongeveer een uur.",
+            },
+            {
+                "id": "m2_s03",
+                "prompt_nl": "Gaat u vaak met de fiets? Vertel ook waarvoor u de fiets gebruikt.",
+                "prompt_en": "Do you often cycle? Also tell what you use the bicycle for.",
+                "prep_seconds": 15, "record_seconds": 30,
+                "expected_phrases": ["fiets", "ga", "naar", "werk", "school", "boodschappen"],
+                "model_answer": "Ja, ik ga vaak met de fiets. Ik gebruik de fiets om naar school te gaan en om boodschappen te doen.",
+            },
+            {
+                "id": "m2_s04",
+                "prompt_nl": "Welk cadeau krijgt u het liefst als u jarig bent? Vertel ook waarom.",
+                "prompt_en": "What gift do you like best for your birthday? Also tell why.",
+                "prep_seconds": 15, "record_seconds": 30,
+                "expected_phrases": ["cadeau", "verjaardag", "liefst", "krijg", "omdat"],
+                "model_answer": "Ik krijg het liefst kleren als cadeau, omdat ik van mooie kleren houd.",
+            },
+            {
+                "id": "m2_s05",
+                "prompt_nl": "Wat eet u graag? Vertel ook wat u niet graag eet.",
+                "prompt_en": "What do you like to eat? Also tell what you don't like to eat.",
+                "prep_seconds": 15, "record_seconds": 30,
+                "expected_phrases": ["eet", "graag", "niet graag", "lekker"],
+                "model_answer": "Ik eet graag rijst met kip. Ik eet niet graag vis, want ik vind de smaak niet lekker.",
+            },
+            {
+                "id": "m2_s06",
+                "prompt_nl": "Welk fruit eet u het liefst? Vertel ook hoe vaak u groente eet.",
+                "prompt_en": "What fruit do you like most? Also tell how often you eat vegetables.",
+                "prep_seconds": 15, "record_seconds": 30,
+                "expected_phrases": ["fruit", "liefst", "groente", "elke dag", "vaak"],
+                "model_answer": "Ik eet het liefst appels en bananen. Ik eet elke dag groente bij het avondeten.",
+            },
+            {
+                "id": "m2_s07",
+                "prompt_nl": "In Nederland hebben veel mensen een hond. Wat vindt u daarvan?",
+                "prompt_en": "Many people in the Netherlands have a dog. What do you think about that?",
+                "prep_seconds": 15, "record_seconds": 30,
+                "expected_phrases": ["hond", "vind", "leuk", "dieren"],
+                "model_answer": "Ik vind het leuk dat mensen een hond hebben. Maar ik heb zelf geen hond, want mijn huis is te klein.",
+            },
+            {
+                "id": "m2_s08",
+                "prompt_nl": "Wat doet u het liefst als het mooi weer is?",
+                "prompt_en": "What do you prefer to do when the weather is nice?",
+                "prep_seconds": 15, "record_seconds": 30,
+                "expected_phrases": ["mooi weer", "buiten", "wandelen", "park", "fiets"],
+                "model_answer": "Als het mooi weer is ga ik graag naar het park. Ik wandel daar of fiets met mijn kinderen.",
+            },
+        ],
+        "long": [
+            {
+                "id": "m2_l01",
+                "prompt_nl": "Hoe vaak gebruikt u uw computer? Vertel ook waarvoor u uw computer gebruikt.",
+                "prompt_en": "How often do you use your computer? Also tell what you use your computer for.",
+                "prep_seconds": 30, "record_seconds": 60,
+                "expected_phrases": ["computer", "gebruik", "elke dag", "internet", "mail", "werk"],
+                "model_answer": "Ik gebruik mijn computer elke dag. Ik gebruik hem voor mijn werk en om e-mails te sturen. Ik kijk ook op internet naar het nieuws. Soms kijk ik ook filmpjes op YouTube.",
+            },
+            {
+                "id": "m2_l02",
+                "prompt_nl": "Wat vindt u leuk om te lezen? Vertel ook wat u niet leuk vindt om te lezen.",
+                "prompt_en": "What do you like to read? Also tell what you don't like to read.",
+                "prep_seconds": 30, "record_seconds": 60,
+                "expected_phrases": ["lezen", "leuk", "niet leuk", "boek", "krant"],
+                "model_answer": "Ik vind het leuk om de krant te lezen. Ik lees ook graag korte verhalen. Ik vind het niet leuk om dikke boeken te lezen, want dat duurt te lang.",
+            },
+            {
+                "id": "m2_l03",
+                "prompt_nl": "Wat vindt u van het eten in Nederland? Vertel ook hoe het eten in uw eigen land is.",
+                "prompt_en": "What do you think of the food in the Netherlands? Also tell how the food in your own country is.",
+                "prep_seconds": 30, "record_seconds": 60,
+                "expected_phrases": ["eten", "Nederland", "eigen land", "lekker", "anders"],
+                "model_answer": "Het eten in Nederland is anders dan in mijn eigen land. Ik vind stamppot niet zo lekker. In mijn eigen land is het eten meer gekruid. Ik kook thuis vaak eten uit mijn eigen land.",
+            },
+            {
+                "id": "m2_l04",
+                "prompt_nl": "Ik was vandaag te laat op een afspraak. Waardoor bent u weleens te laat? Zeg ook wat u dan doet.",
+                "prompt_en": "I was late for an appointment today. Why are you sometimes late? Also say what you do then.",
+                "prep_seconds": 30, "record_seconds": 60,
+                "expected_phrases": ["te laat", "bus", "trein", "bellen", "sorry", "vertraging"],
+                "model_answer": "Ik ben weleens te laat als de bus vertraging heeft. Dan bel ik om te zeggen dat ik later kom. Ik zeg sorry als ik aankom. Ik probeer altijd op tijd te zijn.",
+            },
+            {
+                "id": "m2_l05",
+                "prompt_nl": "In Nederland sneeuwt het soms. Wat vindt u daarvan? Vertel ook wat u dan doet.",
+                "prompt_en": "It sometimes snows in the Netherlands. What do you think about that? Also tell what you do then.",
+                "prep_seconds": 30, "record_seconds": 60,
+                "expected_phrases": ["sneeuw", "koud", "mooi", "binnen", "warm"],
+                "model_answer": "Ik vind sneeuw heel mooi, maar ook erg koud. In mijn eigen land sneeuwt het niet. Als het sneeuwt, blijf ik het liefst binnen. Ik drink dan warme thee en kijk naar buiten.",
+            },
+            {
+                "id": "m2_l06",
+                "prompt_nl": "Ik wil graag goed Engels leren spreken. Wat wilt u graag leren? Vertel ook waar u dat kunt leren.",
+                "prompt_en": "I would like to learn to speak English well. What would you like to learn? Also tell where you can learn that.",
+                "prep_seconds": 30, "record_seconds": 60,
+                "expected_phrases": ["leren", "wil", "graag", "school", "cursus", "waar"],
+                "model_answer": "Ik wil graag goed Nederlands leren spreken. Ik kan dat leren op de taalschool. Ik volg nu een cursus twee keer per week. Ik oefen ook thuis met mijn buurvrouw.",
+            },
+            {
+                "id": "m2_l07",
+                "prompt_nl": "Waar gaat u het liefst winkelen? Vertel ook wat u vaak koopt als u gaat winkelen.",
+                "prompt_en": "Where do you prefer to go shopping? Also tell what you often buy when you go shopping.",
+                "prep_seconds": 30, "record_seconds": 60,
+                "expected_phrases": ["winkelen", "koop", "vaak", "kleren", "markt", "winkel"],
+                "model_answer": "Ik ga het liefst winkelen op de markt. Daar koop ik groente en fruit. Soms ga ik ook naar de Primark voor kleren. Die winkel is goedkoop.",
+            },
+            {
+                "id": "m2_l08",
+                "prompt_nl": "Wat doet u het liefst 's avonds? Zeg ook waar u dat het liefst doet.",
+                "prompt_en": "What do you prefer to do in the evening? Also say where you prefer to do that.",
+                "prep_seconds": 30, "record_seconds": 60,
+                "expected_phrases": ["'s avonds", "liefst", "thuis", "televisie", "koken"],
+                "model_answer": "s Avonds kook ik graag voor mijn gezin. Na het eten kijk ik televisie in de woonkamer. Soms lees ik een boek in bed. Ik doe dat het liefst thuis.",
+            },
+        ],
+    },
+    # ── Mock Exam 3 ──────────────────────────────────────────────────────────
+    {
+        "id": "mock_3",
+        "title": "Practice Exam 3",
+        "short": [
+            {
+                "id": "m3_s01",
+                "prompt_nl": "Wat vindt u gezond?",
+                "prompt_en": "What do you consider healthy?",
+                "prep_seconds": 15, "record_seconds": 30,
+                "expected_phrases": ["gezond", "sporten", "groente", "fruit"],
+                "model_answer": "Ik vind het gezond om te sporten. Groente en fruit eten vind ik ook gezond. Zoet en vet eten vind ik niet gezond.",
+            },
+            {
+                "id": "m3_s02",
+                "prompt_nl": "Wat gaat u morgen doen?",
+                "prompt_en": "What will you do tomorrow?",
+                "prep_seconds": 15, "record_seconds": 30,
+                "expected_phrases": ["morgen", "ga", "naar", "werken", "school"],
+                "model_answer": "Morgen ga ik naar school om negen uur. 's Middags ga ik boodschappen doen.",
+            },
+            {
+                "id": "m3_s03",
+                "prompt_nl": "Wat was er deze week in het nieuws?",
+                "prompt_en": "What was in the news this week?",
+                "prep_seconds": 15, "record_seconds": 30,
+                "expected_phrases": ["nieuws", "week", "gelezen", "gehoord"],
+                "model_answer": "Deze week was het weer in het nieuws. Het was erg koud. Ik vind dat interessant.",
+            },
+            {
+                "id": "m3_s04",
+                "prompt_nl": "Waarvoor gebruikt u uw telefoon vaak?",
+                "prompt_en": "What do you use your phone for often?",
+                "prep_seconds": 15, "record_seconds": 30,
+                "expected_phrases": ["telefoon", "bellen", "WhatsApp", "internet"],
+                "model_answer": "Ik gebruik mijn telefoon om te bellen en om WhatsApp-berichten te sturen. Ik kijk ook op internet.",
+            },
+            {
+                "id": "m3_s05",
+                "prompt_nl": "In Nederland dragen veel mensen op Koningsdag oranje kleren. Wat vindt u daarvan?",
+                "prompt_en": "In the Netherlands, many people wear orange on King's Day. What do you think about that?",
+                "prep_seconds": 15, "record_seconds": 30,
+                "expected_phrases": ["Koningsdag", "oranje", "leuk", "feest"],
+                "model_answer": "Ik vind dat leuk. Koningsdag is een groot feest in Nederland. Ik heb vorig jaar ook oranje gedragen.",
+            },
+            {
+                "id": "m3_s06",
+                "prompt_nl": "Welk dier vindt u niet leuk?",
+                "prompt_en": "Which animal don't you like?",
+                "prep_seconds": 15, "record_seconds": 30,
+                "expected_phrases": ["dier", "niet leuk", "bang", "houd niet van"],
+                "model_answer": "Ik houd niet van slangen, want ik vind ze eng. Ik ben een beetje bang voor grote honden.",
+            },
+            {
+                "id": "m3_s07",
+                "prompt_nl": "Leest u vaak? Vertel ook wat u graag leest.",
+                "prompt_en": "Do you read often? Also tell what you like to read.",
+                "prep_seconds": 15, "record_seconds": 30,
+                "expected_phrases": ["lezen", "lees", "boek", "krant", "telefoon"],
+                "model_answer": "Ja, ik lees elke dag. Ik lees graag het nieuws op mijn telefoon. Soms lees ik een Nederlands boek.",
+            },
+            {
+                "id": "m3_s08",
+                "prompt_nl": "Wat voor kleren draagt u het liefst?",
+                "prompt_en": "What kind of clothes do you prefer to wear?",
+                "prep_seconds": 15, "record_seconds": 30,
+                "expected_phrases": ["kleren", "draag", "liefst", "comfortabel"],
+                "model_answer": "Ik draag het liefst een spijkerbroek en een t-shirt. Dat is comfortabel en makkelijk.",
+            },
+        ],
+        "long": [
+            {
+                "id": "m3_l01",
+                "prompt_nl": "Wat vindt u makkelijk om te koken? Vertel ook wat u daarvoor nodig heeft.",
+                "prompt_en": "What do you find easy to cook? Also tell what you need for it.",
+                "prep_seconds": 30, "record_seconds": 60,
+                "expected_phrases": ["koken", "makkelijk", "nodig", "groente", "pan"],
+                "model_answer": "Ik vind het makkelijk om pasta te koken. Ik heb pasta, tomatensaus en groente nodig. Eerst kook ik het water. Dan doe ik de pasta erin. In een andere pan maak ik de saus.",
+            },
+            {
+                "id": "m3_l02",
+                "prompt_nl": "Gaat u vaak bij familie of vrienden op bezoek? Vertel ook hoe u dat doet.",
+                "prompt_en": "Do you often visit family or friends? Also tell how you do that.",
+                "prep_seconds": 30, "record_seconds": 60,
+                "expected_phrases": ["bezoek", "familie", "vrienden", "ga", "bus", "fiets"],
+                "model_answer": "Ja, ik ga elke week bij mijn zus op bezoek. Zij woont in dezelfde stad. Ik ga met de fiets. Soms bel ik ook met mijn moeder in mijn eigen land. Dat doe ik via WhatsApp.",
+            },
+            {
+                "id": "m3_l03",
+                "prompt_nl": "Waarom kunt u soms niet op een afspraak komen? Vertel ook wat u doet als u niet op een afspraak kunt komen.",
+                "prompt_en": "Why can you sometimes not come to an appointment? Also tell what you do if you can't come.",
+                "prep_seconds": 30, "record_seconds": 60,
+                "expected_phrases": ["afspraak", "niet komen", "ziek", "bellen", "afzeggen"],
+                "model_answer": "Soms kan ik niet op een afspraak komen als ik ziek ben of als mijn kind ziek is. Dan bel ik om de afspraak af te zeggen. Ik maak een nieuwe afspraak voor een andere dag.",
+            },
+            {
+                "id": "m3_l04",
+                "prompt_nl": "Ik houd erg van bloemen. Waar houdt u het meest van? Vertel ook waarom.",
+                "prompt_en": "I really love flowers. What do you love most? Also tell why.",
+                "prep_seconds": 30, "record_seconds": 60,
+                "expected_phrases": ["houd van", "meest", "omdat", "leuk", "mooi"],
+                "model_answer": "Ik houd het meest van koken. Ik vind het leuk om nieuwe recepten te proberen. Mijn familie vindt mijn eten lekker. Dat maakt mij blij.",
+            },
+            {
+                "id": "m3_l05",
+                "prompt_nl": "Welke dingen vindt u niet leuk in Nederland? Vertel ook welke dingen u niet leuk vindt in uw eigen land.",
+                "prompt_en": "What things don't you like about the Netherlands? Also tell what things you don't like about your own country.",
+                "prep_seconds": 30, "record_seconds": 60,
+                "expected_phrases": ["niet leuk", "Nederland", "eigen land", "weer", "koud"],
+                "model_answer": "In Nederland vind ik het koude weer niet leuk. Het regent veel. In mijn eigen land vind ik het verkeer niet leuk. Er zijn te veel auto's en het is gevaarlijk.",
+            },
+            {
+                "id": "m3_l06",
+                "prompt_nl": "Ik krijg het liefst boeken als ik jarig ben. Wat krijgt u graag als cadeau? Vertel ook wat u niet leuk vindt om te krijgen.",
+                "prompt_en": "I like getting books for my birthday. What do you like as a gift? Also tell what you don't like to receive.",
+                "prep_seconds": 30, "record_seconds": 60,
+                "expected_phrases": ["cadeau", "jarig", "krijg", "graag", "niet leuk"],
+                "model_answer": "Ik krijg graag geld als ik jarig ben. Dan kan ik zelf kiezen wat ik koop. Ik vind het niet leuk om parfum te krijgen, want ik gebruik dat niet.",
+            },
+            {
+                "id": "m3_l07",
+                "prompt_nl": "Wat doet u graag als het mooi weer is? Vertel ook met wie u dat doet.",
+                "prompt_en": "What do you like to do when the weather is nice? Also tell who you do it with.",
+                "prep_seconds": 30, "record_seconds": 60,
+                "expected_phrases": ["mooi weer", "buiten", "wandelen", "kinderen", "park", "samen"],
+                "model_answer": "Als het mooi weer is ga ik graag naar het park met mijn kinderen. We wandelen en spelen daar. Soms gaan we ook naar het strand met de hele familie. Dat vind ik heel leuk.",
+            },
+            {
+                "id": "m3_l08",
+                "prompt_nl": "Wat voor werk vindt u leuk om te doen? Vertel ook wat voor werk u niet leuk vindt om te doen.",
+                "prompt_en": "What kind of work do you like to do? Also tell what kind of work you don't like to do.",
+                "prep_seconds": 30, "record_seconds": 60,
+                "expected_phrases": ["werk", "leuk", "niet leuk", "mensen", "kantoor"],
+                "model_answer": "Ik vind het leuk om met mensen te werken. Ik wil graag in een winkel werken of in de zorg. Ik vind het niet leuk om de hele dag op kantoor achter een computer te zitten.",
+            },
+        ],
+    },
+]
+
+
 def get_scene_list() -> list[dict]:
     """Return a list of scene summaries (no questions)."""
     scenes = []
@@ -272,6 +693,37 @@ def get_question(scene_id: str, question_id: str) -> dict | None:
         return None
     for qtype in ("short", "long"):
         for q in scene["exam_questions"][qtype]:
+            if q["id"] == question_id:
+                return {**q, "question_type": qtype}
+    return None
+
+
+def get_mock_exam_list() -> list[dict]:
+    """Return mock exam summaries."""
+    return [
+        {
+            "id": e["id"],
+            "title": e["title"],
+            "short_count": len(e["short"]),
+            "long_count": len(e["long"]),
+        }
+        for e in MOCK_EXAM_SETS
+    ]
+
+
+def get_mock_exam(exam_id: str) -> dict | None:
+    for e in MOCK_EXAM_SETS:
+        if e["id"] == exam_id:
+            return e
+    return None
+
+
+def get_mock_question(exam_id: str, question_id: str) -> dict | None:
+    exam = get_mock_exam(exam_id)
+    if not exam:
+        return None
+    for qtype in ("short", "long"):
+        for q in exam[qtype]:
             if q["id"] == question_id:
                 return {**q, "question_type": qtype}
     return None

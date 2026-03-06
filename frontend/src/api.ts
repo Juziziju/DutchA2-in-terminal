@@ -78,6 +78,22 @@ export function syncVocab() {
   return request<{ detail: string }>("POST", "/vocab/sync");
 }
 
+export async function uploadVocabCsv(file: File): Promise<{ added: number; skipped: number; audio_errors?: number; columns_detected?: string[] }> {
+  const token = getToken();
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(BASE + "/vocab/upload-csv", {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail ?? "Upload failed");
+  }
+  return res.json();
+}
+
 // ── Flashcards ────────────────────────────────────────────────────────────────
 
 export interface CardOut {
@@ -553,6 +569,15 @@ export function getWeeklyReport() { return request<PlannerWeeklyReport>("GET", "
 export function getRoadmap() { return request<PlannerRoadmap>("GET", "/planner/roadmap"); }
 export function regenerateRoadmap() { return request<PlannerRoadmap>("POST", "/planner/roadmap/regenerate"); }
 
+export interface StreakResponse {
+  streak: number;
+  active_dates: string[];
+}
+
+export function getStreak() {
+  return request<StreakResponse>("GET", "/results/streak");
+}
+
 // ── Speaking ─────────────────────────────────────────────────────────────────
 
 export interface SpeakingSceneSummary {
@@ -685,4 +710,62 @@ export async function submitSpeakingRecording(
 
 export function getSpeakingHistory() {
   return request<SpeakingHistoryItem[]>("GET", "/speaking/history");
+}
+
+export interface ShadowSubmitResponse {
+  session_id: number;
+  transcript: string;
+  similarity_score: number;
+  word_matches: string[];
+  word_misses: string[];
+  feedback: string;
+  original_sentence: string;
+}
+
+export async function submitShadowRecording(
+  audio: Blob,
+  sceneId: string,
+  sentenceIndex: number,
+): Promise<ShadowSubmitResponse> {
+  const token = getToken();
+  const form = new FormData();
+  form.append("audio", audio, "recording.webm");
+  form.append("scene_id", sceneId);
+  form.append("sentence_index", String(sentenceIndex));
+
+  const res = await fetch(BASE + "/speaking/submit-shadow", {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail ?? "Upload failed");
+  }
+  return res.json();
+}
+
+// ── Mock Exams ───────────────────────────────────────────────────────────────
+
+export interface MockExamSummary {
+  id: string;
+  title: string;
+  short_count: number;
+  long_count: number;
+}
+
+export interface MockExamDetail {
+  id: string;
+  title: string;
+  short: SpeakingQuestion[];
+  long: SpeakingQuestion[];
+}
+
+export function getMockExams() {
+  return request<MockExamSummary[]>("GET", "/speaking/mock-exams");
+}
+
+export function getMockExamDetail(examId: string) {
+  return request<MockExamDetail>("GET", `/speaking/mock-exams/${examId}`);
 }

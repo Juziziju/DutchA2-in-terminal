@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ExamQuestion,
+  MockExamSummary,
   SectionInfo,
   getExamQuestions,
   getExamSession,
+  getMockExams,
   gradeExamSection,
   submitExam,
 } from "../api";
@@ -16,12 +18,14 @@ const PASS_SCORE = 60;
 export default function MockExam() {
   const nav = useNavigate();
   const { state: s, set, reset } = useMockExamState();
+  const [speakingExams, setSpeakingExams] = useState<MockExamSummary[]>([]);
 
   useEffect(() => {
     if (s.loaded) return;
     getExamSession()
       .then((data) => set((p) => ({ ...p, examData: data, loaded: true })))
       .catch(() => set((p) => ({ ...p, loaded: true })));
+    getMockExams().then(setSpeakingExams).catch(() => {});
   }, [s.loaded]);
 
   function startFull() {
@@ -137,6 +141,28 @@ export default function MockExam() {
             ))}
           </div>
         </div>
+
+        {/* Speaking Mock Exams */}
+        {speakingExams.length > 0 && (
+          <div>
+            <p className="text-sm font-medium mb-2">Speaking practice exams (real DUO questions)</p>
+            <div className="space-y-2">
+              {speakingExams.map((e) => (
+                <button
+                  key={e.id}
+                  onClick={() => nav(`/study/speaking?mock=${e.id}`)}
+                  className="w-full flex justify-between items-center bg-white border border-slate-200 rounded-2xl px-4 py-3 hover:shadow-md cursor-pointer transition-all"
+                >
+                  <div>
+                    <span className="font-medium">{e.title}</span>
+                    <span className="text-xs text-slate-400 ml-2">{e.short_count} short + {e.long_count} long</span>
+                  </div>
+                  <span className="text-sm text-slate-400">~35 min</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   }

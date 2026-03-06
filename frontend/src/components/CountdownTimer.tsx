@@ -45,7 +45,7 @@ export default function CountdownTimer({ seconds, onComplete, label, color = "#3
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-2xl font-bold text-white">{remaining}</span>
+          <span className="text-2xl font-bold text-slate-800">{remaining}</span>
         </div>
       </div>
     </div>
