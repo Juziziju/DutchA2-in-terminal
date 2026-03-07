@@ -19,7 +19,7 @@ All AI calls use the **OpenAI-compatible API** via the `openai` Python SDK point
 | Model ID | Purpose | Upgrade Candidates |
 |----------|---------|-------------------|
 | `qwen-omni-turbo` | Speech-to-text (STT) | `qwen3-omni-flash` (faster), future Paraformer if endpoint returns |
-| `qwen-plus` (via `AI_MODEL`) | Listening generation, speaking review, shadow review, planner, freestyle chat, custom scene generation | `qwen-max` (better quality), `qwen-turbo` (cheaper/faster) |
+| `qwen-plus` (via `AI_MODEL`) | Listening generation, speaking review, shadow review, speaking progress AI insight, planner, freestyle chat, custom scene generation | `qwen-max` (better quality), `qwen-turbo` (cheaper/faster) |
 | `qwen3.5-plus-2026-02-15` | AI Advisor (hardcoded) | Any newer `qwen3.5-plus-*` or `qwen-max` |
 | Edge TTS | Text-to-speech (all Dutch audio) | Azure Cognitive Services, Google Cloud TTS |
 
@@ -35,7 +35,7 @@ All recording features share one transcription function.
 |--------|-------|
 | **Model** | `qwen-omni-turbo` |
 | **Method** | `chat.completions.create()` with `input_audio` (base64) |
-| **File** | `backend/core/speaking_ai.py:14` → `transcribe_audio()` |
+| **File** | `backend/core/speaking_ai.py:15` → `transcribe_audio()` |
 | **Called by** | Speaking router, Shadow router, Freestyle router |
 
 **Why not `/audio/transcriptions`?** DashScope deprecated `paraformer-v2` and removed the OpenAI-compatible audio transcription endpoint. We use the omni model via chat completions with base64 audio input instead.
@@ -59,7 +59,7 @@ messages=[{
 | Detail | Value |
 |--------|-------|
 | **Model** | `AI_MODEL` (default `qwen-plus`) |
-| **File** | `backend/core/speaking_ai.py:29` → `review_speaking()` |
+| **File** | `backend/core/speaking_ai.py:43` → `review_speaking()` |
 | **Router** | `backend/routers/speaking.py:159` → `POST /speaking/submit-recording` |
 | **Input** | Transcript + question prompt + expected phrases + model answer |
 | **Output** | JSON: `score`, `vocabulary_score`, `grammar_score`, `completeness_score`, `feedback_en`, `improved_answer` |
@@ -71,10 +71,22 @@ messages=[{
 | Detail | Value |
 |--------|-------|
 | **Model** | `AI_MODEL` (default `qwen-plus`) |
-| **File** | `backend/core/speaking_ai.py:110` → `review_shadow()` |
+| **File** | `backend/core/speaking_ai.py:124` → `review_shadow()` |
 | **Router** | `backend/routers/speaking.py:275` → `POST /speaking/submit-shadow` |
 | **Input** | Transcript + original sentence |
 | **Output** | JSON: `similarity_score`, `word_matches`, `word_misses`, `feedback` |
+
+---
+
+### 3b. Speaking — Progress AI Insight
+
+| Detail | Value |
+|--------|-------|
+| **Model** | `AI_MODEL` (default `qwen-plus`) |
+| **File** | `backend/core/speaking_ai.py:171` → `analyze_speaking_patterns()` |
+| **Router** | `backend/routers/speaking.py` → `GET /speaking/progress/ai-insight` |
+| **Input** | Aggregated missed words, grammar errors, weak areas, comparison, mode stats (from `speaking_analysis.py`) |
+| **Output** | JSON: `patterns`, `focus_areas`, `summary`, `suggested_scene_topic` |
 
 ---
 
