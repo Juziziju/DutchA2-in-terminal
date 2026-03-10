@@ -10,6 +10,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 from pydantic import BaseModel
 from sqlmodel import Session, select, col, func
 
+from fastapi.responses import Response
+
 from backend.config import AUDIO_SPEAKING_DIR
 from backend.core.audio import new_session_prefix
 from backend.core.speaking_ai import analyze_speaking_patterns, review_shadow, review_speaking, transcribe_audio
@@ -210,6 +212,12 @@ async def submit_recording(
     with open(audio_path, "wb") as f:
         f.write(content)
 
+    try:
+        from backend.core.storage import upload_file
+        upload_file("speaking", filename, content, content_type="audio/webm")
+    except Exception:
+        pass
+
     # STT transcription
     try:
         transcript = transcribe_audio(audio_path)
@@ -317,6 +325,12 @@ async def submit_shadow(
     with open(audio_path, "wb") as f:
         f.write(content)
 
+    try:
+        from backend.core.storage import upload_file
+        upload_file("speaking", filename, content, content_type="audio/webm")
+    except Exception:
+        pass
+
     # STT transcription
     try:
         transcript = transcribe_audio(audio_path)
@@ -400,6 +414,7 @@ def speaking_history(
             "score_pct": s.score_pct,
             "date": s.date.isoformat(),
             "feedback": json.loads(s.feedback_json) if s.feedback_json else {},
+            "audio_file": s.audio_file,
         }
 
     # Old format: no pagination params → flat list
@@ -690,3 +705,119 @@ def custom_scene_questions(
     if not cs:
         raise HTTPException(status_code=404, detail="Custom scene not found")
     return json.loads(cs.questions_json)
+
+
+# ── Delete recording ─────────────────────────────────────────────────────────
+
+
+@router.delete("/recordings/{session_id}")
+def delete_recording(
+    session_id: int,
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Delete a speaking recording (Supabase + local file). Sets audio_file to None."""
+    session = db.get(SpeakingSession, session_id)
+    if not session or session.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if session.audio_file:
+        from backend.core.storage import delete_file
+        try:
+            delete_file("speaking", session.audio_file)
+        except Exception:
+            pass
+        local_path = AUDIO_SPEAKING_DIR / session.audio_file
+        if local_path.exists():
+            local_path.unlink()
+        session.audio_file = None
+        db.add(session)
+        db.commit()
+
+    return Response(status_code=204)
+
+
+# ── Knowledge Summary (notebook) ──────────────────────────────────────────────
+
+
+@router.get("/notebook")
+def speaking_notebook(
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Return all scenes the user has practiced with content, stats, and best recordings."""
+    from backend.models.custom_scene import CustomScene
+
+    # 1. Built-in scenes
+    all_scenes: list[dict] = []
+    for summary in get_scene_list():
+        full = get_scene(summary["id"])
+        if full:
+            all_scenes.append({
+                "id": full["id"],
+                "title_en": full["title_en"],
+                "title_nl": full["title_nl"],
+                "is_custom": False,
+                "vocab": full["vocab"],
+                "model_sentences": full["model_sentences"],
+            })
+
+    # 2. Custom scenes
+    customs = db.exec(
+        select(CustomScene).where(CustomScene.user_id == user.id).order_by(col(CustomScene.created_at).desc())
+    ).all()
+    for cs in customs:
+        all_scenes.append({
+            "id": cs.scene_id,
+            "title_en": cs.title_en,
+            "title_nl": cs.title_nl,
+            "is_custom": True,
+            "vocab": json.loads(cs.vocab_json),
+            "model_sentences": json.loads(cs.sentences_json),
+        })
+
+    # 3. All user sessions grouped by scene
+    sessions = db.exec(
+        select(SpeakingSession).where(SpeakingSession.user_id == user.id)
+    ).all()
+    by_scene: dict[str, list[SpeakingSession]] = {}
+    for s in sessions:
+        by_scene.setdefault(s.scene, []).append(s)
+
+    # 4. Attach stats + best recordings per scene
+    result_scenes = []
+    for sc in all_scenes:
+        scene_sessions = by_scene.get(sc["id"], [])
+        scores = [s.score_pct for s in scene_sessions if s.score_pct is not None]
+
+        # Best recording per question_id (highest score)
+        best_by_q: dict[str, SpeakingSession] = {}
+        for s in scene_sessions:
+            if s.score_pct is not None:
+                prev = best_by_q.get(s.question_id)
+                if prev is None or (s.score_pct > (prev.score_pct or 0)):
+                    best_by_q[s.question_id] = s
+
+        best_recordings = [
+            {
+                "question_id": s.question_id,
+                "audio_file": s.audio_file,
+                "score_pct": s.score_pct,
+                "transcript": s.transcript,
+            }
+            for s in best_by_q.values()
+        ]
+
+        last_practiced = max((s.date for s in scene_sessions), default=None)
+
+        result_scenes.append({
+            **sc,
+            "best_recordings": best_recordings,
+            "stats": {
+                "attempts": len(scene_sessions),
+                "avg_score": round(sum(scores) / len(scores)) if scores else None,
+                "last_practiced": last_practiced.isoformat() if last_practiced else None,
+            },
+        })
+
+    return {"scenes": result_scenes}

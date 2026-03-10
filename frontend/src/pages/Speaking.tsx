@@ -620,6 +620,16 @@ function SpeakingHome({
           <p className="text-sm text-slate-400 mb-3">Listen to model sentences, repeat, and compare your pronunciation</p>
           <div className="text-xs text-slate-500">Improve pronunciation & fluency</div>
         </button>
+        {/* Knowledge Summary */}
+        <Link
+          to="/study/speaking/notebook"
+          className="bg-gradient-to-br from-emerald-900/40 to-slate-800 hover:from-emerald-800/40 hover:to-slate-700 rounded-xl p-6 text-left transition-colors border border-emerald-700/30"
+        >
+          <div className="text-3xl mb-3">📓</div>
+          <h2 className="text-lg font-bold text-white mb-1">Knowledge Summary</h2>
+          <p className="text-sm text-slate-400 mb-3">Browse all scene vocab, sentences, and your best recordings</p>
+          <div className="text-xs text-slate-500">Organized by scene</div>
+        </Link>
         {/* Freestyle Talk */}
         <Link
           to="/study/speaking/freestyle"

@@ -66,6 +66,35 @@ app.include_router(freestyle.router)
 def on_startup():
     create_db_and_tables()
 
+    # Cleanup speaking recordings older than 7 days
+    from datetime import datetime, timedelta
+    from sqlmodel import Session as DBSession, select
+    from backend.database import engine
+    from backend.models.speaking import SpeakingSession
+
+    cutoff = datetime.utcnow() - timedelta(days=7)
+    with DBSession(engine) as db:
+        old = db.exec(
+            select(SpeakingSession).where(
+                SpeakingSession.date < cutoff,
+                SpeakingSession.audio_file.is_not(None),  # type: ignore[union-attr]
+            )
+        ).all()
+        if old:
+            from backend.core.storage import delete_file
+            for s in old:
+                if s.audio_file:
+                    try:
+                        delete_file("speaking", s.audio_file)
+                    except Exception:
+                        pass
+                    local = AUDIO_SPEAKING_DIR / s.audio_file
+                    if local.exists():
+                        local.unlink()
+                    s.audio_file = None
+                    db.add(s)
+            db.commit()
+
 
 @app.get("/health")
 def health():

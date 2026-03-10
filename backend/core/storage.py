@@ -47,6 +47,16 @@ def upload_file(folder: str, filename: str, data: bytes, content_type: str = "au
     return resp.status_code in (200, 201)
 
 
+def delete_file(folder: str, filename: str) -> bool:
+    """Delete a file from Supabase Storage. Returns True on success."""
+    if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+        return False
+    safe = _sanitize(filename)
+    url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_AUDIO_BUCKET}/{folder}/{safe}"
+    resp = httpx.delete(url, headers=_headers(), timeout=30)
+    return resp.status_code in (200, 204)
+
+
 def upload_file_from_path(folder: str, filepath: str) -> bool:
     """Upload a local file to Supabase Storage."""
     import os

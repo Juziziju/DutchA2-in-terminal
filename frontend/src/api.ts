@@ -711,6 +711,7 @@ export interface SpeakingHistoryItem {
   score_pct: number | null;
   date: string;
   feedback: SpeakingFeedback | null;
+  audio_file: string | null;
 }
 
 export function getSpeakingScenes() {
@@ -771,6 +772,34 @@ export async function submitSpeakingRecording(
 
 export function getSpeakingHistory() {
   return request<SpeakingHistoryItem[]>("GET", "/speaking/history");
+}
+
+export function deleteSpeakingRecording(sessionId: number) {
+  return request<void>("DELETE", `/speaking/recordings/${sessionId}`);
+}
+
+// ── Speaking Notebook ────────────────────────────────────────────────────────
+
+export interface SpeakingNotebookBestRecording {
+  question_id: string;
+  audio_file: string | null;
+  score_pct: number;
+  transcript: string | null;
+}
+
+export interface SpeakingNotebookScene {
+  id: string;
+  title_en: string;
+  title_nl: string;
+  is_custom: boolean;
+  vocab: SpeakingVocabItem[];
+  model_sentences: SpeakingModelSentence[];
+  best_recordings: SpeakingNotebookBestRecording[];
+  stats: { attempts: number; avg_score: number | null; last_practiced: string | null };
+}
+
+export function getSpeakingNotebook() {
+  return request<{ scenes: SpeakingNotebookScene[] }>("GET", "/speaking/notebook");
 }
 
 // ── Speaking History (Paginated) ─────────────────────────────────────────────

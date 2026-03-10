@@ -11,6 +11,7 @@ import Planner from "./pages/Planner";
 import Reading from "./pages/Reading";
 import Settings from "./pages/Settings";
 import Speaking from "./pages/Speaking";
+import SpeakingNotebook from "./pages/SpeakingNotebook";
 import FreestyleTalk from "./pages/FreestyleTalk";
 import StudyMaterial from "./pages/StudyMaterial";
 import VocabNotebook from "./pages/VocabNotebook";
@@ -26,6 +27,7 @@ export default function App() {
           <Route index element={<Dashboard />} />
           <Route path="study/listening" element={<Listening />} />
           <Route path="study/reading" element={<Reading />} />
+          <Route path="study/speaking/notebook" element={<SpeakingNotebook />} />
           <Route path="study/speaking/freestyle" element={<FreestyleTalk />} />
           <Route path="study/speaking" element={<Speaking />} />
           <Route path="study/writing" element={<Writing />} />
