@@ -239,30 +239,49 @@ def get_explanation(data: dict, questions: list[dict], user_answers: list[str], 
 
     client = _get_client()
 
-    transcript = "\n".join(
-        f"{line['speaker']}: {line['text']} ({line.get('english', '')})"
-        for line in data["dialogue"]
-    )
+    # Detect if this is a reading passage or listening dialogue
+    is_reading = len(data.get("dialogue", [])) == 1 and data["dialogue"][0].get("speaker") == "Text"
+
+    if is_reading:
+        source_label = "Reading passage"
+        source_text = (
+            f"Dutch text:\n{data['dialogue'][0]['text']}\n\n"
+            f"English translation:\n{data['dialogue'][0].get('english', '')}"
+        )
+    else:
+        source_label = "Listening dialogue"
+        source_text = "Dialogue:\n" + "\n".join(
+            f"{line['speaker']}: {line['text']} ({line.get('english', '')})"
+            for line in data["dialogue"]
+        )
 
     qa_summary = ""
     for i, (q, ua) in enumerate(zip(questions, user_answers), 1):
         correct = q["answer"]
         correct_text = q["options"][correct]
-        user_text = q["options"][ua]
+        user_text = q["options"].get(ua, "(no answer)")
         status = "correct" if ua == correct else "incorrect"
+        question_text = q.get("question") or q.get("question_nl", "")
         qa_summary += (
-            f"Q{i}: {q['question']}\n"
+            f"Q{i}: {question_text}\n"
             f"  User answered {ua}) {user_text} — {status}\n"
             f"  Correct answer: {correct}) {correct_text}\n\n"
         )
 
     prompt = (
-        f"Dutch {level} listening exercise. Topic: {data['topic']}\n\n"
-        f"Dialogue:\n{transcript}\n\n"
+        f"Dutch {level} {source_label.lower()}. Topic: {data['topic']}\n\n"
+        f"{source_text}\n\n"
         f"Results:\n{qa_summary}"
-        f"For each wrong answer, write 1-2 sentences: which dialogue line gives the answer and why. "
-        f"For correct answers, just write 'Correct.' "
-        f"Be brief. No encouragement or filler. English only."
+        f"For EACH question (correct or wrong), provide:\n"
+        f"1. Whether the user was correct or incorrect\n"
+        f"2. Quote the exact relevant Dutch sentence(s) from the {'passage' if is_reading else 'dialogue'} (use quotation marks)\n"
+        f"3. Provide the English translation of the quoted sentence(s)\n"
+        f"4. Explain WHY the correct answer follows from that quote\n\n"
+        f"Format each answer as:\n"
+        f"Q1: Correct/Incorrect\n"
+        f"Evidence: \"[Dutch quote from the text]\" — \"[English translation]\"\n"
+        f"Explanation: [why the correct answer follows from this evidence]\n\n"
+        f"Be concise but thorough. No encouragement or filler. English only."
     )
 
     response = client.chat.completions.create(

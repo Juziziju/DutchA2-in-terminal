@@ -1015,6 +1015,56 @@ export function getMockExamDetail(examId: string) {
   return request<MockExamDetail>("GET", `/speaking/mock-exams/${examId}`);
 }
 
+// ── Spreken Exams ───────────────────────────────────────────────────────────
+
+export interface SprekenExamSummary {
+  id: string;
+  title: string;
+  onderdeel_count: number;
+  question_count: number;
+}
+
+export interface SprekenVraag {
+  id: string;
+  situatie_nl: string;
+  situatie_en: string;
+  vraag_nl: string;
+  vraag_en: string;
+  prep_seconds: number;
+  record_seconds: number;
+  model_answer: string;
+  tips: string[];
+  expected_phrases: string[];
+  question_type: string;
+  image_url?: string;
+}
+
+export interface SprekenOnderdeel {
+  nummer: number;
+  titel: string;
+  beschrijving: string;
+  beschrijving_en: string;
+  vragen: SprekenVraag[];
+}
+
+export interface SprekenExamDetail {
+  id: string;
+  title: string;
+  onderdelen: SprekenOnderdeel[];
+}
+
+export function getSprekenExams() {
+  return request<SprekenExamSummary[]>("GET", "/speaking/spreken-exams");
+}
+
+export function getSprekenExamDetail(examId: string) {
+  return request<SprekenExamDetail>("GET", `/speaking/spreken-exams/${examId}`);
+}
+
+export function getSprekenQuestionAudio(examId: string, questionId: string) {
+  return request<{ audio_file: string }>("GET", `/speaking/spreken-tts/${examId}/${questionId}`);
+}
+
 // ── Personal Vocab ──────────────────────────────────────────────────────────
 
 export interface PersonalVocabItem {

@@ -62,6 +62,7 @@ def get_session_cards(
     }
 
     due: list[tuple[Vocab, str, FlashcardProgress]] = []
+    weak: list[tuple[Vocab, str, FlashcardProgress]] = []
     new: list[tuple[Vocab, str]] = []
 
     for vocab in all_vocab:
@@ -70,31 +71,39 @@ def get_session_cards(
             prog = progress_by_key.get(key)
             if prog:
                 if prog.mastered:
-                    continue
+                    continue  # skip mastered cards entirely
                 if prog.repetitions > 0 and prog.next_review <= today:
                     due.append((vocab, direction, prog))
-                elif prog.repetitions == 0:
-                    # Created but never reviewed — treat as new
+                elif prog.repetitions > 0:
+                    # Not yet due but not mastered — weak/learning cards
+                    weak.append((vocab, direction, prog))
+                else:
+                    # repetitions == 0: created but never reviewed
                     new.append((vocab, direction))
             else:
                 new.append((vocab, direction))
 
     # Sort due cards by urgency: most overdue first
     due.sort(key=lambda x: x[2].next_review)
+    # Sort weak cards: lowest ease_factor first (hardest), then fewest repetitions
+    weak.sort(key=lambda x: (x[2].ease_factor, x[2].repetitions))
     random.shuffle(new)
 
-    # Due cards are top priority — only add new cards if there's room
+    # Build session: due first, then weak, then new — only as many as exist
     MAX_SESSION = 30
-    if len(due) >= MAX_SESSION:
-        new = []
-    else:
-        new = new[:min(MAX_NEW_CARDS, MAX_SESSION - len(due))]
+    remaining = MAX_SESSION
 
-    due_count = len(due)
-    new_count = len(new)
+    selected_due = due[:remaining]
+    remaining -= len(selected_due)
+
+    selected_new = new[:min(MAX_NEW_CARDS, remaining)] if remaining > 0 else []
+    remaining -= len(selected_new)
+
+    due_count = len(selected_due)
+    new_count = len(selected_new)
 
     cards: list[CardOut] = []
-    for vocab, direction, prog in due:
+    for vocab, direction, prog in selected_due:
         cards.append(CardOut(
             progress_id=prog.id,
             vocab_id=vocab.id,
@@ -108,7 +117,7 @@ def get_session_cards(
             is_new=False,
         ))
 
-    for vocab, direction in new:
+    for vocab, direction in selected_new:
         cards.append(CardOut(
             progress_id=-1,  # no progress record yet
             vocab_id=vocab.id,

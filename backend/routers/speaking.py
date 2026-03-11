@@ -33,6 +33,11 @@ from backend.core.speaking_bank import (
     get_scene,
     get_scene_list,
 )
+from backend.data.spreken_exams import (
+    get_spreken_exam,
+    get_spreken_exam_list,
+    get_spreken_question,
+)
 from backend.database import get_session
 from backend.models.speaking import SpeakingSession
 from backend.models.user import User
@@ -180,8 +185,20 @@ async def submit_recording(
     user: User = Depends(get_current_user),
 ):
     """Upload recording → STT → AI review → save + return feedback."""
-    # Validate question exists — check mock exams, built-in scenes, then custom scenes
-    question = get_mock_question(scene, question_id) or get_question(scene, question_id)
+    # Validate question exists — check spreken exams, mock exams, built-in scenes, then custom scenes
+    question = get_spreken_question(scene, question_id) or get_mock_question(scene, question_id) or get_question(scene, question_id)
+    # Spreken exam questions use different field names — normalize
+    if question and "vraag_nl" in question:
+        question = {
+            "id": question["id"],
+            "prompt_nl": question["vraag_nl"],
+            "prompt_en": question["vraag_en"],
+            "expected_phrases": question.get("expected_phrases", []),
+            "model_answer": question.get("model_answer", ""),
+            "question_type": question.get("question_type", "short"),
+            "prep_seconds": question.get("prep_seconds", 30),
+            "record_seconds": question.get("record_seconds", 60),
+        }
     if not question:
         # Check custom scenes
         custom = _find_custom_scene(scene, user.id, db)
@@ -535,7 +552,60 @@ def mock_exam_detail(
     return exam
 
 
+# ── Spreken exam endpoints ────────────────────────────────────────────────────
+
+
+@router.get("/spreken-exams")
+def list_spreken_exams(
+    _user: User = Depends(get_current_user),
+):
+    """Return available spreken oefenexamens."""
+    return get_spreken_exam_list()
+
+
+@router.get("/spreken-exams/{exam_id}")
+def spreken_exam_detail(
+    exam_id: str,
+    _user: User = Depends(get_current_user),
+):
+    """Return full spreken exam with all onderdelen and questions."""
+    exam = get_spreken_exam(exam_id)
+    if not exam:
+        raise HTTPException(status_code=404, detail="Spreken exam not found")
+    return exam
+
+
 # ── TTS for model sentences ─────────────────────────────────────────────────
+
+
+@router.get("/spreken-tts/{exam_id}/{question_id}")
+def get_spreken_question_audio(
+    exam_id: str,
+    question_id: str,
+    user: User = Depends(get_current_user),
+):
+    """Generate TTS for a spreken question's situatie + vraag text."""
+    vraag = get_spreken_question(exam_id, question_id)
+    if not vraag:
+        raise HTTPException(status_code=404, detail="Question not found")
+
+    from backend.config import AUDIO_LISTENING_DIR
+    from backend.core.audio import _generate_edge_tts, VOICE_FEMALE_1
+    from backend.core.storage import upload_file
+
+    text = vraag["situatie_nl"] + " " + vraag["vraag_nl"]
+    filename = f"spreken_{exam_id}_{question_id}.mp3"
+    path = AUDIO_LISTENING_DIR / filename
+    if not path.exists():
+        AUDIO_LISTENING_DIR.mkdir(parents=True, exist_ok=True)
+        _generate_edge_tts(text, path, voice=VOICE_FEMALE_1)
+        try:
+            with open(path, "rb") as f:
+                upload_file("listening", filename, f.read())
+        except Exception:
+            pass
+
+    return {"audio_file": filename}
 
 
 @router.get("/tts/{scene_id}/{sentence_index}")

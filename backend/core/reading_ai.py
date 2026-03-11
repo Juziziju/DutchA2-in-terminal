@@ -43,7 +43,7 @@ Schema:
       "question_en": "English translation of question?",
       "options": {{"A": "option text", "B": "option text", "C": "option text", "D": "option text"}},
       "answer": "B",
-      "explanation_en": "Why B is correct..."
+      "explanation_en": "Quote the relevant Dutch sentence, give its English translation, then explain why B is correct. Format: '\"Dutch quote\" — \"English translation\". Reason...'"
     }}
   ]
 }}
@@ -54,7 +54,8 @@ Requirements:
 - Exactly {cfg['questions']} multiple-choice questions (A/B/C/D)
 - Questions should test: main idea comprehension, detail extraction, inference, vocabulary in context
 - All question options must be plausible
-- Include English translations for both passage and questions{topic_line}"""
+- Include English translations for both passage and questions
+- Each explanation_en MUST: quote the relevant Dutch sentence from the passage, provide its English translation, then explain why the answer is correct{topic_line}"""
 
     topic_part = f" about: {topic}." if topic else "."
     user_msg = f"Create a Dutch {level} reading exercise ({content_type}){topic_part} Return only valid JSON."

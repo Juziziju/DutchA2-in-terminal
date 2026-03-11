@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import CountdownTimer from "../components/CountdownTimer";
 import { useAudioRecorder } from "../hooks/useAudioRecorder";
@@ -6,6 +6,7 @@ import * as api from "../api";
 import { listeningAudioUrl } from "../api";
 import HistoryViewNew from "../components/speaking/HistoryView";
 import ProgressReport from "../components/speaking/ProgressReport";
+import { useSprekenExamGuard } from "../contexts/ExerciseProvider";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -26,7 +27,13 @@ type Phase =
   | "shadow_review"
   | "shadow_report"
   | "create_scene"
-  | "progress";
+  | "progress"
+  | "spreken_exam_intro"
+  | "spreken_onderdeel_intro"
+  | "spreken_prep"
+  | "spreken_record"
+  | "spreken_review"
+  | "spreken_exam_results";
 
 interface CurrentQuestion extends api.SpeakingQuestion {
   question_type: "short" | "long";
@@ -74,8 +81,17 @@ export default function Speaking() {
   const [sessionResults, setSessionResults] = useState<SessionResult[]>([]);
   const [shadowResults, setShadowResults] = useState<ShadowResult[]>([]);
 
+  // Spreken exam state
+  const [sprekenExam, setSprekenExam] = useState<api.SprekenExamDetail | null>(null);
+  const [sprekenOnderdeelIdx, setSprekenOnderdeelIdx] = useState(0);
+  const [sprekenVraagIdx, setSprekenVraagIdx] = useState(0);
+  const [sprekenResults, setSprekenResults] = useState<SessionResult[]>([]);
+  const [sprekenCurrentBlob, setSprekenCurrentBlob] = useState<Blob | null>(null);
+  const [showQuitModal, setShowQuitModal] = useState(false);
+  const { setSprekenExamActive } = useSprekenExamGuard();
+
   // Warn user before leaving during active practice
-  const isInPractice = ["prep", "recording", "uploading", "review", "session_report", "shadow_record", "shadow_review", "shadow_report", "shadow_play"].includes(phase);
+  const isInPractice = ["prep", "recording", "uploading", "review", "session_report", "shadow_record", "shadow_review", "shadow_report", "shadow_play", "spreken_prep", "spreken_record", "spreken_review", "spreken_exam_intro", "spreken_onderdeel_intro", "spreken_exam_results"].includes(phase);
   useEffect(() => {
     if (!isInPractice) return;
     const handler = (e: BeforeUnloadEvent) => {
@@ -117,6 +133,17 @@ export default function Speaking() {
     }
   }, [searchParams]);
 
+  // Auto-start spreken exam if redirected with ?spreken=exam_id
+  const sprekenStartedRef = useRef(false);
+  useEffect(() => {
+    const sprekenId = searchParams.get("spreken");
+    if (sprekenId && !sprekenStartedRef.current) {
+      sprekenStartedRef.current = true;
+      setSearchParams({}, { replace: true });
+      selectSprekenExam(sprekenId);
+    }
+  }, [searchParams]);
+
   const currentQuestion = questions[questionIndex] ?? null;
 
   // ── Navigation helpers ──────────────────────────────────────────────────
@@ -132,6 +159,8 @@ export default function Speaking() {
     setError(null);
     setSessionResults([]);
     setShadowResults([]);
+    setSprekenExamActive(false);
+    setShowQuitModal(false);
     loadScenes();
   };
 
@@ -197,6 +226,138 @@ export default function Speaking() {
       setError(e instanceof Error ? e.message : "Failed");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ── Spreken exam helpers ──────────────────────────────────────────────────
+
+  const selectSprekenExam = async (examId: string) => {
+    setLoading(true);
+    try {
+      const exam = await api.getSprekenExamDetail(examId);
+      setSprekenExam(exam);
+      setSprekenOnderdeelIdx(0);
+      setSprekenVraagIdx(0);
+      setSprekenResults([]);
+      setSprekenExamActive(true);
+      setPhase("spreken_exam_intro");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to load exam");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startSprekenOnderdeel = async () => {
+    const micErr = await recorder.acquireStream();
+    if (micErr) {
+      setError(`Microphone error: ${micErr}`);
+      return;
+    }
+    setPhase("spreken_onderdeel_intro");
+  };
+
+  const startSprekenPrep = () => {
+    setPhase("spreken_prep");
+  };
+
+  const startSprekenRecord = async () => {
+    setPhase("spreken_record");
+    await recorder.start();
+  };
+
+  const stopSprekenRecord = useCallback(() => {
+    recorder.stop();
+  }, [recorder]);
+
+  // Compute global question index for spreken exam
+  const sprekenGlobalIdx = (() => {
+    if (!sprekenExam) return 0;
+    let idx = 0;
+    for (let o = 0; o < sprekenOnderdeelIdx; o++) {
+      idx += sprekenExam.onderdelen[o].vragen.length;
+    }
+    return idx + sprekenVraagIdx;
+  })();
+  const sprekenTotalQuestions = sprekenExam
+    ? sprekenExam.onderdelen.reduce((s, o) => s + o.vragen.length, 0)
+    : 0;
+  const sprekenCurrentOnderdeel = sprekenExam?.onderdelen[sprekenOnderdeelIdx] ?? null;
+  const sprekenCurrentVraag = sprekenCurrentOnderdeel?.vragen[sprekenVraagIdx] ?? null;
+
+  // Background upload for spreken exam (fire-and-forget, auto-advance)
+  const sprekenBackgroundUpload = (blob: Blob, gIdx: number, vraag: api.SprekenVraag) => {
+    if (!sprekenExam) return;
+    const entry: SessionResult = {
+      questionIndex: gIdx,
+      question: {
+        id: vraag.id,
+        prompt_nl: vraag.vraag_nl,
+        prompt_en: vraag.vraag_en,
+        prep_seconds: vraag.prep_seconds,
+        record_seconds: vraag.record_seconds,
+        expected_phrases: vraag.expected_phrases,
+        model_answer: vraag.model_answer,
+        question_type: vraag.question_type as "short" | "long",
+      },
+      result: null,
+      status: "pending",
+    };
+    setSprekenResults((prev) => [...prev, entry]);
+
+    api.submitSpeakingRecording(blob, sprekenExam.id, vraag.id, vraag.question_type, "spreken_exam")
+      .then((result) => {
+        setSprekenResults((prev) =>
+          prev.map((r) => (r.questionIndex === gIdx ? { ...r, result, status: "done" } : r)),
+        );
+      })
+      .catch(() => {
+        setSprekenResults((prev) =>
+          prev.map((r) => (r.questionIndex === gIdx ? { ...r, status: "error" } : r)),
+        );
+      });
+  };
+
+  // Handle spreken recording blob — store blob and go to review
+  useEffect(() => {
+    if (recorder.audioBlob && recorder.audioBlob !== prevBlobRef.current && phase === "spreken_record") {
+      prevBlobRef.current = recorder.audioBlob;
+      setSprekenCurrentBlob(recorder.audioBlob);
+      setPhase("spreken_review");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recorder.audioBlob, phase]);
+
+  // Spreken review: re-record goes back to prep
+  const sprekenReRecord = () => {
+    setSprekenCurrentBlob(null);
+    recorder.reset();
+    prevBlobRef.current = null;
+    setPhase("spreken_prep");
+  };
+
+  // Spreken review: accept recording, upload and advance
+  const sprekenAcceptAndAdvance = () => {
+    const vraag = sprekenCurrentVraag;
+    if (!vraag || !sprekenExam || !sprekenCurrentOnderdeel || !sprekenCurrentBlob) return;
+
+    // Fire background upload
+    sprekenBackgroundUpload(sprekenCurrentBlob, sprekenGlobalIdx, vraag);
+
+    // Reset
+    setSprekenCurrentBlob(null);
+    recorder.reset();
+    prevBlobRef.current = null;
+
+    if (sprekenVraagIdx + 1 < sprekenCurrentOnderdeel.vragen.length) {
+      setSprekenVraagIdx(sprekenVraagIdx + 1);
+      setPhase("spreken_prep");
+    } else if (sprekenOnderdeelIdx + 1 < sprekenExam.onderdelen.length) {
+      setSprekenOnderdeelIdx(sprekenOnderdeelIdx + 1);
+      setSprekenVraagIdx(0);
+      setPhase("spreken_onderdeel_intro");
+    } else {
+      setPhase("spreken_exam_results");
     }
   };
 
@@ -552,6 +713,76 @@ export default function Speaking() {
       return shadowReview ? <ShadowReviewView data={shadowReview} onNext={nextShadowSentence} onBack={goHome} hasMore={shadowScene ? shadowSentenceIndex + 1 < shadowScene.model_sentences.length : false} /> : null;
     case "shadow_report":
       return shadowScene ? <ShadowReportView results={shadowResults} onHome={goHome} /> : null;
+    case "spreken_exam_intro":
+      return sprekenExam ? (
+        <>
+          <SprekenExamIntroView exam={sprekenExam} onStart={startSprekenOnderdeel} onQuit={() => setShowQuitModal(true)} />
+          {showQuitModal && <QuitModal onContinue={() => setShowQuitModal(false)} onStop={goHome} />}
+        </>
+      ) : null;
+    case "spreken_onderdeel_intro":
+      return sprekenCurrentOnderdeel && sprekenExam ? (
+        <>
+          <SprekenOnderdeelIntroView
+            exam={sprekenExam}
+            onderdeel={sprekenCurrentOnderdeel}
+            globalIdx={sprekenGlobalIdx}
+            total={sprekenTotalQuestions}
+            onStart={startSprekenPrep}
+            onQuit={() => setShowQuitModal(true)}
+          />
+          {showQuitModal && <QuitModal onContinue={() => setShowQuitModal(false)} onStop={goHome} />}
+        </>
+      ) : null;
+    case "spreken_prep":
+      return sprekenCurrentVraag && sprekenExam ? (
+        <>
+          <SprekenPrepView
+            exam={sprekenExam}
+            vraag={sprekenCurrentVraag}
+            globalIdx={sprekenGlobalIdx}
+            total={sprekenTotalQuestions}
+            onComplete={startSprekenRecord}
+            onQuit={() => setShowQuitModal(true)}
+          />
+          {showQuitModal && <QuitModal onContinue={() => setShowQuitModal(false)} onStop={goHome} />}
+        </>
+      ) : null;
+    case "spreken_record":
+      return sprekenCurrentVraag && sprekenExam ? (
+        <>
+          <SprekenRecordView
+            exam={sprekenExam}
+            vraag={sprekenCurrentVraag}
+            globalIdx={sprekenGlobalIdx}
+            total={sprekenTotalQuestions}
+            recorder={recorder}
+            onStop={stopSprekenRecord}
+            onQuit={() => setShowQuitModal(true)}
+          />
+          {showQuitModal && <QuitModal onContinue={() => setShowQuitModal(false)} onStop={goHome} />}
+        </>
+      ) : null;
+    case "spreken_review":
+      return sprekenCurrentVraag && sprekenExam && sprekenCurrentBlob ? (
+        <>
+          <SprekenReviewView
+            exam={sprekenExam}
+            vraag={sprekenCurrentVraag}
+            globalIdx={sprekenGlobalIdx}
+            total={sprekenTotalQuestions}
+            blob={sprekenCurrentBlob}
+            onReRecord={sprekenReRecord}
+            onNext={sprekenAcceptAndAdvance}
+            onQuit={() => setShowQuitModal(true)}
+          />
+          {showQuitModal && <QuitModal onContinue={() => setShowQuitModal(false)} onStop={goHome} />}
+        </>
+      ) : null;
+    case "spreken_exam_results":
+      return sprekenExam ? (
+        <SprekenExamResultsView exam={sprekenExam} results={sprekenResults} onHome={goHome} />
+      ) : null;
     default:
       return null;
   }
@@ -1651,11 +1882,12 @@ function ShadowPlayView({
   // Auto-play on mount
   const autoPlayedRef = useRef(false);
   useEffect(() => {
-    if (!autoPlayedRef.current) {
-      autoPlayedRef.current = true;
-      playSentence();
-    }
-    return () => { autoPlayedRef.current = false; };
+    if (autoPlayedRef.current) return;
+    autoPlayedRef.current = true;
+    playSentence();
+    return () => {
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    };
   }, [sentenceIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
@@ -1961,6 +2193,666 @@ function ShadowReportView({
           );
         })}
       </div>
+
+      <button
+        onClick={onHome}
+        className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+      >
+        Back to Home
+      </button>
+    </div>
+  );
+}
+
+
+// ── Spreken Exam Views ──────────────────────────────────────────────────────
+
+// ── DUO Exam Chrome ─────────────────────────────────────────────────────────
+
+function DuoExamChrome({
+  title,
+  questionIdx,
+  totalQuestions,
+  onQuit,
+  nextLabel,
+  onNext,
+  onSkip,
+  children,
+}: {
+  title: string;
+  questionIdx: number; // -1 for non-question pages
+  totalQuestions: number;
+  onQuit: () => void;
+  nextLabel?: string;
+  onNext?: () => void;
+  onSkip?: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="-m-6 flex flex-col min-h-[calc(100vh-57px)]">
+      {/* Header */}
+      <div className="bg-[#1e3a5c] px-4 py-3 flex items-center justify-between flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <span className="text-white text-lg font-bold">NL</span>
+          <span className="text-white/80 text-sm font-medium">{title}</span>
+        </div>
+        <button
+          onClick={onQuit}
+          className="text-white/70 hover:text-white text-xl font-bold w-8 h-8 flex items-center justify-center rounded hover:bg-white/10"
+          title="Stop exam"
+        >
+          &times;
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 bg-[#f5f5f0] overflow-y-auto">
+        <div className="max-w-2xl mx-auto py-8 px-4">
+          <div className="bg-white rounded-xl shadow-sm p-6 md:p-8">
+            {children}
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="bg-[#1e3a5c] px-4 py-3 flex items-center justify-between flex-shrink-0">
+        <div>
+          {onSkip && (
+            <button
+              onClick={onSkip}
+              className="text-white/60 hover:text-white text-sm px-3 py-1.5"
+            >
+              Skip
+            </button>
+          )}
+        </div>
+        <div>
+          {questionIdx >= 0 && (
+            <span className="bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full">
+              {questionIdx + 1} / {totalQuestions}
+            </span>
+          )}
+        </div>
+        <div>
+          {onNext && (
+            <button
+              onClick={onNext}
+              className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-5 py-2 rounded-lg text-sm transition-colors"
+            >
+              {nextLabel ?? "VOLGENDE"} &gt;
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Quit modal ──────────────────────────────────────────────────────────────
+
+function QuitModal({ onContinue, onStop }: { onContinue: () => void; onStop: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl p-6 max-w-sm mx-4 shadow-xl">
+        <h2 className="text-lg font-bold text-slate-800 mb-2">Wilt u het examen stoppen?</h2>
+        <p className="text-slate-500 text-sm mb-6">Uw opnames worden niet opgeslagen.</p>
+        <div className="flex gap-3">
+          <button
+            onClick={onContinue}
+            className="flex-1 py-2.5 rounded-lg border border-slate-300 text-slate-700 font-medium hover:bg-slate-50"
+          >
+            Doorgaan
+          </button>
+          <button
+            onClick={onStop}
+            className="flex-1 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium"
+          >
+            Stoppen
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Spreken views with DUO chrome ───────────────────────────────────────────
+
+function SprekenExamIntroView({
+  exam, onStart, onQuit,
+}: {
+  exam: api.SprekenExamDetail;
+  onStart: () => void;
+  onQuit: () => void;
+}) {
+  const totalQuestions = exam.onderdelen.reduce((s, o) => s + o.vragen.length, 0);
+
+  return (
+    <DuoExamChrome
+      title={exam.title}
+      questionIdx={-1}
+      totalQuestions={totalQuestions}
+      onQuit={onQuit}
+      nextLabel="START"
+      onNext={onStart}
+    >
+      <h1 className="text-xl font-bold text-slate-800 mb-4">{exam.title}</h1>
+      <p className="text-slate-500 text-sm mb-6">
+        {exam.onderdelen.length} onderdelen &middot; {totalQuestions} vragen &middot; ~35 minuten
+      </p>
+
+      <div className="space-y-3 mb-6">
+        {exam.onderdelen.map((o, i) => (
+          <div key={i} className="flex items-center gap-3 bg-slate-50 rounded-lg p-3">
+            <div className="w-8 h-8 rounded-full bg-[#1e3a5c] flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+              {o.nummer}
+            </div>
+            <div>
+              <h3 className="font-medium text-slate-800">{o.titel}</h3>
+              <p className="text-xs text-slate-500">{o.beschrijving_en} &middot; {o.vragen.length} vragen</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-blue-50 rounded-lg p-4 text-sm text-slate-600">
+        <p className="font-medium text-slate-700 mb-1">How it works:</p>
+        <ul className="list-disc list-inside space-y-1">
+          <li>Each question has preparation time (read the situation)</li>
+          <li>Then recording time (answer the question)</li>
+          <li>All recordings are analyzed after the exam</li>
+          <li>Full results at the end</li>
+        </ul>
+      </div>
+    </DuoExamChrome>
+  );
+}
+
+
+function SprekenOnderdeelIntroView({
+  exam, onderdeel, globalIdx, total, onStart, onQuit,
+}: {
+  exam: api.SprekenExamDetail;
+  onderdeel: api.SprekenOnderdeel;
+  globalIdx: number;
+  total: number;
+  onStart: () => void;
+  onQuit: () => void;
+}) {
+  return (
+    <DuoExamChrome
+      title={exam.title}
+      questionIdx={globalIdx}
+      totalQuestions={total}
+      onQuit={onQuit}
+      nextLabel="VOLGENDE"
+      onNext={onStart}
+    >
+      <div className="text-center py-6">
+        <div className="w-16 h-16 rounded-full bg-[#1e3a5c] flex items-center justify-center text-white font-bold text-2xl mx-auto mb-4">
+          {onderdeel.nummer}
+        </div>
+        <h2 className="text-xl font-bold text-slate-800 mb-2">
+          Onderdeel {onderdeel.nummer} - {onderdeel.titel}
+        </h2>
+        <p className="text-slate-600 mb-2">{onderdeel.beschrijving}</p>
+        <p className="text-slate-400 text-sm">{onderdeel.beschrijving_en}</p>
+        <p className="text-xs text-slate-400 mt-4">{onderdeel.vragen.length} vragen</p>
+      </div>
+    </DuoExamChrome>
+  );
+}
+
+
+function SprekenPrepView({
+  exam, vraag, globalIdx, total, onComplete, onQuit,
+}: {
+  exam: api.SprekenExamDetail;
+  vraag: api.SprekenVraag;
+  globalIdx: number;
+  total: number;
+  onComplete: () => void;
+  onQuit: () => void;
+}) {
+  const [showEnglish, setShowEnglish] = useState(false);
+  const [audioPlaying, setAudioPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Auto-play TTS for situation + question
+  const autoPlayedRef = useRef(false);
+  useEffect(() => {
+    if (autoPlayedRef.current) return;
+    autoPlayedRef.current = true;
+    (async () => {
+      try {
+        setAudioPlaying(true);
+        const { audio_file } = await api.getSprekenQuestionAudio(exam.id, vraag.id);
+        const audio = new Audio(listeningAudioUrl(audio_file));
+        audioRef.current = audio;
+        audio.onended = () => setAudioPlaying(false);
+        audio.onerror = () => setAudioPlaying(false);
+        await audio.play();
+      } catch {
+        setAudioPlaying(false);
+      }
+    })();
+    return () => {
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    };
+  }, [exam.id, vraag.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <DuoExamChrome
+      title={exam.title}
+      questionIdx={globalIdx}
+      totalQuestions={total}
+      onQuit={onQuit}
+      onSkip={onComplete}
+    >
+      {/* Image (Onderdeel 2 & 4) */}
+      {vraag.image_url && (
+        <img
+          src={vraag.image_url}
+          alt="Foto bij de vraag"
+          className="w-full rounded-lg mb-4 object-cover max-h-48"
+        />
+      )}
+
+      {/* Situation */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-[#1e3a5c] uppercase">Situatie</span>
+            {audioPlaying && (
+              <span className="text-xs text-blue-500 flex items-center gap-1">
+                <svg className="w-3 h-3 animate-pulse" fill="currentColor" viewBox="0 0 20 20"><path d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z"/></svg>
+                Playing...
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() => setShowEnglish(!showEnglish)}
+            className="text-xs text-slate-400 hover:text-slate-600 border border-slate-300 rounded px-2 py-0.5"
+          >
+            {showEnglish ? "NL" : "EN"}
+          </button>
+        </div>
+        <p className="text-slate-700 text-sm leading-relaxed">
+          {showEnglish ? vraag.situatie_en : vraag.situatie_nl}
+        </p>
+      </div>
+
+      {/* Question */}
+      <div className="border-t border-slate-200 pt-4 mb-6">
+        <span className="text-xs font-semibold text-[#1e3a5c] uppercase block mb-1">Vraag</span>
+        <p className="text-slate-800 text-lg font-medium">
+          {showEnglish ? vraag.vraag_en : vraag.vraag_nl}
+        </p>
+      </div>
+
+      {/* Tips */}
+      {vraag.tips.length > 0 && (
+        <div className="bg-slate-50 rounded-lg p-3 mb-6">
+          <span className="text-xs font-medium text-slate-500 block mb-1">Tips:</span>
+          <div className="flex flex-wrap gap-1">
+            {vraag.tips.map((tip, i) => (
+              <span key={i} className="text-xs bg-white text-slate-600 px-2 py-0.5 rounded border border-slate-200">
+                {tip}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Prep countdown */}
+      <div className="flex flex-col items-center">
+        <p className="text-sm text-slate-500 mb-3">Preparation time</p>
+        <CountdownTimer
+          seconds={vraag.prep_seconds}
+          onComplete={onComplete}
+          label="Prep"
+          color="#1e3a5c"
+        />
+      </div>
+    </DuoExamChrome>
+  );
+}
+
+
+function SprekenRecordView({
+  exam, vraag, globalIdx, total, recorder, onStop, onQuit,
+}: {
+  exam: api.SprekenExamDetail;
+  vraag: api.SprekenVraag;
+  globalIdx: number;
+  total: number;
+  recorder: ReturnType<typeof useAudioRecorder>;
+  onStop: () => void;
+  onQuit: () => void;
+}) {
+  const [showEnglish, setShowEnglish] = useState(false);
+  const isLast = globalIdx + 1 >= total;
+
+  if (recorder.permissionDenied || recorder.error) {
+    return (
+      <DuoExamChrome title={exam.title} questionIdx={globalIdx} totalQuestions={total} onQuit={onQuit}>
+        <div className="text-center py-8">
+          <h2 className="text-lg font-bold text-red-600 mb-2">
+            {recorder.permissionDenied ? "Microphone Access Denied" : "Recording Error"}
+          </h2>
+          <p className="text-slate-500 mb-4">
+            {recorder.permissionDenied
+              ? "Please allow microphone access in your browser settings."
+              : recorder.error ?? "An unknown error occurred."}
+          </p>
+        </div>
+      </DuoExamChrome>
+    );
+  }
+
+  return (
+    <DuoExamChrome
+      title={exam.title}
+      questionIdx={globalIdx}
+      totalQuestions={total}
+      onQuit={onQuit}
+      nextLabel={isLast ? "INLEVEREN" : "VOLGENDE"}
+      onNext={onStop}
+    >
+      {/* Image (Onderdeel 2 & 4) */}
+      {vraag.image_url && (
+        <img
+          src={vraag.image_url}
+          alt="Foto bij de vraag"
+          className="w-full rounded-lg mb-4 object-cover max-h-48"
+        />
+      )}
+
+      {/* Situation + Question */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-semibold text-[#1e3a5c] uppercase">Situatie</span>
+          <button
+            onClick={() => setShowEnglish(!showEnglish)}
+            className="text-xs text-slate-400 hover:text-slate-600 border border-slate-300 rounded px-2 py-0.5"
+          >
+            {showEnglish ? "NL" : "EN"}
+          </button>
+        </div>
+        <p className="text-slate-700 text-sm leading-relaxed mb-3">
+          {showEnglish ? vraag.situatie_en : vraag.situatie_nl}
+        </p>
+        <div className="border-t border-slate-200 pt-3">
+          <span className="text-xs font-semibold text-[#1e3a5c] uppercase block mb-1">Vraag</span>
+          <p className="text-slate-800 text-lg font-medium">
+            {showEnglish ? vraag.vraag_en : vraag.vraag_nl}
+          </p>
+        </div>
+      </div>
+
+      {/* Recording pill */}
+      <div className="mt-6 flex justify-center">
+        <div className="bg-slate-800 rounded-full px-6 py-3 flex items-center gap-3 min-w-[280px]">
+          <span className="w-3 h-3 bg-red-500 rounded-full animate-pulse flex-shrink-0" />
+          <div className="flex-1">
+            <CountdownTimer
+              seconds={vraag.record_seconds}
+              onComplete={onStop}
+              label=""
+              color="#ef4444"
+            />
+          </div>
+        </div>
+      </div>
+    </DuoExamChrome>
+  );
+}
+
+
+function SprekenReviewView({
+  exam, vraag, globalIdx, total, blob, onReRecord, onNext, onQuit,
+}: {
+  exam: api.SprekenExamDetail;
+  vraag: api.SprekenVraag;
+  globalIdx: number;
+  total: number;
+  blob: Blob;
+  onReRecord: () => void;
+  onNext: () => void;
+  onQuit: () => void;
+}) {
+  const [showEnglish, setShowEnglish] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrl = useMemo(() => URL.createObjectURL(blob), [blob]);
+  const isLast = globalIdx + 1 >= total;
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    };
+  }, []);
+
+  const playRecording = () => {
+    if (audioRef.current) { audioRef.current.pause(); }
+    const a = new Audio(audioUrl);
+    audioRef.current = a;
+    setPlaying(true);
+    a.onended = () => setPlaying(false);
+    a.onerror = () => setPlaying(false);
+    a.play().catch(() => setPlaying(false));
+  };
+
+  return (
+    <DuoExamChrome
+      title={exam.title}
+      questionIdx={globalIdx}
+      totalQuestions={total}
+      onQuit={onQuit}
+      nextLabel={isLast ? "INLEVEREN" : "VOLGENDE"}
+      onNext={onNext}
+    >
+      {/* Image (Onderdeel 2 & 4) */}
+      {vraag.image_url && (
+        <img
+          src={vraag.image_url}
+          alt="Foto bij de vraag"
+          className="w-full rounded-lg mb-4 object-cover max-h-48"
+        />
+      )}
+
+      {/* Situation + Question */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-semibold text-[#1e3a5c] uppercase">Situatie</span>
+          <button
+            onClick={() => setShowEnglish(!showEnglish)}
+            className="text-xs text-slate-400 hover:text-slate-600 border border-slate-300 rounded px-2 py-0.5"
+          >
+            {showEnglish ? "NL" : "EN"}
+          </button>
+        </div>
+        <p className="text-slate-700 text-sm leading-relaxed mb-3">
+          {showEnglish ? vraag.situatie_en : vraag.situatie_nl}
+        </p>
+        <div className="border-t border-slate-200 pt-3">
+          <span className="text-xs font-semibold text-[#1e3a5c] uppercase block mb-1">Vraag</span>
+          <p className="text-slate-800 text-lg font-medium">
+            {showEnglish ? vraag.vraag_en : vraag.vraag_nl}
+          </p>
+        </div>
+      </div>
+
+      {/* Playback + Re-record controls */}
+      <div className="mt-6 space-y-3">
+        <div className="flex justify-center">
+          <button
+            onClick={playRecording}
+            disabled={playing}
+            className={`flex items-center gap-2 px-6 py-3 rounded-full font-medium text-sm transition-colors ${
+              playing
+                ? "bg-blue-100 text-blue-600 animate-pulse"
+                : "bg-blue-600 text-white hover:bg-blue-700"
+            }`}
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.841z" />
+            </svg>
+            {playing ? "Playing..." : "Play recording"}
+          </button>
+        </div>
+        <div className="flex justify-center">
+          <button
+            onClick={onReRecord}
+            className="text-sm text-slate-500 hover:text-slate-700 underline"
+          >
+            Re-record
+          </button>
+        </div>
+      </div>
+    </DuoExamChrome>
+  );
+}
+
+
+function SprekenExamResultsView({
+  exam, results, onHome,
+}: {
+  exam: api.SprekenExamDetail;
+  results: SessionResult[];
+  onHome: () => void;
+}) {
+  const doneResults = results.filter((r) => r.status === "done" && r.result);
+  const pendingCount = results.filter((r) => r.status === "pending").length;
+  const avgScore = doneResults.length > 0
+    ? Math.round(doneResults.reduce((sum, r) => sum + (r.result?.score_pct ?? 0), 0) / doneResults.length)
+    : null;
+
+  const avgVocab = doneResults.length > 0
+    ? Math.round(doneResults.reduce((sum, r) => sum + (r.result?.feedback.vocabulary_score ?? 0), 0) / doneResults.length)
+    : 0;
+  const avgGrammar = doneResults.length > 0
+    ? Math.round(doneResults.reduce((sum, r) => sum + (r.result?.feedback.grammar_score ?? 0), 0) / doneResults.length)
+    : 0;
+  const avgComplete = doneResults.length > 0
+    ? Math.round(doneResults.reduce((sum, r) => sum + (r.result?.feedback.completeness_score ?? 0), 0) / doneResults.length)
+    : 0;
+
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+
+  // Group results by onderdeel
+  let globalOffset = 0;
+  const onderdeelGroups = exam.onderdelen.map((o) => {
+    const count = o.vragen.length;
+    const group = results.filter((r) => r.questionIndex >= globalOffset && r.questionIndex < globalOffset + count);
+    globalOffset += count;
+    return { onderdeel: o, results: group };
+  });
+
+  return (
+    <div className="p-6 max-w-3xl mx-auto">
+      <h1 className="text-2xl font-bold text-slate-800 mb-2">Exam Results</h1>
+      <p className="text-slate-500 text-sm mb-6">{exam.title}</p>
+
+      {/* Pending indicator */}
+      {pendingCount > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 flex items-center gap-3">
+          <div className="animate-spin w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full flex-shrink-0" />
+          <p className="text-blue-700 text-sm">
+            Analyzing {pendingCount} recording{pendingCount > 1 ? "s" : ""}... Results will appear as they complete.
+          </p>
+        </div>
+      )}
+
+      {/* Overall score */}
+      {avgScore !== null && (
+        <div className="bg-gradient-to-br from-amber-900/30 to-slate-800 rounded-xl p-6 border border-amber-700/30 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-white">Overall Score</h2>
+            <div className={`text-4xl font-bold ${avgScore >= 70 ? "text-green-400" : avgScore >= 50 ? "text-amber-400" : "text-red-400"}`}>
+              {avgScore}%
+            </div>
+          </div>
+          <div className="flex justify-around">
+            <ScoreRing score={avgVocab} label="Vocabulary" />
+            <ScoreRing score={avgGrammar} label="Grammar" />
+            <ScoreRing score={avgComplete} label="Completeness" />
+          </div>
+        </div>
+      )}
+
+      {/* Per-onderdeel breakdown */}
+      {onderdeelGroups.map(({ onderdeel, results: oResults }, oi) => {
+        const oDone = oResults.filter((r) => r.status === "done" && r.result);
+        const oAvg = oDone.length > 0
+          ? Math.round(oDone.reduce((s, r) => s + (r.result?.score_pct ?? 0), 0) / oDone.length)
+          : null;
+
+        return (
+          <div key={oi} className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-slate-500 uppercase">
+                Onderdeel {onderdeel.nummer}: {onderdeel.titel}
+              </h3>
+              {oAvg !== null && (
+                <span className={`text-sm font-bold ${oAvg >= 70 ? "text-green-400" : oAvg >= 50 ? "text-amber-400" : "text-red-400"}`}>
+                  {oAvg}%
+                </span>
+              )}
+            </div>
+            <div className="space-y-2">
+              {oResults.map((r, ri) => {
+                const isExpanded = expandedIdx === r.questionIndex;
+                return (
+                  <div key={ri} className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+                    <button
+                      onClick={() => setExpandedIdx(isExpanded ? null : r.questionIndex)}
+                      className="w-full p-3 text-left flex items-center justify-between"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm truncate">{r.question.prompt_nl}</p>
+                      </div>
+                      <div className="flex items-center gap-2 ml-3">
+                        {r.status === "pending" && (
+                          <div className="animate-spin w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full" />
+                        )}
+                        {r.status === "done" && r.result && (
+                          <span className={`text-lg font-bold ${r.result.score_pct >= 70 ? "text-green-400" : r.result.score_pct >= 50 ? "text-amber-400" : "text-red-400"}`}>
+                            {r.result.score_pct}%
+                          </span>
+                        )}
+                        {r.status === "error" && <span className="text-red-400 text-sm">Error</span>}
+                        <span className="text-slate-500 text-sm">{isExpanded ? "▲" : "▼"}</span>
+                      </div>
+                    </button>
+
+                    {isExpanded && r.status === "done" && r.result && (
+                      <div className="px-3 pb-3 space-y-2 border-t border-slate-700 pt-2">
+                        <div>
+                          <h4 className="text-xs font-medium text-slate-400 mb-1">What you said</h4>
+                          <p className="text-sm text-white">{r.result.transcript}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-medium text-slate-400 mb-1">Feedback</h4>
+                          <p className="text-sm text-slate-300">{r.result.feedback.feedback_en}</p>
+                        </div>
+                        <div className="flex justify-around">
+                          <ScoreRing score={r.result.feedback.vocabulary_score} size={40} label="Vocab" />
+                          <ScoreRing score={r.result.feedback.grammar_score} size={40} label="Grammar" />
+                          <ScoreRing score={r.result.feedback.completeness_score} size={40} label="Complete" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-medium text-slate-400 mb-1">Model answer</h4>
+                          <p className="text-sm text-blue-300">{r.result.model_answer}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
 
       <button
         onClick={onHome}

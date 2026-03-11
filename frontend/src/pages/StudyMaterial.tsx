@@ -18,6 +18,8 @@ import {
   ReadingHistoryItem,
   SpeakingHistoryItem,
   SpeakingHistoryPage,
+  SprekenExamDetail,
+  SprekenVraag,
   deleteSpeakingRecording,
   getExamResults,
   getExamTrend,
@@ -32,6 +34,8 @@ import {
   getReadingDetail,
   getReadingHistory,
   getSpeakingHistoryPaged,
+  getSprekenExams,
+  getSprekenExamDetail,
   listeningAudioUrl,
   speakingAudioUrl,
 } from "../api";
@@ -59,9 +63,11 @@ export default function StudyMaterial() {
   const [speakingItems, setSpeakingItems] = useState<SpeakingHistoryItem[]>([]);
   const [speakingPage, setSpeakingPage] = useState(1);
   const [speakingPages, setSpeakingPages] = useState(1);
-  type SpkFilter = "all" | "scene_drill" | "shadow_reading" | "mock_exam";
+  type SpkFilter = "all" | "scene_drill" | "shadow_reading" | "mock_exam" | "spreken_exam";
   const [spkFilter, setSpkFilter] = useState<SpkFilter>("all");
   const speakingAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [sprekenVraagMap, setSprekenVraagMap] = useState<Record<string, SprekenVraag>>({});
+  const [spkExpandedId, setSpkExpandedId] = useState<number | null>(null);
 
   // Reading + KNM state
   const [readingHistory, setReadingHistory] = useState<ReadingHistoryItem[]>([]);
@@ -116,6 +122,27 @@ export default function StudyMaterial() {
       .then((res) => { setSpeakingItems(res.items); setSpeakingPages(res.pages); })
       .catch(() => {});
   }, [tab, spkFilter, speakingPage]);
+
+  // Load spreken exam question data for model answers when filter is spreken_exam
+  useEffect(() => {
+    if (tab !== "speaking") return;
+    if (spkFilter !== "spreken_exam" && spkFilter !== "all") return;
+    if (Object.keys(sprekenVraagMap).length > 0) return; // already loaded
+    getSprekenExams()
+      .then(async (exams) => {
+        const map: Record<string, SprekenVraag> = {};
+        const details = await Promise.all(exams.map((e) => getSprekenExamDetail(e.id)));
+        for (const detail of details) {
+          for (const onderdeel of detail.onderdelen) {
+            for (const vraag of onderdeel.vragen) {
+              map[vraag.id] = vraag;
+            }
+          }
+        }
+        setSprekenVraagMap(map);
+      })
+      .catch(() => {});
+  }, [tab, spkFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function playSpeakingAudio(filename: string) {
     if (speakingAudioRef.current) speakingAudioRef.current.pause();
@@ -733,7 +760,7 @@ export default function StudyMaterial() {
         <div className="space-y-3">
           {/* Mode filter */}
           <div className="flex rounded-lg overflow-hidden border border-slate-200">
-            {(["all", "scene_drill", "shadow_reading", "mock_exam"] as SpkFilter[]).map((f) => (
+            {(["all", "scene_drill", "shadow_reading", "mock_exam", "spreken_exam"] as SpkFilter[]).map((f) => (
               <button
                 key={f}
                 onClick={() => { setSpkFilter(f); setSpeakingPage(1); }}
@@ -752,45 +779,129 @@ export default function StudyMaterial() {
             <p className="text-slate-400 text-sm">No speaking sessions yet.</p>
           )}
 
-          {speakingItems.map((s) => (
-            <div key={s.id} className="bg-white rounded-2xl border border-slate-200 p-4">
-              <div className="flex justify-between items-start">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      (s.score_pct ?? 0) >= 60 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                    }`}>
-                      {s.score_pct ?? 0}%
-                    </span>
-                    <span className="text-sm font-medium text-slate-800">{s.scene}</span>
-                    <span className="text-xs text-slate-400 capitalize">{s.mode.replace(/_/g, " ")}</span>
+          {speakingItems.map((s) => {
+            const isSpreken = s.mode === "spreken_exam";
+            const vraag = isSpreken ? sprekenVraagMap[s.question_id] : undefined;
+            const isExpanded = spkExpandedId === s.id;
+            return (
+              <div
+                key={s.id}
+                className="bg-white rounded-2xl border border-slate-200 overflow-hidden"
+              >
+                <div
+                  className={`p-4 ${isSpreken ? "cursor-pointer" : ""}`}
+                  onClick={isSpreken ? () => setSpkExpandedId(isExpanded ? null : s.id) : undefined}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          (s.score_pct ?? 0) >= 60 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                        }`}>
+                          {s.score_pct ?? 0}%
+                        </span>
+                        <span className="text-sm font-medium text-slate-800">{s.scene}</span>
+                        <span className="text-xs text-slate-400 capitalize">{s.mode.replace(/_/g, " ")}</span>
+                      </div>
+                      <p className="text-xs text-slate-400 mb-1">{s.date.split("T")[0]}</p>
+                      {s.transcript && (
+                        <p className="text-xs text-slate-500 truncate">{s.transcript}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                      {s.audio_file && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); playSpeakingAudio(s.audio_file!); }}
+                          className="text-blue-500 hover:text-blue-700"
+                          title="Play recording"
+                        >
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.841z" /></svg>
+                        </button>
+                      )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeleteRecording(s.id); }}
+                        className="text-red-400 hover:text-red-600"
+                        title="Delete recording"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      </button>
+                      {isSpreken && (
+                        <span className="text-slate-400 text-xs">{isExpanded ? "▲" : "▼"}</span>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-400 mb-1">{s.date.split("T")[0]}</p>
-                  {s.transcript && (
-                    <p className="text-xs text-slate-500 truncate">{s.transcript}</p>
-                  )}
                 </div>
-                <div className="flex items-center gap-2 ml-2 flex-shrink-0">
-                  {s.audio_file && (
-                    <button
-                      onClick={() => playSpeakingAudio(s.audio_file!)}
-                      className="text-blue-500 hover:text-blue-700"
-                      title="Play recording"
-                    >
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.841z" /></svg>
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleDeleteRecording(s.id)}
-                    className="text-red-400 hover:text-red-600"
-                    title="Delete recording"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                  </button>
-                </div>
+
+                {/* Expanded detail for spreken_exam items */}
+                {isSpreken && isExpanded && (
+                  <div className="px-4 pb-4 border-t border-slate-100 space-y-3 pt-3">
+                    {/* Question context */}
+                    {vraag && (
+                      <div className="bg-slate-50 rounded-lg p-3 space-y-1">
+                        <p className="text-xs font-semibold text-slate-500 uppercase">Question</p>
+                        <p className="text-sm text-slate-600">{vraag.situatie_nl}</p>
+                        <p className="text-sm text-slate-800 font-medium">{vraag.vraag_nl}</p>
+                      </div>
+                    )}
+
+                    {/* Model answer */}
+                    {vraag?.model_answer && (
+                      <div className="bg-blue-50 rounded-lg p-3">
+                        <p className="text-xs font-semibold text-blue-600 uppercase mb-1">Model answer</p>
+                        <p className="text-sm text-blue-800">{vraag.model_answer}</p>
+                      </div>
+                    )}
+
+                    {/* User transcript */}
+                    {s.transcript && (
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Your answer</p>
+                        <p className="text-sm text-slate-700">{s.transcript}</p>
+                      </div>
+                    )}
+
+                    {/* AI feedback detail */}
+                    {s.feedback && (
+                      <div className="space-y-2">
+                        <div className="flex justify-around py-2">
+                          <div className="text-center">
+                            <div className={`text-lg font-bold ${(s.feedback.vocabulary_score ?? 0) >= 60 ? "text-green-600" : "text-red-500"}`}>
+                              {s.feedback.vocabulary_score}%
+                            </div>
+                            <div className="text-xs text-slate-400">Vocab</div>
+                          </div>
+                          <div className="text-center">
+                            <div className={`text-lg font-bold ${(s.feedback.grammar_score ?? 0) >= 60 ? "text-green-600" : "text-red-500"}`}>
+                              {s.feedback.grammar_score}%
+                            </div>
+                            <div className="text-xs text-slate-400">Grammar</div>
+                          </div>
+                          <div className="text-center">
+                            <div className={`text-lg font-bold ${(s.feedback.completeness_score ?? 0) >= 60 ? "text-green-600" : "text-red-500"}`}>
+                              {s.feedback.completeness_score}%
+                            </div>
+                            <div className="text-xs text-slate-400">Complete</div>
+                          </div>
+                        </div>
+                        {s.feedback.feedback_en && (
+                          <div>
+                            <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Feedback</p>
+                            <p className="text-sm text-slate-600">{s.feedback.feedback_en}</p>
+                          </div>
+                        )}
+                        {s.feedback.improved_answer && (
+                          <div className="bg-green-50 rounded-lg p-3">
+                            <p className="text-xs font-semibold text-green-600 uppercase mb-1">Improved answer</p>
+                            <p className="text-sm text-green-800">{s.feedback.improved_answer}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {/* Pagination */}
           {speakingPages > 1 && (

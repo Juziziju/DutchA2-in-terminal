@@ -4,9 +4,11 @@ import {
   ExamQuestion,
   MockExamSummary,
   SectionInfo,
+  SprekenExamSummary,
   getExamQuestions,
   getExamSession,
   getMockExams,
+  getSprekenExams,
   gradeExamSection,
   submitExam,
 } from "../api";
@@ -19,6 +21,7 @@ export default function MockExam() {
   const nav = useNavigate();
   const { state: s, set, reset } = useMockExamState();
   const [speakingExams, setSpeakingExams] = useState<MockExamSummary[]>([]);
+  const [sprekenExams, setSprekenExams] = useState<SprekenExamSummary[]>([]);
 
   useEffect(() => {
     if (s.loaded) return;
@@ -26,6 +29,7 @@ export default function MockExam() {
       .then((data) => set((p) => ({ ...p, examData: data, loaded: true })))
       .catch(() => set((p) => ({ ...p, loaded: true })));
     getMockExams().then(setSpeakingExams).catch(() => {});
+    getSprekenExams().then(setSprekenExams).catch(() => {});
   }, [s.loaded]);
 
   function startFull() {
@@ -156,6 +160,28 @@ export default function MockExam() {
                   <div>
                     <span className="font-medium">{e.title}</span>
                     <span className="text-xs text-slate-400 ml-2">{e.short_count} short + {e.long_count} long</span>
+                  </div>
+                  <span className="text-sm text-slate-400">~35 min</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Spreken Exam (official DUO format) */}
+        {sprekenExams.length > 0 && (
+          <div>
+            <p className="text-sm font-medium mb-2">Spreken A2 oefenexamen (official DUO format)</p>
+            <div className="space-y-2">
+              {sprekenExams.map((e) => (
+                <button
+                  key={e.id}
+                  onClick={() => nav(`/study/speaking?spreken=${e.id}`)}
+                  className="w-full flex justify-between items-center bg-white border border-slate-200 rounded-2xl px-4 py-3 hover:shadow-md cursor-pointer transition-all"
+                >
+                  <div>
+                    <span className="font-medium">{e.title}</span>
+                    <span className="text-xs text-slate-400 ml-2">{e.onderdeel_count} onderdelen · {e.question_count} vragen</span>
                   </div>
                   <span className="text-sm text-slate-400">~35 min</span>
                 </button>
