@@ -34,3 +34,5 @@ scripts/*.mp3
 scripts//test_main.py
 # Audio / cache anywhere
 *.mp3
+audio_speaking/
+audio_listening/
