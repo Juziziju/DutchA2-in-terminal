@@ -87,6 +87,7 @@ export default function Speaking() {
   const [sprekenVraagIdx, setSprekenVraagIdx] = useState(0);
   const [sprekenResults, setSprekenResults] = useState<SessionResult[]>([]);
   const [sprekenCurrentBlob, setSprekenCurrentBlob] = useState<Blob | null>(null);
+  const [sprekenPrepKey, setSprekenPrepKey] = useState(0); // increment to force re-play on re-record
   const [showQuitModal, setShowQuitModal] = useState(false);
   const { setSprekenExamActive } = useSprekenExamGuard();
 
@@ -333,6 +334,7 @@ export default function Speaking() {
     setSprekenCurrentBlob(null);
     recorder.reset();
     prevBlobRef.current = null;
+    setSprekenPrepKey((k) => k + 1); // force auto-play on re-entering prep
     setPhase("spreken_prep");
   };
 
@@ -738,6 +740,7 @@ export default function Speaking() {
       return sprekenCurrentVraag && sprekenExam ? (
         <>
           <SprekenPrepView
+            key={sprekenPrepKey}
             exam={sprekenExam}
             vraag={sprekenCurrentVraag}
             globalIdx={sprekenGlobalIdx}
@@ -1879,11 +1882,11 @@ function ShadowPlayView({
     }
   }, [scene.id, sentenceIndex, onStartRecording]);
 
-  // Auto-play on mount
-  const autoPlayedRef = useRef(false);
+  // Auto-play on mount (track last-played index to prevent StrictMode double-play)
+  const lastPlayedRef = useRef<number | null>(null);
   useEffect(() => {
-    if (autoPlayedRef.current) return;
-    autoPlayedRef.current = true;
+    if (lastPlayedRef.current === sentenceIndex) return;
+    lastPlayedRef.current = sentenceIndex;
     playSentence();
     return () => {
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
@@ -2417,11 +2420,12 @@ function SprekenPrepView({
   const [audioPlaying, setAudioPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Auto-play TTS for situation + question
-  const autoPlayedRef = useRef(false);
+  // Auto-play TTS for situation + question (track last-played ID to prevent StrictMode double-play)
+  const lastPlayedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (autoPlayedRef.current) return;
-    autoPlayedRef.current = true;
+    const key = `${exam.id}:${vraag.id}`;
+    if (lastPlayedRef.current === key) return;
+    lastPlayedRef.current = key;
     (async () => {
       try {
         setAudioPlaying(true);
