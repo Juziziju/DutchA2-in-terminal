@@ -18,7 +18,10 @@ from backend.models.skill_snapshot import SkillSnapshot  # noqa: F401
 from backend.models.weekly_report import WeeklyReport, Roadmap  # noqa: F401
 from backend.models.speaking import SpeakingSession  # noqa: F401
 from backend.models.custom_scene import CustomScene  # noqa: F401
-from backend.routers import advisor, auth, exam, flashcards, freestyle, listening, planner, results, speaking, vocab
+from backend.models.personal_vocab import PersonalVocab  # noqa: F401
+from backend.models.reading import ReadingSession  # noqa: F401
+from backend.models.knm import KNMSession  # noqa: F401
+from backend.routers import advisor, auth, exam, flashcards, freestyle, knm, listening, personal_vocab, planner, reading, results, speaking, vocab
 
 app = FastAPI(title="Dutch A2 Blitz", version="1.0.0")
 
@@ -60,6 +63,9 @@ app.include_router(results.router)
 app.include_router(planner.router)
 app.include_router(speaking.router)
 app.include_router(freestyle.router)
+app.include_router(personal_vocab.router)
+app.include_router(reading.router)
+app.include_router(knm.router)
 
 
 @app.on_event("startup")

@@ -28,6 +28,25 @@ const CONTENT_TYPES: { type: ContentType; label: string; desc: string }[] = [
   { type: "article", label: "Article", desc: "Informative narration" },
 ];
 
+const LISTENING_TOPICS = [
+  "Making a doctor's appointment",
+  "Calling in sick at work",
+  "Buying train tickets at the station",
+  "Parent-teacher meeting at school",
+  "Ordering food at a restaurant",
+  "Asking for directions in the city",
+  "Job interview conversation",
+  "Renting an apartment — viewing",
+  "Returning an item at a store",
+  "Booking a holiday online",
+  "Registering at the gemeente",
+  "Discussing weekend plans with friends",
+  "Calling customer service about a bill",
+  "Talking to a neighbor about noise",
+  "Planning a birthday party",
+  "At the pharmacy picking up medicine",
+];
+
 function LevelBadge({ level }: { level: string }) {
   const colors: Record<string, string> = {
     A1: "bg-green-100 text-green-700",
@@ -101,10 +120,10 @@ export default function Listening() {
 
   // ── Quiz handlers (unchanged logic) ──────────────────────────────────────
 
-  async function handleGenerate(mode: ListeningMode, level: ListeningLevel) {
+  async function handleGenerate(mode: ListeningMode, level: ListeningLevel, topic: string = "") {
     set((p) => ({ ...p, phase: "generating", mode, level, error: "" }));
     try {
-      const resp = await generateListening(mode, level);
+      const resp = await generateListening(mode, level, topic);
       set((p) => ({ ...p, data: resp, answers: [], currentAudio: 0, playing: false, phase: "pre_play", startedAt: Date.now() }));
     } catch (e: unknown) {
       set((p) => ({ ...p, error: e instanceof Error ? e.message : "Generation failed.", phase: "idle" }));
@@ -171,7 +190,7 @@ export default function Listening() {
   async function handleIntensiveGenerate() {
     setIntensive((p) => ({ ...p, phase: "generating", error: "" }));
     try {
-      const resp = await generateIntensive(iv.level, iv.contentType);
+      const resp = await generateIntensive(iv.level, iv.contentType, iv.topic);
       setIntensive((p) => ({
         ...p,
         data: resp,
@@ -357,6 +376,27 @@ function IntensiveFlow({ iv, setIntensive, resetIntensive, onGenerate, onSubmit 
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Topic selection */}
+        <div>
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Topic</p>
+          <div className="grid grid-cols-2 gap-2">
+            {LISTENING_TOPICS.map((t) => (
+              <button
+                key={t}
+                onClick={() => setIntensive((p) => ({ ...p, topic: p.topic === t ? "" : t }))}
+                className={`rounded-xl border px-3 py-2 text-left text-sm transition-all ${
+                  iv.topic === t
+                    ? "border-amber-400 bg-amber-50 text-amber-700 font-medium ring-1 ring-amber-300"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-slate-400 mt-2">Select a topic, or leave empty for a random scenario.</p>
         </div>
 
         {iv.error && <p className="text-red-500 text-sm">{iv.error}</p>}
@@ -775,7 +815,7 @@ function QuizFlow({ s, set, reset, onGenerate, startPlayback, onLineEnded, selec
   s: ReturnType<typeof useListeningState>["state"];
   set: ReturnType<typeof useListeningState>["set"];
   reset: () => void;
-  onGenerate: (mode: ListeningMode, level: ListeningLevel) => void;
+  onGenerate: (mode: ListeningMode, level: ListeningLevel, topic: string) => void;
   startPlayback: () => void;
   onLineEnded: () => void;
   selectAnswer: (qIdx: number, letter: string) => void;
@@ -783,7 +823,7 @@ function QuizFlow({ s, set, reset, onGenerate, startPlayback, onLineEnded, selec
   handleExplain: () => void;
 }) {
 
-  // ── Select level phase ──────────────────────────────────────────────────
+  // ── Select level + topic phase ──────────────────────────────────────────
 
   if (s.phase === "select") {
     return (
@@ -813,10 +853,31 @@ function QuizFlow({ s, set, reset, onGenerate, startPlayback, onLineEnded, selec
           </div>
         </div>
 
+        {/* Topic selection */}
+        <div>
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Topic</p>
+          <div className="grid grid-cols-2 gap-2">
+            {LISTENING_TOPICS.map((t) => (
+              <button
+                key={t}
+                onClick={() => set((p) => ({ ...p, topic: p.topic === t ? "" : t }))}
+                className={`rounded-xl border px-3 py-2 text-left text-sm transition-all ${
+                  s.topic === t
+                    ? "border-blue-400 bg-blue-50 text-blue-700 font-medium ring-1 ring-blue-300"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-slate-400 mt-2">Select a topic, or leave empty for a random scenario.</p>
+        </div>
+
         {s.error && <p className="text-red-500 text-sm">{s.error}</p>}
 
         <button
-          onClick={() => onGenerate("quiz", s.level)}
+          onClick={() => onGenerate("quiz", s.level, s.topic)}
           className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 shadow-md"
         >
           Generate Quiz

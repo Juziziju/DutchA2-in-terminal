@@ -1,35 +1,35 @@
 """Qwen LLM calls via DashScope — extracted from scripts/listening.py."""
 
 import json
-import random
+import os
 import time
 
 from backend.config import DASHSCOPE_API_KEY
+
+CONTENT_MODEL = os.getenv("CONTENT_MODEL", "qwen-plus")
 
 LEVEL_CONFIGS = {
     "A1": {
         "dialogue_lines": "6-8",
         "questions": 3,
-        "vocab_sample": 8,
         "description": "Simple present tense, basic vocabulary, short sentences. Topics: greetings, family, shopping, weather.",
     },
     "A2": {
         "dialogue_lines": "8-12",
         "questions": 4,
-        "vocab_sample": 12,
         "description": "Present and past tense, everyday topics like appointments, travel, daily routines.",
     },
     "B1": {
         "dialogue_lines": "10-14",
         "questions": 5,
-        "vocab_sample": 15,
         "description": "Varied tenses (present, past, future, conditional), complex sentence structures, abstract topics like opinions, plans, news.",
     },
 }
 
 
-def _build_system_prompt(level: str = "A2") -> str:
+def _build_system_prompt(level: str = "A2", topic: str = "") -> str:
     cfg = LEVEL_CONFIGS.get(level, LEVEL_CONFIGS["A2"])
+    topic_line = f"\n- The dialogue MUST be about: {topic}" if topic else ""
     return f"""You are a Dutch language teacher. Generate a Dutch {level}-level listening exercise.
 Return ONLY valid JSON with no markdown fences, no explanation, just the raw JSON object.
 
@@ -54,10 +54,9 @@ Schema:
 Requirements:
 - 2 speakers, {cfg['dialogue_lines']} dialogue lines total
 - {level} level Dutch throughout: {cfg['description']}
-- Naturally incorporate the given vocabulary words
 - Each dialogue line must include an "english" field with a natural English translation
 - Exactly {cfg['questions']} multiple-choice questions (A/B/C/D) written in Dutch
-- The answer field must be one of: A, B, C, D"""
+- The answer field must be one of: A, B, C, D{topic_line}"""
 
 
 def _get_client():
@@ -68,20 +67,20 @@ def _get_client():
     )
 
 
-def _call_qwen(vocab_sample: list[str], level: str = "A2") -> str:
+def _call_qwen(level: str = "A2", topic: str = "") -> str:
     client = _get_client()
+    topic_part = f" about: {topic}." if topic else "."
     user_msg = (
-        f"Create a Dutch {level} listening dialogue that naturally uses these words: "
-        f"{', '.join(vocab_sample)}. "
+        f"Create a Dutch {level} listening dialogue{topic_part} "
         f"Return only valid JSON."
     )
     response = client.chat.completions.create(
-        model="qwen-plus",
+        model=CONTENT_MODEL,
         messages=[
-            {"role": "system", "content": _build_system_prompt(level)},
+            {"role": "system", "content": _build_system_prompt(level, topic)},
             {"role": "user", "content": user_msg},
         ],
-        temperature=0.8,
+        temperature=0.9,
     )
     return response.choices[0].message.content.strip()
 
@@ -113,25 +112,21 @@ def _validate_dialogue(data: dict, level: str = "A2"):
             raise ValueError(f"questions[{i}] answer must be A/B/C/D")
 
 
-def generate_dialogue(vocab_words: list[str], level: str = "A2") -> tuple[dict, list[str]]:
-    """Sample vocab, call Qwen, parse + validate JSON. Retries once on failure."""
+def generate_dialogue(level: str = "A2", topic: str = "") -> dict:
+    """Call Qwen, parse + validate JSON. Retries once on failure."""
     if not DASHSCOPE_API_KEY:
         raise RuntimeError("DASHSCOPE_API_KEY is not set")
-
-    cfg = LEVEL_CONFIGS.get(level, LEVEL_CONFIGS["A2"])
-    sample_size = min(cfg["vocab_sample"], len(vocab_words))
-    sample = random.sample(vocab_words, sample_size)
 
     last_err = None
     for attempt in range(2):
         try:
-            raw = _call_qwen(sample, level)
+            raw = _call_qwen(level, topic)
             if raw.startswith("```"):
                 lines = raw.splitlines()
                 raw = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
             data = json.loads(raw)
             _validate_dialogue(data, level)
-            return data, sample
+            return data
         except Exception as e:
             last_err = e
             if attempt == 0:
@@ -159,10 +154,11 @@ INTENSIVE_TYPE_CONFIGS = {
 }
 
 
-def _build_intensive_prompt(level: str = "A2", content_type: str = "dialogue") -> str:
+def _build_intensive_prompt(level: str = "A2", content_type: str = "dialogue", topic: str = "") -> str:
     lvl_cfg = LEVEL_CONFIGS.get(level, LEVEL_CONFIGS["A2"])
     type_cfg = INTENSIVE_TYPE_CONFIGS.get(content_type, INTENSIVE_TYPE_CONFIGS["dialogue"])
     line_range = type_cfg["lines"].get(level, type_cfg["lines"]["A2"])
+    topic_line = f"\n- The content MUST be about: {topic}" if topic else ""
     return f"""You are a Dutch language teacher. Generate {type_cfg['description']} in Dutch at {level} level for a dictation exercise.
 Return ONLY valid JSON with no markdown fences, no explanation, just the raw JSON object.
 
@@ -179,25 +175,24 @@ Schema:
 Requirements:
 - {line_range} lines total
 - {level} level Dutch throughout: {lvl_cfg['description']}
-- Naturally incorporate the given vocabulary words
 - Each line must include an "english" field with a natural English translation
-- Each sentence should be a natural, complete thought (not too long, suitable for dictation)"""
+- Each sentence should be a natural, complete thought (not too long, suitable for dictation){topic_line}"""
 
 
-def _call_qwen_intensive(vocab_sample: list[str], level: str = "A2", content_type: str = "dialogue") -> str:
+def _call_qwen_intensive(level: str = "A2", content_type: str = "dialogue", topic: str = "") -> str:
     client = _get_client()
+    topic_part = f" about: {topic}." if topic else "."
     user_msg = (
-        f"Create a Dutch {level} {content_type} for dictation that naturally uses these words: "
-        f"{', '.join(vocab_sample)}. "
+        f"Create a Dutch {level} {content_type} for dictation{topic_part} "
         f"Return only valid JSON."
     )
     response = client.chat.completions.create(
-        model="qwen-plus",
+        model=CONTENT_MODEL,
         messages=[
-            {"role": "system", "content": _build_intensive_prompt(level, content_type)},
+            {"role": "system", "content": _build_intensive_prompt(level, content_type, topic)},
             {"role": "user", "content": user_msg},
         ],
-        temperature=0.8,
+        temperature=0.9,
     )
     return response.choices[0].message.content.strip()
 
@@ -214,25 +209,21 @@ def _validate_intensive(data: dict):
             raise ValueError(f"lines[{i}] missing speaker/text/english")
 
 
-def generate_intensive(vocab_words: list[str], level: str = "A2", content_type: str = "dialogue") -> tuple[dict, list[str]]:
+def generate_intensive(level: str = "A2", content_type: str = "dialogue", topic: str = "") -> dict:
     """Generate intensive listening content. Retries once on failure."""
     if not DASHSCOPE_API_KEY:
         raise RuntimeError("DASHSCOPE_API_KEY is not set")
 
-    cfg = LEVEL_CONFIGS.get(level, LEVEL_CONFIGS["A2"])
-    sample_size = min(cfg["vocab_sample"], len(vocab_words))
-    sample = random.sample(vocab_words, sample_size)
-
     last_err = None
     for attempt in range(2):
         try:
-            raw = _call_qwen_intensive(sample, level, content_type)
+            raw = _call_qwen_intensive(level, content_type, topic)
             if raw.startswith("```"):
                 lines = raw.splitlines()
                 raw = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
             data = json.loads(raw)
             _validate_intensive(data)
-            return data, sample
+            return data
         except Exception as e:
             last_err = e
             if attempt == 0:
@@ -278,6 +269,35 @@ def get_explanation(data: dict, questions: list[dict], user_answers: list[str], 
         model="qwen-plus",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.5,
+    )
+    return response.choices[0].message.content.strip()
+
+
+# ── Translation ──────────────────────────────────────────────────────────────
+
+
+def translate_phrase(dutch_text: str, context: str = "") -> str:
+    """Translate a Dutch phrase to English using Qwen."""
+    if not DASHSCOPE_API_KEY:
+        raise RuntimeError("DASHSCOPE_API_KEY is not set")
+
+    client = _get_client()
+    system = (
+        "You are a Dutch-to-English translator. "
+        "Return ONLY the English translation, nothing else. "
+        "If context is provided, use it for disambiguation."
+    )
+    user_msg = f"Translate this Dutch text to English: \"{dutch_text}\""
+    if context:
+        user_msg += f"\nContext: \"{context}\""
+
+    response = client.chat.completions.create(
+        model="qwen-plus",
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user_msg},
+        ],
+        temperature=0.3,
     )
     return response.choices[0].message.content.strip()
 
@@ -337,7 +357,7 @@ Requirements:
     for _ in range(2):
         try:
             response = client.chat.completions.create(
-                model="qwen-plus",
+                model=CONTENT_MODEL,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.7,
             )

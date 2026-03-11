@@ -9,9 +9,13 @@ import {
   FlashcardReviewItem,
   FlashcardStats,
   FlashcardTrendPoint,
+  KNMDetailItem,
+  KNMHistoryItem,
   ListeningDetailItem,
   ListeningHistoryItem,
   ListeningTrendPoint,
+  ReadingDetailItem,
+  ReadingHistoryItem,
   SpeakingHistoryItem,
   SpeakingHistoryPage,
   deleteSpeakingRecording,
@@ -20,15 +24,19 @@ import {
   getFlashcardHistory,
   getFlashcardResults,
   getFlashcardTrend,
+  getKNMDetail,
+  getKNMHistory,
   getListeningDetail,
   getListeningResults,
   getListeningTrend,
+  getReadingDetail,
+  getReadingHistory,
   getSpeakingHistoryPaged,
   listeningAudioUrl,
   speakingAudioUrl,
 } from "../api";
 
-type Tab = "flashcards" | "listening" | "exam" | "speaking";
+type Tab = "flashcards" | "listening" | "reading" | "speaking" | "knm" | "exam";
 
 const RATING_COLORS: Record<string, string> = {
   again: "bg-red-100 text-red-700",
@@ -55,6 +63,14 @@ export default function StudyMaterial() {
   const [spkFilter, setSpkFilter] = useState<SpkFilter>("all");
   const speakingAudioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Reading + KNM state
+  const [readingHistory, setReadingHistory] = useState<ReadingHistoryItem[]>([]);
+  const [knmHistory, setKnmHistory] = useState<KNMHistoryItem[]>([]);
+  const [readingDetail, setReadingDetail] = useState<ReadingDetailItem | null>(null);
+  const [readingDetailLoading, setReadingDetailLoading] = useState(false);
+  const [knmDetail, setKnmDetail] = useState<KNMDetailItem | null>(null);
+  const [knmDetailLoading, setKnmDetailLoading] = useState(false);
+
   // Listening mode filter
   type LisFilter = "all" | "quiz" | "intensive";
   const [lisFilter, setLisFilter] = useState<LisFilter>("all");
@@ -79,7 +95,10 @@ export default function StudyMaterial() {
     const history = getFlashcardHistory()
       .then(setFcHistory)
       .catch(() => {});
-    Promise.all([core, trends, history]).finally(() => setLoading(false));
+    const readKnm = Promise.all([getReadingHistory(), getKNMHistory()])
+      .then(([r, k]) => { setReadingHistory(r); setKnmHistory(k); })
+      .catch(() => {});
+    Promise.all([core, trends, history, readKnm]).finally(() => setLoading(false));
   }, []);
 
   // Re-fetch listening data when filter changes
@@ -153,7 +172,9 @@ export default function StudyMaterial() {
   const TABS: { key: Tab; label: string }[] = [
     { key: "flashcards", label: "Flashcards" },
     { key: "listening", label: "Listening" },
+    { key: "reading", label: "Reading" },
     { key: "speaking", label: "Speaking" },
+    { key: "knm", label: "KNM" },
     { key: "exam", label: "Mock Exam" },
   ];
 
@@ -504,6 +525,206 @@ export default function StudyMaterial() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── Reading tab ── */}
+      {tab === "reading" && (
+        <div className="space-y-3">
+          {readingHistory.length === 0 && !loading && (
+            <p className="text-slate-400 text-sm">No reading sessions yet.</p>
+          )}
+          {readingHistory.map((r) => {
+            const isExp = expandedId === r.id && readingDetail?.id === r.id;
+            return (
+              <div
+                key={r.id}
+                className="bg-white rounded-2xl border border-slate-200 cursor-pointer hover:shadow-md transition-all"
+                onClick={() => {
+                  if (expandedId === r.id) { setExpandedId(null); setReadingDetail(null); return; }
+                  setExpandedId(r.id);
+                  setReadingDetail(null);
+                  setReadingDetailLoading(true);
+                  getReadingDetail(r.id)
+                    .then(setReadingDetail)
+                    .catch(() => {})
+                    .finally(() => setReadingDetailLoading(false));
+                }}
+              >
+                <div className="px-4 py-3 flex justify-between items-center">
+                  <div>
+                    <p className="font-medium text-sm flex items-center gap-2">
+                      {r.topic}
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
+                        r.level === "A1" ? "bg-green-100 text-green-700" :
+                        r.level === "B1" ? "bg-purple-100 text-purple-700" :
+                        "bg-blue-100 text-blue-700"
+                      }`}>{r.level}</span>
+                      <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 capitalize">{r.content_type.replace(/_/g, " ")}</span>
+                    </p>
+                    <p className="text-xs text-slate-400">{r.date.split("T")[0]}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-semibold ${r.score_pct >= 60 ? "text-green-600" : "text-red-500"}`}>
+                      {r.score_pct}%
+                    </span>
+                    <svg className={`w-4 h-4 text-slate-400 transition-transform ${expandedId === r.id ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </div>
+                </div>
+                {expandedId === r.id && (
+                  <div className="px-4 pb-4 pt-1 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
+                    {readingDetailLoading && <p className="text-xs text-slate-400 py-2">Loading details...</p>}
+                    {isExp && readingDetail.passage_nl && (
+                      <div className="space-y-3 mt-2">
+                        {/* Passage */}
+                        <div>
+                          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Passage</p>
+                          <p className="text-sm text-slate-700 whitespace-pre-line">{readingDetail.passage_nl}</p>
+                          {readingDetail.passage_en && (
+                            <p className="text-xs text-slate-400 mt-2 whitespace-pre-line">{readingDetail.passage_en}</p>
+                          )}
+                        </div>
+                        {/* Questions */}
+                        {readingDetail.questions && readingDetail.questions.length > 0 && (
+                          <div>
+                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Questions</p>
+                            <div className="space-y-2">
+                              {readingDetail.questions.map((q, i) => {
+                                const ua = readingDetail.user_answers?.[i];
+                                return (
+                                  <div key={q.id} className="bg-slate-50 rounded-lg p-2 text-sm">
+                                    <p className="font-medium mb-1">{i + 1}. {q.question_nl}</p>
+                                    <p className="text-xs text-slate-400 mb-1">{q.question_en}</p>
+                                    <div className="grid grid-cols-2 gap-1 text-xs">
+                                      {Object.entries(q.options).map(([key, val]) => {
+                                        const isCorrect = key === q.answer;
+                                        const isUser = key === ua;
+                                        let cls = "px-2 py-1 rounded";
+                                        if (isCorrect) cls += " bg-green-100 text-green-700 font-medium";
+                                        else if (isUser && !isCorrect) cls += " bg-red-100 text-red-600 line-through";
+                                        else cls += " text-slate-600";
+                                        return (
+                                          <div key={key} className={cls}>
+                                            {key}. {val} {isCorrect && "\u2713"} {isUser && !isCorrect && "\u2717"}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                    {q.explanation_en && (
+                                      <p className="text-xs text-slate-500 mt-1 italic">{q.explanation_en}</p>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); nav("/study/reading"); }}
+                          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 rounded-lg text-sm font-semibold hover:from-blue-700 hover:to-indigo-700"
+                        >
+                          Practice Reading
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── KNM tab ── */}
+      {tab === "knm" && (
+        <div className="space-y-3">
+          {knmHistory.length === 0 && !loading && (
+            <p className="text-slate-400 text-sm">No KNM sessions yet.</p>
+          )}
+          {knmHistory.map((k) => {
+            const isExp = expandedId === k.id && knmDetail?.id === k.id;
+            return (
+              <div
+                key={k.id}
+                className="bg-white rounded-2xl border border-slate-200 cursor-pointer hover:shadow-md transition-all"
+                onClick={() => {
+                  if (expandedId === k.id) { setExpandedId(null); setKnmDetail(null); return; }
+                  setExpandedId(k.id);
+                  setKnmDetail(null);
+                  setKnmDetailLoading(true);
+                  getKNMDetail(k.id)
+                    .then(setKnmDetail)
+                    .catch(() => {})
+                    .finally(() => setKnmDetailLoading(false));
+                }}
+              >
+                <div className="px-4 py-3 flex justify-between items-center">
+                  <div>
+                    <p className="font-medium text-sm flex items-center gap-2">
+                      <span className="capitalize">{k.category}</span>
+                    </p>
+                    <p className="text-xs text-slate-400">{k.date.split("T")[0]} · {k.correct_count}/{k.total_questions}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-semibold ${k.score_pct >= 60 ? "text-green-600" : "text-red-500"}`}>
+                      {k.score_pct}%
+                    </span>
+                    <svg className={`w-4 h-4 text-slate-400 transition-transform ${expandedId === k.id ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </div>
+                </div>
+                {expandedId === k.id && (
+                  <div className="px-4 pb-4 pt-1 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
+                    {knmDetailLoading && <p className="text-xs text-slate-400 py-2">Loading details...</p>}
+                    {isExp && knmDetail.questions && knmDetail.questions.length > 0 && (
+                      <div className="space-y-3 mt-2">
+                        <div className="space-y-2">
+                          {knmDetail.questions.map((q, i) => {
+                            const ua = knmDetail.user_answers?.[i];
+                            return (
+                              <div key={q.id} className="bg-slate-50 rounded-lg p-2 text-sm">
+                                <p className="font-medium mb-1">{i + 1}. {q.question_nl}</p>
+                                <p className="text-xs text-slate-400 mb-1">{q.question_en}</p>
+                                {q.context_nl && (
+                                  <p className="text-xs text-slate-500 italic mb-1">{q.context_nl}</p>
+                                )}
+                                <div className="space-y-1 text-xs">
+                                  {Object.entries(q.options).map(([key, val]) => {
+                                    const isCorrect = key === q.answer;
+                                    const isUser = key === ua;
+                                    let cls = "px-2 py-1 rounded";
+                                    if (isCorrect) cls += " bg-green-100 text-green-700 font-medium";
+                                    else if (isUser && !isCorrect) cls += " bg-red-100 text-red-600 line-through";
+                                    else cls += " text-slate-600";
+                                    const enText = q.options_en?.[key];
+                                    return (
+                                      <div key={key} className={cls}>
+                                        {key}. {val}
+                                        {enText && <span className="text-slate-400 ml-1">({enText})</span>}
+                                        {isCorrect && " \u2713"} {isUser && !isCorrect && " \u2717"}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                                {q.explanation_en && (
+                                  <p className="text-xs text-slate-500 mt-1 italic">{q.explanation_en}</p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); nav("/study/knm"); }}
+                          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 rounded-lg text-sm font-semibold hover:from-blue-700 hover:to-indigo-700"
+                        >
+                          Practice KNM
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

@@ -12,6 +12,7 @@ export interface ListeningState {
   phase: Phase;
   mode: ListeningMode;
   level: ListeningLevel;
+  topic: string;
   data: GenerateResponse | null;
   answers: string[];
   result: SubmitListeningResponse | null;
@@ -27,6 +28,7 @@ export interface IntensiveState {
   phase: IntensivePhase;
   level: ListeningLevel;
   contentType: ContentType;
+  topic: string;
   data: GenerateIntensiveResponse | null;
   currentLine: number;
   userTexts: string[];
@@ -40,6 +42,7 @@ const INITIAL: ListeningState = {
   phase: "idle",
   mode: "quiz",
   level: "A2",
+  topic: "",
   data: null,
   answers: [],
   result: null,
@@ -55,6 +58,7 @@ const INITIAL_INTENSIVE: IntensiveState = {
   phase: "idle",
   level: "A2",
   contentType: "dialogue",
+  topic: "",
   data: null,
   currentLine: 0,
   userTexts: [],

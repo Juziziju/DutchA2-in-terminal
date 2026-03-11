@@ -5,14 +5,13 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlmodel import Session, select
+from sqlmodel import Session
 
 from backend.core.audio import generate_dialogue_audio, new_session_prefix
 from backend.core.qwen import generate_dialogue, generate_intensive, get_explanation
 from backend.database import get_session
 from backend.models.listening import ListeningSession
 from backend.models.user import User
-from backend.models.vocab import Vocab
 from backend.routers.auth import get_current_user
 
 router = APIRouter(prefix="/listening", tags=["listening"])
@@ -34,6 +33,7 @@ class Question(BaseModel):
 class GenerateRequest(BaseModel):
     mode: str = "quiz"   # "quiz" | "intensive"
     level: str = "A2"    # "A1" | "A2" | "B1"
+    topic: str = ""
 
 
 class GenerateResponse(BaseModel):
@@ -42,27 +42,19 @@ class GenerateResponse(BaseModel):
     speakers: list[str]
     dialogue: list[DialogueLine]
     questions: list[Question]
-    vocab_used: list[str]
+    vocab_used: list[str] = []
     level: str
 
 
 @router.post("/generate", response_model=GenerateResponse)
 def generate(
     req: GenerateRequest | None = None,
-    db: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
     body = req or GenerateRequest()
     level = body.level if body.level in ("A1", "A2", "B1") else "A2"
 
-    vocab_words = [v.dutch for v in db.exec(select(Vocab)).all() if v.dutch]
-    if len(vocab_words) < 5:
-        raise HTTPException(
-            status_code=400,
-            detail="Not enough vocab in the database. Run /vocab/sync first.",
-        )
-
-    data, sample = generate_dialogue(vocab_words, level=level)
+    data = generate_dialogue(level=level, topic=body.topic)
     session_prefix = new_session_prefix()
     audio_filenames = generate_dialogue_audio(data["dialogue"], session_prefix)
 
@@ -81,7 +73,6 @@ def generate(
         speakers=data["speakers"],
         dialogue=lines,
         questions=[Question(**q) for q in data["questions"]],
-        vocab_used=sample,
         level=level,
     )
 
@@ -209,6 +200,7 @@ class IntensiveLine(BaseModel):
 class GenerateIntensiveRequest(BaseModel):
     level: str = "A2"
     content_type: str = "dialogue"  # "dialogue" | "news" | "article"
+    topic: str = ""
 
 
 class GenerateIntensiveResponse(BaseModel):
@@ -216,7 +208,7 @@ class GenerateIntensiveResponse(BaseModel):
     topic: str
     speakers: list[str]
     lines: list[IntensiveLine]
-    vocab_used: list[str]
+    vocab_used: list[str] = []
     level: str
     content_type: str
 
@@ -224,18 +216,13 @@ class GenerateIntensiveResponse(BaseModel):
 @router.post("/generate-intensive", response_model=GenerateIntensiveResponse)
 def generate_intensive_endpoint(
     req: GenerateIntensiveRequest | None = None,
-    db: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
     body = req or GenerateIntensiveRequest()
     level = body.level if body.level in ("A1", "A2", "B1") else "A2"
     content_type = body.content_type if body.content_type in ("dialogue", "news", "article") else "dialogue"
 
-    vocab_words = [v.dutch for v in db.exec(select(Vocab)).all() if v.dutch]
-    if len(vocab_words) < 5:
-        raise HTTPException(status_code=400, detail="Not enough vocab in the database.")
-
-    data, sample = generate_intensive(vocab_words, level=level, content_type=content_type)
+    data = generate_intensive(level=level, content_type=content_type, topic=body.topic)
     session_prefix = new_session_prefix()
     audio_filenames = generate_dialogue_audio(data["lines"], session_prefix)
 
@@ -253,7 +240,6 @@ def generate_intensive_endpoint(
         topic=data["topic"],
         speakers=data["speakers"],
         lines=lines,
-        vocab_used=sample,
         level=level,
         content_type=content_type,
     )

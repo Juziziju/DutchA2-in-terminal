@@ -214,8 +214,8 @@ export interface GenerateResponse {
   level: string;
 }
 
-export function generateListening(mode?: string, level?: string) {
-  return request<GenerateResponse>("POST", "/listening/generate", { mode: mode ?? "quiz", level: level ?? "A2" });
+export function generateListening(mode?: string, level?: string, topic?: string) {
+  return request<GenerateResponse>("POST", "/listening/generate", { mode: mode ?? "quiz", level: level ?? "A2", topic: topic ?? "" });
 }
 
 export interface SubmitListeningRequest {
@@ -285,10 +285,11 @@ export interface GenerateIntensiveResponse {
   content_type: string;
 }
 
-export function generateIntensive(level?: string, content_type?: string) {
+export function generateIntensive(level?: string, content_type?: string, topic?: string) {
   return request<GenerateIntensiveResponse>("POST", "/listening/generate-intensive", {
     level: level ?? "A2",
     content_type: content_type ?? "dialogue",
+    topic: topic ?? "",
   });
 }
 
@@ -1012,6 +1013,232 @@ export function getMockExams() {
 
 export function getMockExamDetail(examId: string) {
   return request<MockExamDetail>("GET", `/speaking/mock-exams/${examId}`);
+}
+
+// ── Personal Vocab ──────────────────────────────────────────────────────────
+
+export interface PersonalVocabItem {
+  id: number;
+  dutch: string;
+  english: string;
+  source: string;
+  context_sentence: string;
+  notes: string;
+  created_at: string;
+  interval: number;
+  ease_factor: number;
+  repetitions: number;
+  next_review: string;
+  mastered: boolean;
+}
+
+export function translatePhrase(text: string, context: string) {
+  return request<{ dutch: string; english: string }>("POST", "/personal-vocab/translate", { text, context });
+}
+
+export function savePersonalVocab(data: { dutch: string; english: string; source: string; context_sentence: string }) {
+  return request<PersonalVocabItem>("POST", "/personal-vocab/save", data);
+}
+
+export function getPersonalVocab(source?: string) {
+  const params = source ? { source } : undefined;
+  return request<PersonalVocabItem[]>("GET", "/personal-vocab", undefined, params);
+}
+
+export function deletePersonalVocab(id: number) {
+  return request<void>("DELETE", `/personal-vocab/${id}`);
+}
+
+export function updatePersonalVocab(id: number, data: { notes?: string; english?: string }) {
+  return request<PersonalVocabItem>("PATCH", `/personal-vocab/${id}`, data);
+}
+
+export function getPersonalVocabSession() {
+  return request<{ cards: PersonalVocabItem[]; due_count: number }>("GET", "/personal-vocab/session");
+}
+
+export function reviewPersonalVocab(id: number, rating: Rating) {
+  return request<ReviewOut>("POST", "/personal-vocab/review", { id, rating });
+}
+
+// ── Reading ─────────────────────────────────────────────────────────────────
+
+export interface ReadingQuestion {
+  id: string;
+  question_nl: string;
+  question_en: string;
+  options: Record<string, string>;
+  answer: string;
+  explanation_en: string;
+}
+
+export interface ReadingGenerateResponse {
+  content_type: string;
+  topic: string;
+  title_nl: string;
+  passage_nl: string;
+  passage_en: string;
+  questions: ReadingQuestion[];
+  level: string;
+  vocab_used: string[];
+}
+
+export function generateReading(content_type?: string, level?: string, topic?: string) {
+  return request<ReadingGenerateResponse>("POST", "/reading/generate", {
+    content_type: content_type ?? "short_text",
+    level: level ?? "A2",
+    topic: topic ?? "",
+  });
+}
+
+export interface ReadingQuestionResult {
+  id: string;
+  correct: boolean;
+  user_answer: string;
+  correct_answer: string;
+  explanation_en: string;
+}
+
+export interface ReadingSubmitResponse {
+  score: number;
+  total: number;
+  score_pct: number;
+  results: ReadingQuestionResult[];
+}
+
+export function submitReading(data: {
+  content_type: string;
+  topic: string;
+  title_nl: string;
+  passage_nl: string;
+  passage_en: string;
+  questions: ReadingQuestion[];
+  user_answers: string[];
+  level: string;
+  duration_seconds?: number;
+}) {
+  return request<ReadingSubmitResponse>("POST", "/reading/submit", data);
+}
+
+export function explainReading(data: {
+  passage_nl: string;
+  passage_en: string;
+  questions: ReadingQuestion[];
+  user_answers: string[];
+  level?: string;
+}) {
+  return request<{ explanation: string }>("POST", "/reading/explain", data);
+}
+
+export interface ReadingHistoryItem {
+  id: number;
+  date: string;
+  content_type: string;
+  level: string;
+  topic: string;
+  score_pct: number;
+  total_questions: number;
+  correct_count: number;
+  duration_seconds: number | null;
+}
+
+export function getReadingHistory() {
+  return request<ReadingHistoryItem[]>("GET", "/reading/history");
+}
+
+export interface ReadingDetailItem extends ReadingHistoryItem {
+  title_nl?: string;
+  passage_nl?: string;
+  passage_en?: string;
+  questions?: ReadingQuestion[];
+  user_answers?: string[];
+}
+
+export function getReadingDetail(id: number) {
+  return request<ReadingDetailItem>("GET", `/reading/detail/${id}`);
+}
+
+// ── KNM ─────────────────────────────────────────────────────────────────────
+
+export interface KNMCategoryStat {
+  category: string;
+  label_nl: string;
+  label_en: string;
+  attempts: number;
+  avg_score: number | null;
+}
+
+export function getKNMCategories() {
+  return request<KNMCategoryStat[]>("GET", "/knm/categories");
+}
+
+export interface KNMQuestion {
+  id: string;
+  question_nl: string;
+  question_en: string;
+  context_nl: string;
+  context_en: string;
+  options: Record<string, string>;
+  options_en: Record<string, string>;
+  answer: string;
+  explanation_en: string;
+}
+
+export interface KNMGenerateResponse {
+  category: string;
+  questions: KNMQuestion[];
+}
+
+export function generateKNM(category: string, count?: number) {
+  return request<KNMGenerateResponse>("POST", "/knm/generate", {
+    category,
+    count: count ?? 5,
+  });
+}
+
+export interface KNMQuestionResult {
+  id: string;
+  correct: boolean;
+  user_answer: string;
+  correct_answer: string;
+  explanation_en: string;
+}
+
+export interface KNMSubmitResponse {
+  score: number;
+  total: number;
+  score_pct: number;
+  results: KNMQuestionResult[];
+}
+
+export function submitKNM(data: {
+  category: string;
+  questions: KNMQuestion[];
+  user_answers: string[];
+}) {
+  return request<KNMSubmitResponse>("POST", "/knm/submit", data);
+}
+
+export interface KNMHistoryItem {
+  id: number;
+  date: string;
+  category: string;
+  score_pct: number;
+  total_questions: number;
+  correct_count: number;
+}
+
+export function getKNMHistory() {
+  return request<KNMHistoryItem[]>("GET", "/knm/history");
+}
+
+export interface KNMDetailItem extends KNMHistoryItem {
+  questions?: KNMQuestion[];
+  user_answers?: string[];
+}
+
+export function getKNMDetail(id: number) {
+  return request<KNMDetailItem>("GET", `/knm/detail/${id}`);
 }
 
 // ── Dashboard Insights ──────────────────────────────────────────────────────
