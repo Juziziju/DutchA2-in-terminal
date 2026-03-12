@@ -1341,6 +1341,230 @@ export function askAdvisor(message: string) {
   return request<AdvisorResponse>("POST", "/advisor/ask", { message });
 }
 
+// ── Writing ─────────────────────────────────────────────────────────────────
+
+export interface WritingBulletPoint { nl: string; en: string }
+export interface WritingGuidingQuestion { nl: string; en: string }
+export interface WritingFormField {
+  label_nl: string;
+  label_en: string;
+  field_type: "text" | "select" | "textarea";
+  placeholder?: string;
+  options?: string[];
+}
+
+export interface ErrorCorrectionSentence {
+  text: string;
+  text_en?: string;
+  has_error: boolean;
+  correct_text: string;
+  category: string | null;
+  explanation_en: string | null;
+}
+
+export interface WritingPrompt {
+  task_type: string;
+  topic: string;
+  // email
+  situation_nl?: string;
+  situation_en?: string;
+  recipient?: string;
+  bullet_points?: WritingBulletPoint[];
+  // kort_verhaal
+  topic_nl?: string;
+  topic_en?: string;
+  guiding_questions?: WritingGuidingQuestion[];
+  // formulier
+  form_title_nl?: string;
+  form_title_en?: string;
+  fields?: WritingFormField[];
+  model_answers?: Record<string, string>;
+  // error_correction
+  sentences?: ErrorCorrectionSentence[];
+  // shared
+  model_answer?: string;
+}
+
+export function generateWritingPrompt(taskType?: string, topic?: string) {
+  return request<WritingPrompt>("POST", "/writing/generate", {
+    task_type: taskType ?? "email",
+    topic: topic ?? "",
+  });
+}
+
+export interface WritingGrammarError {
+  text: string;
+  correction: string;
+  category: string;
+  explanation_en: string;
+}
+
+export interface WritingFeedback {
+  score: number;
+  grammar_score: number;
+  vocabulary_score: number;
+  completeness_score: number;
+  grammar_errors: WritingGrammarError[];
+  feedback_nl: string;
+  feedback_en: string;
+  improved_answer: string;
+}
+
+export interface WritingSubmitResponse {
+  session_id: number;
+  score_pct: number;
+  feedback: WritingFeedback;
+}
+
+export function submitWriting(data: {
+  task_type: string;
+  prompt: WritingPrompt;
+  response_text: string;
+  duration_seconds?: number;
+}) {
+  return request<WritingSubmitResponse>("POST", "/writing/submit", data);
+}
+
+// Error Correction
+export interface ErrorCorrectionResult {
+  sentence: string;
+  has_error: boolean;
+  correct_text: string;
+  category: string | null;
+  explanation_en: string | null;
+  user_marked_error: boolean;
+  user_correction: string | null;
+  found: boolean | null;       // null for correct sentences
+  fix_correct: boolean | null;  // null for correct sentences
+}
+
+export interface ErrorCorrectionFeedback {
+  score: number;
+  found_count: number;
+  total_errors: number;
+  correct_fixes: number;
+  correct_judgments: number;
+  total_sentences: number;
+  results: ErrorCorrectionResult[];
+  feedback_en: string;
+  feedback_nl: string;
+}
+
+export interface ErrorCorrectionSubmitResponse {
+  session_id: number;
+  score_pct: number;
+  feedback: ErrorCorrectionFeedback;
+}
+
+export function submitErrorCorrection(data: {
+  prompt: WritingPrompt;
+  answers: { sentence_index: number; marked_error: boolean; user_correction: string | null }[];
+  duration_seconds?: number;
+}) {
+  return request<ErrorCorrectionSubmitResponse>("POST", "/writing/submit-correction", data);
+}
+
+export interface WritingHistoryItem {
+  id: number;
+  date: string;
+  task_type: string;
+  topic: string;
+  score_pct: number | null;
+  duration_seconds: number | null;
+}
+
+export interface WritingHistoryPage {
+  items: WritingHistoryItem[];
+  total: number;
+  page: number;
+  per_page: number;
+  pages: number;
+}
+
+export function getWritingHistoryPaged(page: number, perPage: number, taskType?: string) {
+  const params: Record<string, string> = { page: String(page), per_page: String(perPage) };
+  if (taskType) params.task_type = taskType;
+  return request<WritingHistoryPage>("GET", "/writing/history", undefined, params);
+}
+
+export interface WritingDetailItem {
+  id: number;
+  date: string;
+  task_type: string;
+  topic: string;
+  score_pct: number | null;
+  duration_seconds: number | null;
+  prompt: WritingPrompt;
+  response_text: string;
+  // feedback shape depends on task_type:
+  // - error_correction → ErrorCorrectionFeedback
+  // - email/kort_verhaal/formulier → WritingFeedback
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  feedback: any;
+}
+
+export function getWritingDetail(id: number) {
+  return request<WritingDetailItem>("GET", `/writing/detail/${id}`);
+}
+
+export interface WritingErrorCategoryItem {
+  category: string;
+  count: number;
+  last_seen: string;
+}
+
+export interface WritingErrorProfile {
+  categories: WritingErrorCategoryItem[];
+}
+
+export function getWritingErrorProfile() {
+  return request<WritingErrorProfile>("GET", "/writing/error-profile");
+}
+
+// ── Writing Mock Exams (Official DUO Schrijven) ─────────────────────────────
+
+export interface SchrijvenExamSummary {
+  id: string;
+  title: string;
+  task_count: number;
+  task_types: Record<string, number>;
+}
+
+export interface SchrijvenExamTask {
+  id: string;
+  task_type: "email" | "kort_verhaal" | "formulier";
+  title: string;
+  situation_nl?: string;
+  situation_en?: string;
+  recipient?: string;
+  bullet_points?: WritingBulletPoint[];
+  guiding_questions?: WritingGuidingQuestion[];
+  form_title_nl?: string;
+  form_title_en?: string;
+  fields?: WritingFormField[];
+  instructions_nl: string;
+  instructions_en: string;
+  starter_text?: string;
+  greeting?: string;
+  closing?: string;
+  model_answer?: string;
+  model_answers?: Record<string, string>;
+}
+
+export interface SchrijvenExamDetail {
+  id: string;
+  title: string;
+  tasks: SchrijvenExamTask[];
+}
+
+export function getSchrijvenExams() {
+  return request<SchrijvenExamSummary[]>("GET", "/writing/mock-exams");
+}
+
+export function getSchrijvenExamDetail(examId: string) {
+  return request<SchrijvenExamDetail>("GET", `/writing/mock-exams/${examId}`);
+}
+
 export async function askAdvisorStream(
   message: string,
   onChunk: (text: string) => void,

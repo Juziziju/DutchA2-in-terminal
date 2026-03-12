@@ -281,7 +281,11 @@ def get_explanation(data: dict, questions: list[dict], user_answers: list[str], 
         f"Q1: Correct/Incorrect\n"
         f"Evidence: \"[Dutch quote from the text]\" — \"[English translation]\"\n"
         f"Explanation: [why the correct answer follows from this evidence]\n\n"
-        f"Be concise but thorough. No encouragement or filler. English only."
+        f"IMPORTANT:\n"
+        f"- You MUST include a direct Dutch quote and its English translation for EVERY question\n"
+        f"- Do NOT invent grammar terminology or make up rules\n"
+        f"- Just quote the relevant text, translate it, and explain the meaning\n"
+        f"- Be concise but thorough. No encouragement or filler. English only."
     )
 
     response = client.chat.completions.create(

@@ -20,6 +20,9 @@ import {
   SpeakingHistoryPage,
   SprekenExamDetail,
   SprekenVraag,
+  WritingDetailItem,
+  WritingHistoryItem,
+  WritingHistoryPage,
   deleteSpeakingRecording,
   getExamResults,
   getExamTrend,
@@ -36,11 +39,13 @@ import {
   getSpeakingHistoryPaged,
   getSprekenExams,
   getSprekenExamDetail,
+  getWritingHistoryPaged,
+  getWritingDetail,
   listeningAudioUrl,
   speakingAudioUrl,
 } from "../api";
 
-type Tab = "flashcards" | "listening" | "reading" | "speaking" | "knm" | "exam";
+type Tab = "flashcards" | "listening" | "reading" | "writing" | "speaking" | "knm" | "exam";
 
 const RATING_COLORS: Record<string, string> = {
   again: "bg-red-100 text-red-700",
@@ -68,6 +73,12 @@ export default function StudyMaterial() {
   const speakingAudioRef = useRef<HTMLAudioElement | null>(null);
   const [sprekenVraagMap, setSprekenVraagMap] = useState<Record<string, SprekenVraag>>({});
   const [spkExpandedId, setSpkExpandedId] = useState<number | null>(null);
+
+  // Writing state
+  const [writingItems, setWritingItems] = useState<WritingHistoryItem[]>([]);
+  const [writingDetail, setWritingDetail] = useState<WritingDetailItem | null>(null);
+  const [writingDetailLoading, setWritingDetailLoading] = useState(false);
+  const [writingExpandedId, setWritingExpandedId] = useState<number | null>(null);
 
   // Reading + KNM state
   const [readingHistory, setReadingHistory] = useState<ReadingHistoryItem[]>([]);
@@ -104,7 +115,10 @@ export default function StudyMaterial() {
     const readKnm = Promise.all([getReadingHistory(), getKNMHistory()])
       .then(([r, k]) => { setReadingHistory(r); setKnmHistory(k); })
       .catch(() => {});
-    Promise.all([core, trends, history, readKnm]).finally(() => setLoading(false));
+    const writingLoad = getWritingHistoryPaged(1, 50)
+      .then((res) => setWritingItems(res.items))
+      .catch(() => {});
+    Promise.all([core, trends, history, readKnm, writingLoad]).finally(() => setLoading(false));
   }, []);
 
   // Re-fetch listening data when filter changes
@@ -200,6 +214,7 @@ export default function StudyMaterial() {
     { key: "flashcards", label: "Flashcards" },
     { key: "listening", label: "Listening" },
     { key: "reading", label: "Reading" },
+    { key: "writing", label: "Writing" },
     { key: "speaking", label: "Speaking" },
     { key: "knm", label: "KNM" },
     { key: "exam", label: "Mock Exam" },
@@ -651,6 +666,187 @@ export default function StudyMaterial() {
                           className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 rounded-lg text-sm font-semibold hover:from-blue-700 hover:to-indigo-700"
                         >
                           Practice Reading
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Writing tab ── */}
+      {tab === "writing" && (
+        <div className="space-y-3">
+          {writingItems.length === 0 && !loading && (
+            <p className="text-slate-400 text-sm">No writing sessions yet.</p>
+          )}
+          {writingItems.map((w) => {
+            const isExp = writingExpandedId === w.id && writingDetail?.id === w.id;
+            const taskLabel = w.task_type === "email" ? "Email" : w.task_type === "kort_verhaal" ? "Kort verhaal" : w.task_type === "error_correction" ? "Fouten verbeteren" : "Formulier";
+            const taskColor = w.task_type === "error_correction" ? "bg-orange-100 text-orange-700" : "bg-blue-100 text-blue-700";
+            const isEC = writingDetail?.task_type === "error_correction";
+            return (
+              <div
+                key={w.id}
+                className="bg-white rounded-2xl border border-slate-200 cursor-pointer hover:shadow-md transition-all"
+                onClick={() => {
+                  if (writingExpandedId === w.id) { setWritingExpandedId(null); setWritingDetail(null); return; }
+                  setWritingExpandedId(w.id);
+                  setWritingDetail(null);
+                  setWritingDetailLoading(true);
+                  getWritingDetail(w.id)
+                    .then(setWritingDetail)
+                    .catch(() => {})
+                    .finally(() => setWritingDetailLoading(false));
+                }}
+              >
+                <div className="px-4 py-3 flex justify-between items-center">
+                  <div>
+                    <p className="font-medium text-sm flex items-center gap-2">
+                      {w.topic || "Writing practice"}
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full ${taskColor}`}>{taskLabel}</span>
+                    </p>
+                    <p className="text-xs text-slate-400">{w.date.split("T")[0]}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-semibold ${(w.score_pct ?? 0) >= 60 ? "text-green-600" : "text-red-500"}`}>
+                      {w.score_pct ?? "--"}%
+                    </span>
+                    <svg className={`w-4 h-4 text-slate-400 transition-transform ${writingExpandedId === w.id ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </div>
+                </div>
+                {writingExpandedId === w.id && (
+                  <div className="px-4 pb-4 pt-1 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
+                    {writingDetailLoading && <p className="text-xs text-slate-400 py-2">Loading details...</p>}
+                    {isExp && writingDetail && (
+                      <div className="space-y-3 mt-2">
+                        {/* Prompt */}
+                        <div>
+                          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Prompt</p>
+                          <p className="text-sm text-slate-700">
+                            {writingDetail.prompt.topic_nl || writingDetail.prompt.situation_nl || writingDetail.prompt.form_title_nl || writingDetail.topic}
+                          </p>
+                        </div>
+
+                        {isEC ? (
+                          /* ── Error Correction Review ── */
+                          <>
+                            {/* Score summary */}
+                            <div className="flex gap-3 text-xs">
+                              <span>Found: <strong>{writingDetail.feedback?.found_count ?? 0}/{writingDetail.feedback?.total_errors ?? 0}</strong> errors</span>
+                              <span>Correct fixes: <strong>{writingDetail.feedback?.correct_fixes ?? 0}</strong></span>
+                              <span>Score: <strong className={(writingDetail.score_pct ?? 0) >= 60 ? "text-green-600" : "text-red-500"}>{writingDetail.score_pct ?? 0}%</strong></span>
+                            </div>
+
+                            {/* Per-sentence results */}
+                            {writingDetail.feedback?.results && (
+                              <div className="space-y-2">
+                                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Sentence Results</p>
+                                {(writingDetail.feedback.results as Array<{
+                                  sentence: string; has_error: boolean; correct_text: string;
+                                  category: string | null; explanation_en: string | null;
+                                  user_marked_error: boolean; user_correction: string | null;
+                                  found: boolean | null; fix_correct: boolean | null;
+                                }>).map((r, i) => {
+                                  let bg = "bg-white";
+                                  let label = "";
+                                  let labelColor = "";
+                                  if (r.has_error) {
+                                    if (r.fix_correct) { bg = "bg-green-50"; label = "Correct fix"; labelColor = "bg-green-100 text-green-700"; }
+                                    else if (r.found) { bg = "bg-yellow-50"; label = "Found, wrong fix"; labelColor = "bg-yellow-100 text-yellow-700"; }
+                                    else { bg = "bg-red-50"; label = "Missed error"; labelColor = "bg-red-100 text-red-700"; }
+                                  } else {
+                                    if (r.user_marked_error) { bg = "bg-orange-50"; label = "False alarm"; labelColor = "bg-orange-100 text-orange-700"; }
+                                    else { bg = "bg-green-50"; label = "Correctly left"; labelColor = "bg-green-100 text-green-700"; }
+                                  }
+                                  return (
+                                    <div key={i} className={`${bg} rounded-lg p-2 text-xs space-y-1`}>
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="text-slate-400 font-mono">{i + 1}.</span>
+                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${labelColor}`}>{label}</span>
+                                        {r.has_error && r.category && (
+                                          <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-[10px]">{r.category}</span>
+                                        )}
+                                      </div>
+                                      <p className="text-slate-700">{r.sentence}</p>
+                                      {writingDetail.prompt?.sentences?.[i]?.text_en && (
+                                        <p className="text-slate-400 italic">{writingDetail.prompt.sentences[i].text_en}</p>
+                                      )}
+                                      {r.has_error && (
+                                        <p className="text-green-700">Correct: {r.correct_text}</p>
+                                      )}
+                                      {r.user_marked_error && r.user_correction && !r.fix_correct && (
+                                        <p className="text-slate-500">You wrote: <span className="italic">{r.user_correction}</span></p>
+                                      )}
+                                      {r.explanation_en && (
+                                        <p className="text-slate-500">{r.explanation_en}</p>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            {/* Feedback text */}
+                            {writingDetail.feedback?.feedback_en && (
+                              <p className="text-xs text-slate-500 italic">{writingDetail.feedback.feedback_en}</p>
+                            )}
+                          </>
+                        ) : (
+                          /* ── Writing (email/kort_verhaal/formulier) Review ── */
+                          <>
+                            {/* User response */}
+                            <div>
+                              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Your Response</p>
+                              <p className="text-sm text-slate-700 whitespace-pre-wrap bg-slate-50 rounded-lg p-2">{writingDetail.response_text}</p>
+                            </div>
+                            {/* Scores */}
+                            {writingDetail.feedback && (
+                              <div className="flex gap-3 text-xs">
+                                <span>Grammar: <strong className={(writingDetail.feedback.grammar_score ?? 0) >= 60 ? "text-green-600" : "text-red-500"}>{writingDetail.feedback.grammar_score ?? 0}%</strong></span>
+                                <span>Vocab: <strong className={(writingDetail.feedback.vocabulary_score ?? 0) >= 60 ? "text-green-600" : "text-red-500"}>{writingDetail.feedback.vocabulary_score ?? 0}%</strong></span>
+                                <span>Complete: <strong className={(writingDetail.feedback.completeness_score ?? 0) >= 60 ? "text-green-600" : "text-red-500"}>{writingDetail.feedback.completeness_score ?? 0}%</strong></span>
+                              </div>
+                            )}
+                            {/* Grammar errors */}
+                            {writingDetail.feedback?.grammar_errors && writingDetail.feedback.grammar_errors.length > 0 && (
+                              <div>
+                                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Grammar Errors</p>
+                                <div className="space-y-1">
+                                  {writingDetail.feedback.grammar_errors.map((err: { category: string; text: string; correction: string; explanation_en: string }, i: number) => (
+                                    <div key={i} className="bg-red-50 rounded p-2 text-xs">
+                                      <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[10px] font-medium mr-1">{err.category}</span>
+                                      <span className="line-through text-red-600">{err.text}</span>
+                                      {" → "}
+                                      <span className="text-green-700 font-medium">{err.correction}</span>
+                                      <p className="text-slate-500 mt-0.5">{err.explanation_en}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {/* Improved answer */}
+                            {writingDetail.feedback?.improved_answer && (
+                              <div>
+                                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Improved Version</p>
+                                <p className="text-sm text-green-800 whitespace-pre-wrap bg-green-50 rounded-lg p-2">{writingDetail.feedback.improved_answer}</p>
+                              </div>
+                            )}
+                            {/* Feedback */}
+                            {writingDetail.feedback?.feedback_en && (
+                              <p className="text-xs text-slate-500 italic">{writingDetail.feedback.feedback_en}</p>
+                            )}
+                          </>
+                        )}
+
+                        <button
+                          onClick={(e) => { e.stopPropagation(); nav("/study/writing"); }}
+                          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 rounded-lg text-sm font-semibold hover:from-blue-700 hover:to-indigo-700"
+                        >
+                          Practice Writing
                         </button>
                       </div>
                     )}

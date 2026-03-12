@@ -1,3 +1,4 @@
+
 """Shared metric computation functions used by dashboard insights and AI advisor."""
 
 import json

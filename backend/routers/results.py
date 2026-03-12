@@ -26,6 +26,7 @@ from backend.models.listening import ListeningSession
 from backend.models.progress import FlashcardProgress
 from backend.models.review_log import FlashcardReviewLog
 from backend.models.speaking import SpeakingSession
+from backend.models.writing import WritingSession
 from backend.models.user import User
 from backend.models.vocab import Vocab
 from backend.routers.auth import get_current_user
@@ -239,6 +240,14 @@ def get_streak(
         select(ExamResult).where(ExamResult.user_id == user.id)
     ).all()
     for r in ex_rows:
+        d = r.date.strftime("%Y-%m-%d") if hasattr(r.date, "strftime") else str(r.date)[:10]
+        active_dates.add(d)
+
+    # Writing sessions
+    wr_rows = db.exec(
+        select(WritingSession).where(WritingSession.user_id == user.id)
+    ).all()
+    for r in wr_rows:
         d = r.date.strftime("%Y-%m-%d") if hasattr(r.date, "strftime") else str(r.date)[:10]
         active_dates.add(d)
 
