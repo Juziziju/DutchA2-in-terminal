@@ -24,7 +24,7 @@ function scoreBg(score: number) {
   return "bg-red-50 border-red-200";
 }
 
-export default function SpellPractice({ onBack }: { onBack: () => void }) {
+export default function SpellPractice({ onBack, replayPrompt }: { onBack: () => void; replayPrompt?: SpellPrompt | null }) {
   const [phase, setPhase] = useState<Phase>("select");
   const [scenes, setScenes] = useState<SpellScene[]>([]);
   const [level, setLevel] = useState("A2");
@@ -42,10 +42,31 @@ export default function SpellPractice({ onBack }: { onBack: () => void }) {
   const [reviewingIndex, setReviewingIndex] = useState<number | null>(null);
   const startTimeRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const replayConsumed = useRef(false);
 
   useEffect(() => {
     getSpellScenes().then(setScenes).catch(() => setError("Failed to load scenes"));
   }, []);
+
+  // Handle replay prompt from StudyMaterial "Practice Again"
+  useEffect(() => {
+    if (replayPrompt && !replayConsumed.current) {
+      replayConsumed.current = true;
+      setPrompt(replayPrompt);
+      setSelectedScene(replayPrompt.scene_id);
+      setLevel(replayPrompt.level || "A2");
+      setCurrentIndex(0);
+      setAnswers(replayPrompt.sentences.map(() => ""));
+      setHintMode(replayPrompt.sentences.map(() => false));
+      setHintInputs({});
+      setFeedback(null);
+      setShowVocab(false);
+      setVocabUsed(false);
+      setReviewingIndex(null);
+      startTimeRef.current = Date.now();
+      setPhase("practice");
+    }
+  }, [replayPrompt]);
 
   async function startExercise(sceneId: string) {
     setSelectedScene(sceneId);

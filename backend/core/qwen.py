@@ -7,6 +7,7 @@ import time
 from backend.config import DASHSCOPE_API_KEY
 
 CONTENT_MODEL = os.getenv("CONTENT_MODEL", "qwen3.5-plus-2026-02-15")
+FAST_MODEL = os.getenv("FAST_MODEL", "qwen-turbo-latest")
 
 LEVEL_CONFIGS = {
     "A1": {
@@ -382,7 +383,7 @@ Requirements:
             response = client.chat.completions.create(
                 model=CONTENT_MODEL,
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
+                temperature=0.9,
             )
             raw = response.choices[0].message.content.strip()
             lines = raw.split("\n")

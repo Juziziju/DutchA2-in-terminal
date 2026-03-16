@@ -4,7 +4,7 @@ import json
 import time
 
 from backend.config import DASHSCOPE_API_KEY
-from backend.core.qwen import CONTENT_MODEL
+from backend.core.qwen import FAST_MODEL
 from backend.core.spell_scenes import SPELL_SCENES
 from backend.core.writing_ai import _get_client, _strip_fences, _normalize, _correction_matches
 
@@ -67,12 +67,12 @@ Requirements:
     for attempt in range(2):
         try:
             response = client.chat.completions.create(
-                model=CONTENT_MODEL,
+                model=FAST_MODEL,
                 messages=[
                     {"role": "system", "content": system},
                     {"role": "user", "content": f"Create 8 translation sentences for: {scene['title_en']}. Return only valid JSON."},
                 ],
-                temperature=0.6,
+                temperature=0.9,
             )
             raw = _strip_fences(response.choices[0].message.content.strip())
             data = json.loads(raw)
@@ -212,7 +212,7 @@ def review_spell_sentence(english: str, expected_nl: str, user_text: str) -> dic
     client = _get_client()
     try:
         response = client.chat.completions.create(
-            model=CONTENT_MODEL,
+            model=FAST_MODEL,
             messages=[
                 {"role": "system", "content": (
                     "You are a Dutch language teacher reviewing a student's translation.\n"

@@ -99,7 +99,7 @@ def generate_reading(content_type: str = "short_text", level: str = "A2", topic:
                     {"role": "system", "content": system},
                     {"role": "user", "content": user_msg},
                 ],
-                temperature=0.8,
+                temperature=0.95,
             )
             raw = response.choices[0].message.content.strip()
             if raw.startswith("```"):

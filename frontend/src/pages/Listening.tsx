@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   explainListening,
   generateListening,
   generateIntensive,
   submitListening,
   submitIntensive,
+  GenerateResponse,
+  GenerateIntensiveResponse,
 } from "../api";
 import AudioPlayer from "../components/AudioPlayer";
 import ScoreCard from "../components/ScoreCard";
@@ -117,6 +120,51 @@ function DiffLine({ original, userText }: { original: string; userText: string }
 
 export default function Listening() {
   const { state: s, set, reset, intensive: iv, setIntensive, resetIntensive } = useListeningState();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const replayConsumed = useRef(false);
+
+  // Handle replay from StudyMaterial "Practice Again"
+  useEffect(() => {
+    const st = location.state as { replayQuiz?: GenerateResponse; replayIntensive?: GenerateIntensiveResponse; replayLevel?: string; replayContentType?: string } | null;
+    if (!st || replayConsumed.current) return;
+    replayConsumed.current = true;
+    navigate(location.pathname, { replace: true });
+
+    if (st.replayQuiz) {
+      const d = st.replayQuiz;
+      set(() => ({
+        phase: "pre_play" as const,
+        mode: "quiz" as ListeningMode,
+        level: (st.replayLevel ?? d.level ?? "A2") as ListeningLevel,
+        topic: d.topic,
+        data: d,
+        answers: [],
+        result: null,
+        explanation: "",
+        explaining: false,
+        error: "",
+        currentAudio: 0,
+        playing: false,
+        startedAt: Date.now(),
+      }));
+    } else if (st.replayIntensive) {
+      const d = st.replayIntensive;
+      setIntensive(() => ({
+        phase: "dictation" as const,
+        level: (st.replayLevel ?? d.level ?? "A2") as ListeningLevel,
+        contentType: (st.replayContentType ?? d.content_type ?? "dialogue") as ContentType,
+        topic: d.topic,
+        data: d,
+        currentLine: 0,
+        userTexts: d.lines.map(() => ""),
+        result: null,
+        error: "",
+        submitting: false,
+        startedAt: Date.now(),
+      }));
+    }
+  }, [location.state, location.pathname, navigate, set, setIntensive]);
 
   // ── Quiz handlers (unchanged logic) ──────────────────────────────────────
 

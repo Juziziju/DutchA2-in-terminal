@@ -155,7 +155,7 @@ Requirements:
                     {"role": "system", "content": system},
                     {"role": "user", "content": user_msg},
                 ],
-                temperature=0.7,
+                temperature=0.85,
             )
             raw = response.choices[0].message.content.strip()
             if raw.startswith("```"):

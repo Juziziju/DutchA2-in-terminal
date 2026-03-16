@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   generateWritingPrompt,
   submitWriting,
@@ -13,6 +14,7 @@ import {
   SchrijvenExamSummary,
   SchrijvenExamDetail,
   SchrijvenExamTask,
+  SpellPrompt,
 } from "../api";
 import SpellPractice from "./SpellPractice";
 
@@ -78,6 +80,8 @@ interface SentenceAnswer {
 }
 
 export default function Writing() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>("home");
   const [writingMode, setWritingMode] = useState<WritingMode>("menu");
   const [topics, setTopics] = useState<Record<TaskType, string>>({ email: "", kort_verhaal: "", formulier: "", error_correction: "" });
@@ -94,6 +98,46 @@ export default function Writing() {
 
   // Error correction: one answer per sentence
   const [sentenceAnswers, setSentenceAnswers] = useState<SentenceAnswer[]>([]);
+
+  // Replay: prompt injected from StudyMaterial "Practice Again"
+  const [spellReplay, setSpellReplay] = useState<SpellPrompt | null>(null);
+  const replayConsumed = useRef(false);
+
+  useEffect(() => {
+    const st = location.state as { replay?: WritingPrompt; replaySpell?: SpellPrompt } | null;
+    if (!st || replayConsumed.current) return;
+    replayConsumed.current = true;
+    // Clear navigation state so refresh doesn't re-trigger
+    navigate(location.pathname, { replace: true });
+
+    if (st.replaySpell) {
+      // Spell practice replay
+      setSpellReplay(st.replaySpell);
+      setWritingMode("spell");
+    } else if (st.replay) {
+      const p = st.replay;
+      if (p.task_type === "error_correction") {
+        setCurrentTask("error_correction");
+        setPrompt(p);
+        setSentenceAnswers((p.sentences ?? []).map(() => ({ markedError: false, correction: "" })));
+        setUserText("");
+        setFeedback(null);
+        setEcFeedback(null);
+        startTimeRef.current = Date.now();
+        setPhase("writing");
+      } else {
+        setCurrentTask(p.task_type as TaskType);
+        setPrompt(p);
+        setUserText("");
+        setFormAnswers({});
+        setFeedback(null);
+        setEcFeedback(null);
+        setShowEn(false);
+        startTimeRef.current = Date.now();
+        setPhase("writing");
+      }
+    }
+  }, [location.state, location.pathname, navigate]);
 
   // Mock exam state
   const [mockExams, setMockExams] = useState<SchrijvenExamSummary[]>([]);
@@ -303,7 +347,7 @@ export default function Writing() {
       <>
         {/* SpellPractice stays mounted (CSS hide) so loading survives mode switches */}
         <div style={{ display: writingMode === "spell" ? undefined : "none" }}>
-          <SpellPractice onBack={() => setWritingMode("menu")} />
+          <SpellPractice onBack={() => { setWritingMode("menu"); setSpellReplay(null); }} replayPrompt={spellReplay} />
         </div>
 
         {/* Scene Practice mode — task cards + mock exams */}

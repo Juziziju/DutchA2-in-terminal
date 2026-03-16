@@ -4,7 +4,7 @@ import json
 import time
 
 from backend.config import DASHSCOPE_API_KEY
-from backend.core.qwen import CONTENT_MODEL
+from backend.core.qwen import CONTENT_MODEL, FAST_MODEL
 from backend.core.grammar_rules import format_rules_for_prompt, get_rule_for_category
 
 ERROR_CATEGORIES = [
@@ -149,7 +149,7 @@ Requirements:
                     {"role": "system", "content": system},
                     {"role": "user", "content": user_msg},
                 ],
-                temperature=0.8,
+                temperature=0.95,
             )
             raw = _strip_fences(response.choices[0].message.content.strip())
             data = json.loads(raw)
@@ -391,12 +391,12 @@ Requirements:
     for attempt in range(2):
         try:
             response = client.chat.completions.create(
-                model=CONTENT_MODEL,
+                model=FAST_MODEL,
                 messages=[
                     {"role": "system", "content": system},
                     {"role": "user", "content": user_msg},
                 ],
-                temperature=0.5,
+                temperature=0.85,
             )
             raw = _strip_fences(response.choices[0].message.content.strip())
             data = json.loads(raw)
@@ -471,7 +471,7 @@ def _ai_check_correction(client, user_fix: str, expected: str, sentence: str) ->
     """
     try:
         response = client.chat.completions.create(
-            model=CONTENT_MODEL,
+            model=FAST_MODEL,
             messages=[
                 {"role": "system", "content": "You judge if a student's Dutch correction fixes the grammar error. Reply ONLY 'yes' or 'no'."},
                 {"role": "user", "content": (

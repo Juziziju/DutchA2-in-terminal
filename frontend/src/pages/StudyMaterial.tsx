@@ -557,11 +557,54 @@ export default function StudyMaterial() {
                     </div>
                     <span className="text-xs text-slate-500">{l.score_pct}%</span>
                   </div>
+                  {/* Practice Again — replay with same material */}
+                  {lisDetail && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (lisDetail.mode === "intensive" && lisDetail.lines) {
+                          nav("/study/listening", { state: {
+                            replayIntensive: {
+                              session_id: `replay_${lisDetail.id}_${Date.now()}`,
+                              topic: lisDetail.topic,
+                              speakers: [...new Set(lisDetail.lines.map((ln: { speaker: string }) => ln.speaker))],
+                              lines: lisDetail.lines,
+                              vocab_used: lisDetail.vocab_used,
+                              level: lisDetail.level ?? "A2",
+                              content_type: lisDetail.content_type ?? "dialogue",
+                            },
+                            replayLevel: lisDetail.level ?? "A2",
+                            replayContentType: lisDetail.content_type ?? "dialogue",
+                          }});
+                        } else {
+                          nav("/study/listening", { state: {
+                            replayQuiz: {
+                              session_id: `replay_${lisDetail.id}_${Date.now()}`,
+                              topic: lisDetail.topic,
+                              speakers: [...new Set(lisDetail.dialogue.map((d: { speaker: string }) => d.speaker))],
+                              dialogue: lisDetail.dialogue,
+                              questions: lisDetail.questions.map((q: { question: string; options: Record<string, string>; answer: string }) => ({
+                                question: q.question,
+                                options: q.options,
+                                answer: q.answer,
+                              })),
+                              vocab_used: lisDetail.vocab_used,
+                              level: lisDetail.level ?? "A2",
+                            },
+                            replayLevel: lisDetail.level ?? "A2",
+                          }});
+                        }
+                      }}
+                      className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white py-2 rounded-lg text-sm font-semibold hover:from-amber-600 hover:to-orange-600"
+                    >
+                      Practice Again
+                    </button>
+                  )}
                   <button
                     onClick={(e) => { e.stopPropagation(); nav("/study/listening"); }}
                     className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 rounded-lg text-sm font-semibold hover:from-blue-700 hover:to-indigo-700"
                   >
-                    Practice Listening
+                    New Practice
                   </button>
                 </div>
               )}
@@ -688,6 +731,7 @@ export default function StudyMaterial() {
             const taskLabel = w.task_type === "email" ? "Email" : w.task_type === "kort_verhaal" ? "Kort verhaal" : w.task_type === "error_correction" ? "Fouten verbeteren" : w.task_type === "spell_practice" ? "Spelling oefenen" : "Formulier";
             const taskColor = w.task_type === "error_correction" ? "bg-orange-100 text-orange-700" : w.task_type === "spell_practice" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700";
             const isEC = writingDetail?.task_type === "error_correction";
+            const isSP = writingDetail?.task_type === "spell_practice";
             return (
               <div
                 key={w.id}
@@ -795,6 +839,54 @@ export default function StudyMaterial() {
                               <p className="text-xs text-slate-500 italic">{writingDetail.feedback.feedback_en}</p>
                             )}
                           </>
+                        ) : isSP ? (
+                          /* ── Spell Practice Review ── */
+                          <>
+                            {/* Score summary */}
+                            <div className="flex gap-3 text-xs">
+                              <span>Correct: <strong>{writingDetail.feedback?.correct_count ?? 0}/{writingDetail.feedback?.total_sentences ?? 0}</strong> sentences</span>
+                              <span>Score: <strong className={(writingDetail.score_pct ?? 0) >= 60 ? "text-green-600" : "text-red-500"}>{writingDetail.score_pct ?? 0}%</strong></span>
+                            </div>
+
+                            {/* Per-sentence results */}
+                            {writingDetail.feedback?.results && (
+                              <div className="space-y-2">
+                                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Sentence Results</p>
+                                {(writingDetail.feedback.results as Array<{
+                                  sentence_index: number; text_en: string; text_nl: string;
+                                  user_text: string; correct: boolean;
+                                  feedback: string | null; ai_reviewed: boolean;
+                                }>).map((r, i) => (
+                                  <div key={i} className={`${r.correct ? "bg-green-50" : r.user_text ? "bg-red-50" : "bg-slate-50"} rounded-lg p-2 text-xs space-y-1`}>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="text-slate-400 font-mono">{i + 1}.</span>
+                                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                        r.correct ? "bg-green-100 text-green-700" : r.user_text ? "bg-red-100 text-red-700" : "bg-slate-200 text-slate-600"
+                                      }`}>{r.correct ? "Correct" : r.user_text ? "Incorrect" : "Skipped"}</span>
+                                      {r.ai_reviewed && (
+                                        <span className="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded text-[10px]">AI reviewed</span>
+                                      )}
+                                    </div>
+                                    <p className="text-slate-500 italic">{r.text_en}</p>
+                                    {r.user_text && !r.correct && (
+                                      <p className="text-red-600">You wrote: <span className="italic">{r.user_text}</span></p>
+                                    )}
+                                    {!r.correct && (
+                                      <p className="text-green-700">Correct: {r.text_nl}</p>
+                                    )}
+                                    {r.feedback && (
+                                      <p className="text-slate-500">{r.feedback}</p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Feedback text */}
+                            {writingDetail.feedback?.feedback_en && (
+                              <p className="text-xs text-slate-500 italic">{writingDetail.feedback.feedback_en}</p>
+                            )}
+                          </>
                         ) : (
                           /* ── Writing (email/kort_verhaal/formulier) Review ── */
                           <>
@@ -842,11 +934,27 @@ export default function StudyMaterial() {
                           </>
                         )}
 
+                        {/* Practice Again — replay with same material */}
+                        {writingDetail && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (writingDetail.task_type === "spell_practice") {
+                                nav("/study/writing", { state: { replaySpell: writingDetail.prompt } });
+                              } else {
+                                nav("/study/writing", { state: { replay: writingDetail.prompt } });
+                              }
+                            }}
+                            className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white py-2 rounded-lg text-sm font-semibold hover:from-amber-600 hover:to-orange-600"
+                          >
+                            Practice Again
+                          </button>
+                        )}
                         <button
                           onClick={(e) => { e.stopPropagation(); nav("/study/writing"); }}
                           className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 rounded-lg text-sm font-semibold hover:from-blue-700 hover:to-indigo-700"
                         >
-                          Practice Writing
+                          New Practice
                         </button>
                       </div>
                     )}
