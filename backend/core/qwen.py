@@ -6,7 +6,7 @@ import time
 
 from backend.config import DASHSCOPE_API_KEY
 
-CONTENT_MODEL = os.getenv("CONTENT_MODEL", "qwen-plus")
+CONTENT_MODEL = os.getenv("CONTENT_MODEL", "qwen3.5-plus-2026-02-15")
 
 LEVEL_CONFIGS = {
     "A1": {
@@ -289,7 +289,7 @@ def get_explanation(data: dict, questions: list[dict], user_answers: list[str], 
     )
 
     response = client.chat.completions.create(
-        model="qwen-plus",
+        model=CONTENT_MODEL,
         messages=[{"role": "user", "content": prompt}],
         temperature=0.5,
     )
@@ -315,7 +315,7 @@ def translate_phrase(dutch_text: str, context: str = "") -> str:
         user_msg += f"\nContext: \"{context}\""
 
     response = client.chat.completions.create(
-        model="qwen-plus",
+        model=CONTENT_MODEL,
         messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": user_msg},

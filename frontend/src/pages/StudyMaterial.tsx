@@ -685,8 +685,8 @@ export default function StudyMaterial() {
           )}
           {writingItems.map((w) => {
             const isExp = writingExpandedId === w.id && writingDetail?.id === w.id;
-            const taskLabel = w.task_type === "email" ? "Email" : w.task_type === "kort_verhaal" ? "Kort verhaal" : w.task_type === "error_correction" ? "Fouten verbeteren" : "Formulier";
-            const taskColor = w.task_type === "error_correction" ? "bg-orange-100 text-orange-700" : "bg-blue-100 text-blue-700";
+            const taskLabel = w.task_type === "email" ? "Email" : w.task_type === "kort_verhaal" ? "Kort verhaal" : w.task_type === "error_correction" ? "Fouten verbeteren" : w.task_type === "spell_practice" ? "Spelling oefenen" : "Formulier";
+            const taskColor = w.task_type === "error_correction" ? "bg-orange-100 text-orange-700" : w.task_type === "spell_practice" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700";
             const isEC = writingDetail?.task_type === "error_correction";
             return (
               <div

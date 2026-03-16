@@ -26,7 +26,7 @@ DASHSCOPE_API_KEY: str = os.environ.get("DASHSCOPE_API_KEY", "")
 # ── AI Provider (configurable) ───────────────────────────────────────────────
 
 AI_PROVIDER: str = os.environ.get("AI_PROVIDER", "dashscope")
-AI_MODEL: str = os.environ.get("AI_MODEL", "qwen-plus")
+AI_MODEL: str = os.environ.get("AI_MODEL", "qwen3.5-plus-2026-02-15")
 AI_BASE_URL: str = os.environ.get("AI_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1")
 AI_API_KEY: str = os.environ.get("AI_API_KEY", "") or DASHSCOPE_API_KEY
 

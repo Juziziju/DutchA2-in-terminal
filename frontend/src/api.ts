@@ -1521,6 +1521,93 @@ export function getWritingErrorProfile() {
   return request<WritingErrorProfile>("GET", "/writing/error-profile");
 }
 
+// ── Spell Practice ──────────────────────────────────────────────────────────
+
+export interface SpellScene {
+  id: string;
+  title_nl: string;
+  title_en: string;
+  description: string;
+}
+
+export interface SpellSentence {
+  text_en: string;
+  text_nl: string;
+  hint_parts: (string | null)[];
+}
+
+export interface SpellVocabItem {
+  nl: string;
+  en: string;
+}
+
+export interface SpellPrompt {
+  task_type: "spell_practice";
+  scene_id: string;
+  scene_title_nl: string;
+  scene_title_en: string;
+  level: string;
+  sentences: SpellSentence[];
+  vocabulary?: SpellVocabItem[];
+}
+
+export interface SpellResult {
+  sentence_index: number;
+  text_en: string;
+  text_nl: string;
+  user_text: string;
+  correct: boolean;
+  feedback: string | null;
+  ai_reviewed: boolean;
+}
+
+export interface SpellReviewResponse {
+  correct: boolean;
+  feedback: string;
+}
+
+export interface SpellFeedback {
+  score: number;
+  correct_count: number;
+  total_sentences: number;
+  results: SpellResult[];
+  feedback_en: string;
+  feedback_nl: string;
+}
+
+export interface SpellSubmitResponse {
+  session_id: number;
+  score_pct: number;
+  feedback: SpellFeedback;
+}
+
+export function getSpellScenes() {
+  return request<SpellScene[]>("GET", "/writing/spell-scenes");
+}
+
+export function generateSpellExercise(sceneId: string, level: string) {
+  return request<SpellPrompt>("POST", "/writing/spell-generate", {
+    scene_id: sceneId,
+    level,
+  });
+}
+
+export function submitSpellExercise(data: {
+  prompt: SpellPrompt;
+  answers: { sentence_index: number; user_text: string }[];
+  duration_seconds?: number;
+}) {
+  return request<SpellSubmitResponse>("POST", "/writing/spell-submit", data);
+}
+
+export function reviewSpellSentence(textEn: string, textNl: string, userText: string) {
+  return request<SpellReviewResponse>("POST", "/writing/spell-review-sentence", {
+    text_en: textEn,
+    text_nl: textNl,
+    user_text: userText,
+  });
+}
+
 // ── Writing Mock Exams (Official DUO Schrijven) ─────────────────────────────
 
 export interface SchrijvenExamSummary {

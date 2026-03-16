@@ -8,6 +8,8 @@ from pydantic import BaseModel
 from sqlmodel import Session, select, col
 
 from backend.core.writing_ai import generate_writing_prompt, review_writing, generate_error_correction, grade_error_correction
+from backend.core.spell_scenes import SPELL_SCENES
+from backend.core.spell_ai import generate_spell_exercise, grade_spell_exercise, review_spell_sentence
 from backend.data.schrijven_exams import get_schrijven_exam, get_schrijven_exam_list, get_schrijven_task
 from backend.database import get_session
 from backend.models.writing import WritingSession, WritingErrorWeight
@@ -240,6 +242,100 @@ def submit_correction(
         "score_pct": score_pct,
         "feedback": feedback,
     }
+
+
+# ── Spell Practice ──────────────────────────────────────────────────────────
+
+
+@router.get("/spell-scenes")
+def list_spell_scenes(
+    _user: User = Depends(get_current_user),
+):
+    """Return available spell practice scenes."""
+    return SPELL_SCENES
+
+
+class SpellGenerateRequest(BaseModel):
+    scene_id: str
+    level: str = "A2"
+
+
+@router.post("/spell-generate")
+def spell_generate(
+    req: SpellGenerateRequest,
+    _user: User = Depends(get_current_user),
+):
+    try:
+        data = generate_spell_exercise(req.scene_id, req.level)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    return data
+
+
+class SpellAnswer(BaseModel):
+    sentence_index: int
+    user_text: str
+
+
+class SpellSubmitRequest(BaseModel):
+    prompt: dict
+    answers: list[SpellAnswer]
+    duration_seconds: int | None = None
+
+
+@router.post("/spell-submit")
+def spell_submit(
+    req: SpellSubmitRequest,
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    feedback = grade_spell_exercise(
+        req.prompt,
+        [a.model_dump() for a in req.answers],
+    )
+
+    score_pct = feedback.get("score", 0)
+
+    session = WritingSession(
+        user_id=user.id,
+        task_type="spell_practice",
+        topic=req.prompt.get("scene_title_en", ""),
+        score_pct=score_pct,
+        duration_seconds=req.duration_seconds,
+        prompt_json=json.dumps(req.prompt, ensure_ascii=False),
+        response_text=json.dumps([a.model_dump() for a in req.answers], ensure_ascii=False),
+        feedback_json=json.dumps(feedback, ensure_ascii=False),
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+
+    return {
+        "session_id": session.id,
+        "score_pct": score_pct,
+        "feedback": feedback,
+    }
+
+
+class SpellReviewRequest(BaseModel):
+    text_en: str
+    text_nl: str
+    user_text: str
+
+
+@router.post("/spell-review-sentence")
+def spell_review(
+    req: SpellReviewRequest,
+    _user: User = Depends(get_current_user),
+):
+    """AI review a single sentence on demand."""
+    try:
+        result = review_spell_sentence(req.text_en, req.text_nl, req.user_text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    return result
 
 
 # ── History ──────────────────────────────────────────────────────────────────

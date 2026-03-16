@@ -14,9 +14,11 @@ import {
   SchrijvenExamDetail,
   SchrijvenExamTask,
 } from "../api";
+import SpellPractice from "./SpellPractice";
 
 type Phase = "home" | "loading" | "writing" | "submitting" | "review" | "mock_list" | "mock_exam" | "mock_review";
 type TaskType = "email" | "kort_verhaal" | "formulier" | "error_correction";
+type WritingMode = "menu" | "scene" | "error_correction" | "spell";
 
 const TASK_CARDS: { type: TaskType; title: string; icon: string; desc: string; example: string }[] = [
   {
@@ -39,13 +41,6 @@ const TASK_CARDS: { type: TaskType; title: string; icon: string; desc: string; e
     icon: "📋",
     desc: "Fill in a structured form with text fields and free-text answers.",
     example: "e.g. Sports club registration, library card application",
-  },
-  {
-    type: "error_correction",
-    title: "Fouten verbeteren",
-    icon: "🔍",
-    desc: "Read Dutch sentences and find the grammar errors. Rewrite the wrong ones.",
-    example: "e.g. de/het, verb conjugation, word order, spelling",
   },
 ];
 
@@ -84,6 +79,7 @@ interface SentenceAnswer {
 
 export default function Writing() {
   const [phase, setPhase] = useState<Phase>("home");
+  const [writingMode, setWritingMode] = useState<WritingMode>("menu");
   const [topics, setTopics] = useState<Record<TaskType, string>>({ email: "", kort_verhaal: "", formulier: "", error_correction: "" });
   const [prompt, setPrompt] = useState<WritingPrompt | null>(null);
   const [showEn, setShowEn] = useState(false);
@@ -304,59 +300,168 @@ export default function Writing() {
 
   if (phase === "home") {
     return (
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold">Schrijven (Writing)</h1>
-          <p className="text-slate-500 mt-1">Practice writing for the DUO A2 exam</p>
+      <>
+        {/* SpellPractice stays mounted (CSS hide) so loading survives mode switches */}
+        <div style={{ display: writingMode === "spell" ? undefined : "none" }}>
+          <SpellPractice onBack={() => setWritingMode("menu")} />
         </div>
 
-        {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
-
-        {/* Mock Exam Button */}
-        <button
-          onClick={loadMockExams}
-          className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl p-5 text-left hover:from-purple-700 hover:to-indigo-700 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">📄</span>
-            <div>
-              <h3 className="font-semibold text-lg">Oefenexamen (Mock Exam)</h3>
-              <p className="text-purple-100 text-sm">Take a full official DUO writing exam — 4 tasks just like the real test</p>
+        {/* Scene Practice mode — task cards + mock exams */}
+        {writingMode === "scene" && (
+          <div className="max-w-2xl mx-auto space-y-6">
+            <div className="flex items-center gap-3">
+              <button onClick={() => setWritingMode("menu")} className="text-sm text-slate-500 hover:text-slate-700">
+                &larr; Back
+              </button>
+              <h1 className="text-2xl font-bold">Scene Practice</h1>
             </div>
-          </div>
-        </button>
 
-        <div className="space-y-4">
-          {TASK_CARDS.map((card) => (
-            <div key={card.type} className="bg-white rounded-xl border p-5 space-y-3">
+            {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
+
+            {/* Mock Exam Button */}
+            <button
+              onClick={loadMockExams}
+              className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl p-5 text-left hover:from-purple-700 hover:to-indigo-700 transition-colors"
+            >
               <div className="flex items-center gap-3">
-                <span className="text-3xl">{card.icon}</span>
+                <span className="text-3xl">📄</span>
                 <div>
-                  <h3 className="font-semibold text-lg">{card.title}</h3>
-                  <p className="text-slate-500 text-sm">{card.desc}</p>
+                  <h3 className="font-semibold text-lg">Oefenexamen (Mock Exam)</h3>
+                  <p className="text-purple-100 text-sm">Take a full official DUO writing exam — 4 tasks just like the real test</p>
                 </div>
               </div>
-              <p className="text-xs text-slate-400">{card.example}</p>
+            </button>
+
+            <div className="space-y-4">
+              {TASK_CARDS.map((card) => (
+                <div key={card.type} className="bg-white rounded-xl border p-5 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">{card.icon}</span>
+                    <div>
+                      <h3 className="font-semibold text-lg">{card.title}</h3>
+                      <p className="text-slate-500 text-sm">{card.desc}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-400">{card.example}</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Optional topic..."
+                      className="flex-1 border rounded-lg px-3 py-2 text-sm"
+                      value={topics[card.type]}
+                      onChange={(e) => setTopics(prev => ({ ...prev, [card.type]: e.target.value }))}
+                      onKeyDown={(e) => e.key === "Enter" && handleStart(card.type)}
+                    />
+                    <button
+                      onClick={() => handleStart(card.type)}
+                      className="bg-blue-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-blue-700 text-sm"
+                    >
+                      Start
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Error Correction mode */}
+        {writingMode === "error_correction" && (
+          <div className="max-w-2xl mx-auto space-y-6">
+            <div className="flex items-center gap-3">
+              <button onClick={() => setWritingMode("menu")} className="text-sm text-slate-500 hover:text-slate-700">
+                &larr; Back
+              </button>
+              <h1 className="text-2xl font-bold">Error Correction</h1>
+            </div>
+
+            {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
+
+            <div className="bg-white rounded-xl border p-5 space-y-3">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">🔍</span>
+                <div>
+                  <h3 className="font-semibold text-lg">Fouten verbeteren</h3>
+                  <p className="text-slate-500 text-sm">Read Dutch sentences and find the grammar errors. Rewrite the wrong ones.</p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-400">e.g. de/het, verb conjugation, word order, spelling</p>
               <div className="flex gap-2">
                 <input
                   type="text"
                   placeholder="Optional topic..."
                   className="flex-1 border rounded-lg px-3 py-2 text-sm"
-                  value={topics[card.type]}
-                  onChange={(e) => setTopics(prev => ({ ...prev, [card.type]: e.target.value }))}
-                  onKeyDown={(e) => e.key === "Enter" && handleStart(card.type)}
+                  value={topics.error_correction}
+                  onChange={(e) => setTopics(prev => ({ ...prev, error_correction: e.target.value }))}
+                  onKeyDown={(e) => e.key === "Enter" && handleStart("error_correction")}
                 />
                 <button
-                  onClick={() => handleStart(card.type)}
+                  onClick={() => handleStart("error_correction")}
                   className="bg-blue-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-blue-700 text-sm"
                 >
                   Start
                 </button>
               </div>
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
+        )}
+
+        {/* Menu mode — 3 top-level cards */}
+        {writingMode === "menu" && (
+          <div className="max-w-2xl mx-auto space-y-6">
+            <div className="text-center">
+              <h1 className="text-2xl font-bold">Schrijven (Writing)</h1>
+              <p className="text-slate-500 mt-1">Practice writing for the DUO A2 exam</p>
+            </div>
+
+            {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
+
+            <div className="space-y-4">
+              {/* Scene Practice */}
+              <button
+                onClick={() => setWritingMode("scene")}
+                className="w-full bg-white rounded-xl border border-slate-200 p-5 text-left hover:shadow-md hover:border-blue-300 transition-all"
+              >
+                <div className="flex items-center gap-4">
+                  <span className="text-3xl">📝</span>
+                  <div>
+                    <h3 className="font-semibold text-lg">Scene Practice</h3>
+                    <p className="text-slate-500 text-sm">Practice writing emails, short texts, and forms</p>
+                  </div>
+                </div>
+              </button>
+
+              {/* Error Correction */}
+              <button
+                onClick={() => setWritingMode("error_correction")}
+                className="w-full bg-white rounded-xl border border-slate-200 p-5 text-left hover:shadow-md hover:border-orange-300 transition-all"
+              >
+                <div className="flex items-center gap-4">
+                  <span className="text-3xl">🔍</span>
+                  <div>
+                    <h3 className="font-semibold text-lg">Error Correction</h3>
+                    <p className="text-slate-500 text-sm">Find and fix grammar errors in Dutch sentences</p>
+                  </div>
+                </div>
+              </button>
+
+              {/* Spell Practice */}
+              <button
+                onClick={() => setWritingMode("spell")}
+                className="w-full bg-white rounded-xl border border-slate-200 p-5 text-left hover:shadow-md hover:border-purple-300 transition-all"
+              >
+                <div className="flex items-center gap-4">
+                  <span className="text-3xl">✏️</span>
+                  <div>
+                    <h3 className="font-semibold text-lg">Spell Practice</h3>
+                    <p className="text-slate-500 text-sm">Translate English sentences to Dutch</p>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
+      </>
     );
   }
 

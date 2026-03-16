@@ -21,6 +21,7 @@ export default defineConfig({
       "/audio_speaking": "http://localhost:8000",
       "/speaking": "http://localhost:8000",
       "/personal-vocab": "http://localhost:8000",
+      "/writing": "http://localhost:8000",
       "/health": "http://localhost:8000",
     },
   },
