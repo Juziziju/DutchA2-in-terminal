@@ -10,8 +10,8 @@ const RATING_LABELS: { rating: Rating; label: string; color: string; statKey: st
 ];
 
 const DIR_OPTIONS = [
-  { value: "nl_en" as const, label: "NL \u2192 EN", desc: "See Dutch, answer English" },
-  { value: "en_nl" as const, label: "EN \u2192 NL", desc: "See English, answer Dutch" },
+  { value: "nl_en" as const, label: "NL → EN", desc: "See Dutch, answer English" },
+  { value: "en_nl" as const, label: "EN → NL", desc: "See English, answer Dutch" },
   { value: "both" as const, label: "Both", desc: "Mixed directions" },
 ];
 
@@ -57,16 +57,18 @@ export default function Flashcards() {
     }
   }, [s.phase]);
 
-  // Focus spelling input when it appears
+  // Focus spelling input when card appears (spelling mode) or when pending (old flow won't hit this)
   useEffect(() => {
-    if (s.spellingResult === "pending" && spellingRef.current) {
+    if (s.phase === "front" && isSpellingCard && spellingRef.current) {
       spellingRef.current.focus();
     }
-  }, [s.spellingResult]);
+  }, [s.phase, s.index, isSpellingCard]);
 
   // Keep refs to avoid stale closures in keyboard handler
   const phaseRef = useRef(s.phase);
   phaseRef.current = s.phase;
+  const isSpellingCardRef = useRef(isSpellingCard);
+  isSpellingCardRef.current = isSpellingCard;
   const revealRef = useRef(reveal);
   revealRef.current = reveal;
   const rateRef = useRef(rate);
@@ -79,7 +81,8 @@ export default function Flashcards() {
     function onKey(e: KeyboardEvent) {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const phase = phaseRef.current;
-      if (phase === "front" && e.code === "Space") {
+      // Don't capture Space for spelling cards — input handles it
+      if (phase === "front" && e.code === "Space" && !isSpellingCardRef.current) {
         e.preventDefault();
         revealRef.current();
       } else if (phase === "back") {
@@ -94,23 +97,47 @@ export default function Flashcards() {
   }, []);
 
   function reveal() {
-    if (isSpellingCard && s.spellingResult === null) {
-      // Show spelling input instead of flipping
-      set((p) => ({ ...p, spellingResult: "pending", spellingInput: "" }));
-      return;
-    }
     set((p) => ({ ...p, flipped: true, phase: "back", spellingResult: null }));
   }
 
-  function checkSpelling() {
-    if (!card) return;
+  function handleSpellingSubmit() {
+    if (!card || s.submitting) return;
     const correct = s.spellingInput.trim().toLowerCase() === card.dutch.toLowerCase();
+
+    const prevStreak = s.spellingStreaks[card.vocab_id] ?? 0;
+    const newStreak = correct ? prevStreak + 1 : 0;
+
+    let rating: Rating;
+    let statKey: string;
+    if (!correct) {
+      rating = "again"; statKey = "forget";
+    } else if (newStreak >= 3) {
+      rating = "mastered"; statKey = "mastered";
+    } else {
+      rating = "good"; statKey = "remember";
+    }
+
+    // Show feedback
     set((p) => ({
       ...p,
       spellingResult: correct ? "correct" : "wrong",
-      flipped: true,
-      phase: "back",
+      spellingStreaks: { ...p.spellingStreaks, [card.vocab_id]: newStreak },
+      submitting: true,
     }));
+
+    // Play audio on reveal for en_nl
+    if (audioSrc) playAudio();
+
+    // Submit review + advance after delay
+    submitReview(card.progress_id, rating, card.vocab_id, card.direction)
+      .then(() => {
+        set((p) => ({ ...p, stats: { ...p.stats, [statKey]: (p.stats as Record<string, number>)[statKey] + 1 }, submitting: false }));
+      })
+      .catch(() => {
+        set((p) => ({ ...p, submitting: false }));
+      });
+
+    setTimeout(() => advance(), 800);
   }
 
   async function rate(rating: Rating, statKey: string) {
@@ -136,8 +163,21 @@ export default function Flashcards() {
   }
 
   function skipSpelling() {
-    // Skip the spelling input and just reveal the answer
-    set((p) => ({ ...p, flipped: true, phase: "back", spellingResult: null }));
+    if (!card || s.submitting) return;
+    // Skip = treat as wrong, reset streak
+    set((p) => ({
+      ...p,
+      spellingStreaks: { ...p.spellingStreaks, [card.vocab_id]: 0 },
+      submitting: true,
+    }));
+    submitReview(card.progress_id, "again", card.vocab_id, card.direction)
+      .then(() => {
+        set((p) => ({ ...p, stats: { ...p.stats, forget: p.stats.forget + 1 }, submitting: false }));
+      })
+      .catch(() => {
+        set((p) => ({ ...p, submitting: false }));
+      });
+    advance();
   }
 
   function advance() {
@@ -300,7 +340,7 @@ export default function Flashcards() {
               style={{ minHeight: 220 }}
             >
               <span className="text-xs text-slate-400 mb-2">
-                {card.direction === "nl_en" ? "NL \u2192 EN" : "EN \u2192 NL"}
+                {card.direction === "nl_en" ? "NL → EN" : "EN → NL"}
                 {card.is_new ? " · new" : ""}
               </span>
               <p className="text-3xl font-bold text-center">{prompt}</p>
@@ -312,6 +352,34 @@ export default function Flashcards() {
                   Play audio
                 </button>
               )}
+              {/* Inline spelling input for EN→NL cards */}
+              {isSpellingCard && s.phase === "front" && (
+                <div className="w-full mt-4">
+                  {s.spellingResult === null ? (
+                    <input
+                      ref={spellingRef}
+                      type="text"
+                      value={s.spellingInput}
+                      onChange={(e) => set((p) => ({ ...p, spellingInput: e.target.value }))}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSpellingSubmit();
+                      }}
+                      className="w-full border border-slate-300 rounded-xl px-4 py-3 text-center text-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      placeholder="Type Dutch..."
+                      autoFocus
+                    />
+                  ) : s.spellingResult === "correct" ? (
+                    <div className="text-center">
+                      <p className="text-green-600 font-bold text-lg">✓ Correct!</p>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <p className="text-red-500 font-bold text-lg">✗ {s.spellingInput}</p>
+                      <p className="text-slate-600 mt-1">→ {card.dutch}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Back */}
@@ -320,15 +388,8 @@ export default function Flashcards() {
               style={{ minHeight: 220 }}
             >
               <span className="text-xs text-slate-400 mb-2">
-                {card.direction === "nl_en" ? "NL \u2192 EN" : "EN \u2192 NL"}
+                {card.direction === "nl_en" ? "NL → EN" : "EN → NL"}
               </span>
-              {/* Spelling result indicator */}
-              {s.spellingResult === "correct" && (
-                <p className="text-green-600 font-bold text-sm mb-1">\u2713 Correct!</p>
-              )}
-              {s.spellingResult === "wrong" && (
-                <p className="text-red-500 font-bold text-sm mb-1">\u2717 You typed: {s.spellingInput}</p>
-              )}
               <p className="text-3xl font-bold text-center mb-2">{answer}</p>
               {card.example_dutch && (
                 <p className="text-sm text-slate-500 italic text-center mt-2">
@@ -354,38 +415,17 @@ export default function Flashcards() {
 
         {/* Actions */}
         <div className="mt-6 w-full max-w-md">
-          {s.phase === "front" && s.spellingResult === "pending" ? (
-            /* Spelling input mode */
-            <div className="space-y-3">
-              <p className="text-sm text-slate-500 text-center">Type the Dutch word:</p>
-              <input
-                ref={spellingRef}
-                type="text"
-                value={s.spellingInput}
-                onChange={(e) => set((p) => ({ ...p, spellingInput: e.target.value }))}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") checkSpelling();
-                  if (e.key === "Escape") skipSpelling();
-                }}
-                className="w-full border border-slate-300 rounded-xl px-4 py-3 text-center text-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                placeholder="Type here..."
-                autoFocus
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={skipSpelling}
-                  className="flex-1 border border-slate-300 text-slate-600 py-3 rounded-xl font-semibold hover:bg-slate-50"
-                >
-                  Skip
-                </button>
-                <button
-                  onClick={checkSpelling}
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 shadow-md"
-                >
-                  Check
-                </button>
-              </div>
-              <p className="text-xs text-slate-400 text-center">Enter to check · Esc to skip</p>
+          {s.phase === "front" && isSpellingCard ? (
+            /* Spelling mode: skip button only (input is inline on card) */
+            <div className="space-y-2">
+              <button
+                onClick={skipSpelling}
+                disabled={s.submitting || s.spellingResult !== null}
+                className="w-full border border-slate-300 text-slate-600 py-3 rounded-xl font-semibold hover:bg-slate-50 disabled:opacity-50"
+              >
+                Skip
+              </button>
+              <p className="text-xs text-slate-400 text-center">Enter to check</p>
             </div>
           ) : s.phase === "front" ? (
             <>

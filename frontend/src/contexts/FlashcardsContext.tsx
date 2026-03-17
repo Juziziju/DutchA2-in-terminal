@@ -18,6 +18,7 @@ export interface FlashcardsState {
   spellingMode: boolean;
   spellingInput: string;
   spellingResult: SpellingResult;
+  spellingStreaks: Record<number, number>;
 }
 
 const INITIAL: FlashcardsState = {
@@ -32,6 +33,7 @@ const INITIAL: FlashcardsState = {
   spellingMode: false,
   spellingInput: "",
   spellingResult: null,
+  spellingStreaks: {},
 };
 
 interface Ctx {
