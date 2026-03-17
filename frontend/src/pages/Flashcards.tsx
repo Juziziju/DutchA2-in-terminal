@@ -9,6 +9,11 @@ const RATING_LABELS: { rating: Rating; label: string; color: string; statKey: st
   { rating: "good", label: "Remember", color: "bg-green-100 hover:bg-green-200 text-green-800 shadow-sm", statKey: "remember" },
 ];
 
+/** Strip punctuation and normalize for spelling comparison */
+function normalize(s: string): string {
+  return s.trim().toLowerCase().replace(/[^a-z0-9\s\u00c0-\u024f]/gi, "").replace(/\s+/g, " ").trim();
+}
+
 const DIR_OPTIONS = [
   { value: "nl_en" as const, label: "NL → EN", desc: "See Dutch, answer English" },
   { value: "en_nl" as const, label: "EN → NL", desc: "See English, answer Dutch" },
@@ -57,12 +62,12 @@ export default function Flashcards() {
     }
   }, [s.phase]);
 
-  // Focus spelling input when card appears (spelling mode) or when pending (old flow won't hit this)
+  // Focus spelling input when card appears or when entering retry mode
   useEffect(() => {
     if (s.phase === "front" && isSpellingCard && spellingRef.current) {
       spellingRef.current.focus();
     }
-  }, [s.phase, s.index, isSpellingCard]);
+  }, [s.phase, s.index, isSpellingCard, s.spellingResult]);
 
   // Keep refs to avoid stale closures in keyboard handler
   const phaseRef = useRef(s.phase);
@@ -75,12 +80,25 @@ export default function Flashcards() {
   rateRef.current = rate;
   const markMasteredRef = useRef(markMastered);
   markMasteredRef.current = markMastered;
+  const advanceRef = useRef(advance);
+  advanceRef.current = advance;
+  const spellingResultRef = useRef(s.spellingResult);
+  spellingResultRef.current = s.spellingResult;
 
   // Keyboard shortcuts — single registration, refs keep it fresh
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const phase = phaseRef.current;
+      // Spelling result showing — correct: Enter/Space advances; retry: input handles it
+      if (phase === "front" && isSpellingCardRef.current) {
+        const result = spellingResultRef.current;
+        if (result === "correct" && (e.key === "Enter" || e.code === "Space")) {
+          e.preventDefault();
+          advanceRef.current();
+        }
+        return;
+      }
       // Don't capture Space for spelling cards — input handles it
       if (phase === "front" && e.code === "Space" && !isSpellingCardRef.current) {
         e.preventDefault();
@@ -102,7 +120,7 @@ export default function Flashcards() {
 
   function handleSpellingSubmit() {
     if (!card || s.submitting) return;
-    const correct = s.spellingInput.trim().toLowerCase() === card.dutch.toLowerCase();
+    const correct = normalize(s.spellingInput) === normalize(card.dutch);
 
     const prevStreak = s.spellingStreaks[card.vocab_id] ?? 0;
     const newStreak = correct ? prevStreak + 1 : 0;
@@ -117,10 +135,11 @@ export default function Flashcards() {
       rating = "good"; statKey = "remember";
     }
 
-    // Show feedback
+    // Show feedback — wrong goes straight to retry (retype correct answer)
     set((p) => ({
       ...p,
-      spellingResult: correct ? "correct" : "wrong",
+      spellingResult: correct ? "correct" : "retry",
+      spellingInput: correct ? p.spellingInput : "",
       spellingStreaks: { ...p.spellingStreaks, [card.vocab_id]: newStreak },
       submitting: true,
     }));
@@ -128,7 +147,7 @@ export default function Flashcards() {
     // Play audio on reveal for en_nl
     if (audioSrc) playAudio();
 
-    // Submit review + advance after delay
+    // Submit review
     submitReview(card.progress_id, rating, card.vocab_id, card.direction)
       .then(() => {
         set((p) => ({ ...p, stats: { ...p.stats, [statKey]: (p.stats as Record<string, number>)[statKey] + 1 }, submitting: false }));
@@ -136,8 +155,16 @@ export default function Flashcards() {
       .catch(() => {
         set((p) => ({ ...p, submitting: false }));
       });
+  }
 
-    setTimeout(() => advance(), 800);
+  /** Check if retry input matches the correct answer, then advance; otherwise shake/clear */
+  function handleRetrySubmit() {
+    if (!card) return;
+    if (normalize(s.spellingInput) === normalize(card.dutch)) {
+      advance();
+    } else {
+      set((p) => ({ ...p, spellingInput: "" }));
+    }
   }
 
   async function rate(rating: Rating, statKey: string) {
@@ -356,6 +383,7 @@ export default function Flashcards() {
               {isSpellingCard && s.phase === "front" && (
                 <div className="w-full mt-4">
                   {s.spellingResult === null ? (
+                    /* Initial input */
                     <input
                       ref={spellingRef}
                       type="text"
@@ -373,9 +401,22 @@ export default function Flashcards() {
                       <p className="text-green-600 font-bold text-lg">✓ Correct!</p>
                     </div>
                   ) : (
-                    <div className="text-center">
-                      <p className="text-red-500 font-bold text-lg">✗ {s.spellingInput}</p>
-                      <p className="text-slate-600 mt-1">→ {card.dutch}</p>
+                    /* Retry: show correct answer + retype input */
+                    <div className="space-y-2">
+                      <p className="text-red-500 font-bold text-center">✗ Wrong</p>
+                      <p className="text-slate-600 text-center text-lg">→ <span className="font-bold">{card.dutch}</span></p>
+                      <input
+                        ref={spellingRef}
+                        type="text"
+                        value={s.spellingInput}
+                        onChange={(e) => set((p) => ({ ...p, spellingInput: e.target.value }))}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleRetrySubmit();
+                        }}
+                        className="w-full border border-orange-300 rounded-xl px-4 py-3 text-center text-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        placeholder="Retype correct answer..."
+                        autoFocus
+                      />
                     </div>
                   )}
                 </div>
@@ -416,17 +457,36 @@ export default function Flashcards() {
         {/* Actions */}
         <div className="mt-6 w-full max-w-md">
           {s.phase === "front" && isSpellingCard ? (
-            /* Spelling mode: skip button only (input is inline on card) */
-            <div className="space-y-2">
-              <button
-                onClick={skipSpelling}
-                disabled={s.submitting || s.spellingResult !== null}
-                className="w-full border border-slate-300 text-slate-600 py-3 rounded-xl font-semibold hover:bg-slate-50 disabled:opacity-50"
-              >
-                Skip
-              </button>
-              <p className="text-xs text-slate-400 text-center">Enter to check</p>
-            </div>
+            s.spellingResult === "correct" ? (
+              /* Correct: Next button */
+              <div className="space-y-2">
+                <button
+                  onClick={advance}
+                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 shadow-md"
+                  autoFocus
+                >
+                  Next
+                </button>
+                <p className="text-xs text-slate-400 text-center">Enter to continue</p>
+              </div>
+            ) : s.spellingResult === "retry" ? (
+              /* Retry mode: hint */
+              <div className="space-y-2">
+                <p className="text-xs text-slate-400 text-center">Type the correct word and press Enter</p>
+              </div>
+            ) : (
+              /* Before check: skip button */
+              <div className="space-y-2">
+                <button
+                  onClick={skipSpelling}
+                  disabled={s.submitting}
+                  className="w-full border border-slate-300 text-slate-600 py-3 rounded-xl font-semibold hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Skip
+                </button>
+                <p className="text-xs text-slate-400 text-center">Enter to check</p>
+              </div>
+            )
           ) : s.phase === "front" ? (
             <>
               <button

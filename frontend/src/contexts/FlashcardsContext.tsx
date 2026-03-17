@@ -3,7 +3,7 @@ import { SessionOut } from "../api";
 
 type Phase = "setup" | "loading" | "empty" | "front" | "back" | "done";
 type Directions = "nl_en" | "en_nl" | "both";
-type SpellingResult = "pending" | "correct" | "wrong" | null;
+type SpellingResult = "pending" | "correct" | "retry" | null;
 
 export interface FlashcardsState {
   session: SessionOut | null;
