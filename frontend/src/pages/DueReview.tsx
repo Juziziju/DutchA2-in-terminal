@@ -88,9 +88,16 @@ export default function DueReview() {
     advance();
   }
 
+  const [transitioning, setTransitioning] = useState(false);
+
   function advance() {
-    setFlipped(false);
-    setIndex((p) => p + 1);
+    // Fade out, swap content while invisible, then fade in — prevents answer flash
+    setTransitioning(true);
+    setTimeout(() => {
+      setFlipped(false);
+      setIndex((p) => p + 1);
+      requestAnimationFrame(() => setTransitioning(false));
+    }, 150);
   }
 
   if (loading) {
@@ -166,7 +173,7 @@ export default function DueReview() {
       </div>
 
       {/* Card */}
-      <div className="card-flip-container w-full max-w-md" style={{ minHeight: 220 }}>
+      <div className={`card-flip-container w-full max-w-md transition-opacity duration-150 ${transitioning ? "opacity-0" : "opacity-100"}`} style={{ minHeight: 220 }}>
         <div className={`card-flip-inner ${flipped ? "flipped" : ""}`} style={{ minHeight: 220 }}>
           <div className="card-front bg-white rounded-2xl border border-slate-200/60 shadow-lg p-8 flex flex-col items-center justify-center" style={{ minHeight: 220 }}>
             <span className="text-xs text-slate-400 mb-2">

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Rating, getFlashcardSession, submitReview, vocabAudioUrl } from "../api";
 import { useAudioPlay } from "../components/AudioPlayer";
 import { useFlashcardsState } from "../contexts/FlashcardsContext";
@@ -18,6 +18,7 @@ const DIR_OPTIONS = [
 export default function Flashcards() {
   const { state: s, set, reset } = useFlashcardsState();
   const spellingRef = useRef<HTMLInputElement>(null);
+  const [transitioning, setTransitioning] = useState(false);
 
   const card = s.session?.cards[s.index] ?? null;
   const audioSrc = card?.audio_file ? vocabAudioUrl(card.audio_file) : null;
@@ -140,13 +141,19 @@ export default function Flashcards() {
   }
 
   function advance() {
-    set((p) => {
-      const nextIndex = p.index + 1;
-      if (p.session && nextIndex >= p.session.cards.length) {
-        return { ...p, phase: "done" };
-      }
-      return { ...p, index: nextIndex, flipped: false, phase: "front", spellingResult: null, spellingInput: "" };
-    });
+    // Fade out, swap content while invisible, then fade in — prevents answer flash
+    setTransitioning(true);
+    setTimeout(() => {
+      set((p) => {
+        const nextIndex = p.index + 1;
+        if (p.session && nextIndex >= p.session.cards.length) {
+          return { ...p, phase: "done" };
+        }
+        return { ...p, index: nextIndex, flipped: false, phase: "front", spellingResult: null, spellingInput: "" };
+      });
+      // Small delay to let React render new content while still invisible
+      requestAnimationFrame(() => setTransitioning(false));
+    }, 150);
   }
 
   function startSession() {
@@ -285,7 +292,7 @@ export default function Flashcards() {
         </div>
 
         {/* Card */}
-        <div className="card-flip-container w-full max-w-md" style={{ minHeight: 220 }}>
+        <div className={`card-flip-container w-full max-w-md transition-opacity duration-150 ${transitioning ? "opacity-0" : "opacity-100"}`} style={{ minHeight: 220 }}>
           <div className={`card-flip-inner ${s.flipped ? "flipped" : ""}`} style={{ minHeight: 220 }}>
             {/* Front */}
             <div

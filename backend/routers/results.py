@@ -52,7 +52,7 @@ def flashcard_results(
     today = date.today()
     # Only count cards that have actually been reviewed at least once
     reviewed_rows = [r for r in rows if r.repetitions > 0]
-    mastered = sum(1 for r in rows if r.mastered)
+    mastered = len({r.vocab_id for r in rows if r.mastered})
     # Due = reviewed but not mastered and next_review <= today
     due_today = sum(1 for r in reviewed_rows if not r.mastered and r.next_review <= today)
     total_vocab = db.exec(select(func.count()).select_from(Vocab)).one()

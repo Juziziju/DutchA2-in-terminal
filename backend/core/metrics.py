@@ -246,7 +246,7 @@ def get_flashcard_stats(user: User, db: Session, today: date | None = None) -> d
         select(FlashcardProgress).where(FlashcardProgress.user_id == user.id)
     ).all()
     reviewed_rows = [r for r in all_progress if r.repetitions > 0]
-    mastered_count = sum(1 for r in all_progress if r.mastered)
+    mastered_count = len({r.vocab_id for r in all_progress if r.mastered})
     due_today = sum(1 for r in reviewed_rows if not r.mastered and r.next_review <= today)
     total_vocab = db.exec(select(func.count()).select_from(Vocab)).one()
     return {
