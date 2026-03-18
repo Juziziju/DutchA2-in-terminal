@@ -114,6 +114,48 @@ export async function uploadVocabCsv(file: File): Promise<{ added: number; skipp
   return res.json();
 }
 
+// ── CSV Preview / Confirm ────────────────────────────────────────────────────
+
+export interface PreviewWord {
+  dutch: string;
+  english: string;
+  category: string;
+  example_dutch: string;
+  example_english: string;
+}
+
+export interface PreviewResponse {
+  preview: PreviewWord[];
+  skipped: number;
+  columns_detected: string[];
+}
+
+export interface ConfirmResponse {
+  added: number;
+  skipped: number;
+  audio_errors: number;
+}
+
+export async function previewVocabCsv(file: File): Promise<PreviewResponse> {
+  const token = getToken();
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(BASE + "/vocab/preview-csv", {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail ?? "Preview failed");
+  }
+  return res.json();
+}
+
+export function confirmVocabCsv(words: PreviewWord[]): Promise<ConfirmResponse> {
+  return request<ConfirmResponse>("POST", "/vocab/confirm-csv", { words });
+}
+
 // ── Flashcards ────────────────────────────────────────────────────────────────
 
 export interface CardOut {

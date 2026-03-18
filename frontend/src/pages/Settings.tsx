@@ -1,5 +1,26 @@
 import { useEffect, useRef, useState } from "react";
-import { syncVocab, uploadVocabCsv, getPlannerProfile, enablePlanner, disablePlanner, PlannerProfile } from "../api";
+import { syncVocab, previewVocabCsv, confirmVocabCsv, PreviewWord, getPlannerProfile, enablePlanner, disablePlanner, PlannerProfile } from "../api";
+
+const CATEGORIES = [
+  "General",
+  "Greetings & Phrases",
+  "Family & People",
+  "Food & Drink",
+  "Shopping & Money",
+  "Numbers",
+  "Time & Calendar",
+  "Colors",
+  "Places & Directions",
+  "Countries & Nationality",
+  "Transport & Travel",
+  "Daily Life",
+  "Sports & Hobbies",
+  "Describing Things",
+  "Language & Communication",
+  "Weather & Seasons",
+  "Celebrations",
+  "Hotel & Accommodation",
+];
 
 export default function Settings() {
   const username = localStorage.getItem("username") ?? "learner";
@@ -8,6 +29,9 @@ export default function Settings() {
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [previewWords, setPreviewWords] = useState<PreviewWord[] | null>(null);
+  const [previewSkipped, setPreviewSkipped] = useState(0);
+  const [confirming, setConfirming] = useState(false);
   const [plannerProfile, setPlannerProfile] = useState<PlannerProfile | null>(null);
   const [togglingPlanner, setTogglingPlanner] = useState(false);
 
@@ -57,47 +81,126 @@ export default function Settings() {
       </div>
 
       {/* Upload vocab CSV */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4">
+      <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="font-semibold">Upload Vocab CSV</h3>
             <p className="text-xs text-slate-500">Upload a CSV with columns: dutch, english, category, example_dutch, example_english</p>
             {uploadMsg && <p className="text-xs text-blue-600 mt-1">{uploadMsg}</p>}
           </div>
-          <div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv"
-              className="hidden"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                setUploading(true);
-                setUploadMsg("");
-                try {
-                  const r = await uploadVocabCsv(file);
-                  let msg = `Added ${r.added} words, skipped ${r.skipped}`;
-                  if (r.audio_errors) msg += `, ${r.audio_errors} audio errors`;
-                  if (r.columns_detected) msg += ` | Columns: ${r.columns_detected.join(", ")}`;
-                  setUploadMsg(msg);
-                } catch (err: unknown) {
-                  setUploadMsg(err instanceof Error ? err.message : "Upload failed");
-                } finally {
-                  setUploading(false);
-                  if (fileInputRef.current) fileInputRef.current.value = "";
-                }
-              }}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="text-sm bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg disabled:opacity-50"
-            >
-              {uploading ? "Uploading..." : "Upload"}
-            </button>
-          </div>
+          {!previewWords && (
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setUploading(true);
+                  setUploadMsg("");
+                  try {
+                    const r = await previewVocabCsv(file);
+                    if (r.preview.length === 0) {
+                      setUploadMsg(`No new words found (${r.skipped} skipped/duplicate)`);
+                    } else {
+                      setPreviewWords(r.preview);
+                      setPreviewSkipped(r.skipped);
+                      setUploadMsg("");
+                    }
+                  } catch (err: unknown) {
+                    setUploadMsg(err instanceof Error ? err.message : "Preview failed");
+                  } finally {
+                    setUploading(false);
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }
+                }}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="text-sm bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg disabled:opacity-50"
+              >
+                {uploading ? "Parsing..." : "Upload"}
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* Preview table */}
+        {previewWords && (
+          <>
+            <p className="text-xs text-slate-500">
+              {previewWords.length} new word{previewWords.length !== 1 && "s"} to add
+              {previewSkipped > 0 && `, ${previewSkipped} skipped (duplicate/empty)`}
+            </p>
+            <div className="max-h-72 overflow-auto border border-slate-200 rounded-lg">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 sticky top-0">
+                  <tr>
+                    <th className="text-left px-2 py-1 font-medium">Dutch</th>
+                    <th className="text-left px-2 py-1 font-medium">English</th>
+                    <th className="text-left px-2 py-1 font-medium">Category</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewWords.map((w, i) => (
+                    <tr key={i} className="border-t border-slate-100">
+                      <td className="px-2 py-1">{w.dutch}</td>
+                      <td className="px-2 py-1">{w.english}</td>
+                      <td className="px-2 py-1">
+                        <select
+                          value={w.category}
+                          onChange={(e) => {
+                            const updated = [...previewWords];
+                            updated[i] = { ...w, category: e.target.value };
+                            setPreviewWords(updated);
+                          }}
+                          className="text-xs border border-slate-200 rounded px-1 py-0.5 w-full"
+                        >
+                          {CATEGORIES.map((c) => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => { setPreviewWords(null); setPreviewSkipped(0); setUploadMsg(""); }}
+                className="text-sm bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={confirming}
+                onClick={async () => {
+                  setConfirming(true);
+                  try {
+                    const r = await confirmVocabCsv(previewWords);
+                    let msg = `Added ${r.added} word${r.added !== 1 ? "s" : ""}`;
+                    if (r.skipped) msg += `, ${r.skipped} skipped`;
+                    if (r.audio_errors) msg += `, ${r.audio_errors} audio errors`;
+                    setUploadMsg(msg);
+                    setPreviewWords(null);
+                    setPreviewSkipped(0);
+                  } catch (err: unknown) {
+                    setUploadMsg(err instanceof Error ? err.message : "Confirm failed");
+                  } finally {
+                    setConfirming(false);
+                  }
+                }}
+                className="text-sm bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5 rounded-lg disabled:opacity-50"
+              >
+                {confirming ? "Saving..." : `Confirm ${previewWords.length} words`}
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Learning Planner */}

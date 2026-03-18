@@ -94,7 +94,8 @@ function CourseVocabTab() {
   const [filter, setFilter] = useState<VocabLevel | "all">("all");
   const [showTranslation, setShowTranslation] = useState(false);
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<"alpha" | "level">("level");
+  const [sortBy, setSortBy] = useState<"alpha" | "level" | "category">("level");
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     getVocabNotebook()
@@ -115,12 +116,34 @@ function CourseVocabTab() {
     }
     if (sortBy === "alpha") {
       items = [...items].sort((a, b) => a.dutch.localeCompare(b.dutch));
+    } else if (sortBy === "category") {
+      items = [...items].sort((a, b) => a.category.localeCompare(b.category) || a.dutch.localeCompare(b.dutch));
     } else {
       const order: Record<VocabLevel, number> = { hard: 0, learning: 1, new: 2, familiar: 3, mastered: 4 };
       items = [...items].sort((a, b) => order[a.level] - order[b.level] || a.dutch.localeCompare(b.dutch));
     }
     return items;
   }, [data, filter, search, sortBy]);
+
+  const categoryGroups = useMemo(() => {
+    if (sortBy !== "category") return [];
+    const map = new Map<string, VocabNoteItem[]>();
+    for (const w of filtered) {
+      const list = map.get(w.category);
+      if (list) list.push(w);
+      else map.set(w.category, [w]);
+    }
+    return Array.from(map.entries());
+  }, [filtered, sortBy]);
+
+  function toggleCategory(cat: string) {
+    setExpandedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  }
 
   if (loading) return <div className="flex items-center justify-center py-16 text-slate-500">Loading vocabulary...</div>;
   if (!data) return <div className="flex items-center justify-center py-16 text-slate-500">Failed to load vocabulary.</div>;
@@ -165,11 +188,12 @@ function CourseVocabTab() {
         <div className="flex gap-2">
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as "alpha" | "level")}
+            onChange={(e) => setSortBy(e.target.value as "alpha" | "level" | "category")}
             className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
           >
             <option value="level">Sort by level</option>
             <option value="alpha">Sort A-Z</option>
+            <option value="category">Sort by scene</option>
           </select>
           <button
             onClick={() => setShowTranslation(!showTranslation)}
@@ -184,14 +208,48 @@ function CourseVocabTab() {
 
       <p className="text-xs text-slate-400 mb-3">{filtered.length} word{filtered.length !== 1 ? "s" : ""}</p>
 
-      <div className="space-y-1.5">
-        {filtered.map((w) => (
-          <VocabRow key={w.vocab_id} word={w} showTranslation={showTranslation} />
-        ))}
-        {filtered.length === 0 && (
-          <p className="text-center text-slate-400 py-8">No words match your filter.</p>
-        )}
-      </div>
+      {sortBy === "category" ? (
+        <div className="space-y-2">
+          {categoryGroups.map(([cat, words]) => (
+            <div key={cat}>
+              <button
+                onClick={() => toggleCategory(cat)}
+                className="w-full sticky top-0 z-10 bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 flex items-center justify-between hover:bg-slate-100 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <svg
+                    className={`w-4 h-4 text-slate-400 transition-transform ${expandedCategories.has(cat) ? "rotate-90" : ""}`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                  <span className="text-sm font-semibold text-slate-700">{cat}</span>
+                </div>
+                <span className="text-xs text-slate-400">{words.length}</span>
+              </button>
+              {expandedCategories.has(cat) && (
+                <div className="space-y-1.5 mt-1.5 ml-2">
+                  {words.map((w) => (
+                    <VocabRow key={w.vocab_id} word={w} showTranslation={showTranslation} />
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+          {categoryGroups.length === 0 && (
+            <p className="text-center text-slate-400 py-8">No words match your filter.</p>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          {filtered.map((w) => (
+            <VocabRow key={w.vocab_id} word={w} showTranslation={showTranslation} />
+          ))}
+          {filtered.length === 0 && (
+            <p className="text-center text-slate-400 py-8">No words match your filter.</p>
+          )}
+        </div>
+      )}
     </>
   );
 }
