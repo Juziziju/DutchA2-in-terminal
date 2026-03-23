@@ -899,7 +899,6 @@ export default function StudyMaterial() {
                             {writingDetail.feedback && (
                               <div className="flex gap-3 text-xs">
                                 <span>Grammar: <strong className={(writingDetail.feedback.grammar_score ?? 0) >= 60 ? "text-green-600" : "text-red-500"}>{writingDetail.feedback.grammar_score ?? 0}%</strong></span>
-                                <span>Vocab: <strong className={(writingDetail.feedback.vocabulary_score ?? 0) >= 60 ? "text-green-600" : "text-red-500"}>{writingDetail.feedback.vocabulary_score ?? 0}%</strong></span>
                                 <span>Complete: <strong className={(writingDetail.feedback.completeness_score ?? 0) >= 60 ? "text-green-600" : "text-red-500"}>{writingDetail.feedback.completeness_score ?? 0}%</strong></span>
                               </div>
                             )}

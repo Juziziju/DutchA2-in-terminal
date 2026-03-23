@@ -86,7 +86,6 @@ class GrammarError(BaseModel):
 class WritingFeedback(BaseModel):
     score: int
     grammar_score: int
-    vocabulary_score: int
     completeness_score: int
     grammar_errors: list[GrammarError]
     feedback_nl: str
@@ -175,7 +174,6 @@ def submit(
         feedback=WritingFeedback(
             score=feedback.get("score", 0),
             grammar_score=feedback.get("grammar_score", 0),
-            vocabulary_score=feedback.get("vocabulary_score", 0),
             completeness_score=feedback.get("completeness_score", 0),
             grammar_errors=grammar_errors,
             feedback_nl=feedback.get("feedback_nl", ""),

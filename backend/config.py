@@ -21,14 +21,14 @@ if _env_file.exists():
 # ── Secrets ───────────────────────────────────────────────────────────────────
 
 SECRET_KEY: str = os.environ.get("SECRET_KEY", "change-me-in-production-please")
-DASHSCOPE_API_KEY: str = os.environ.get("DASHSCOPE_API_KEY", "")
+GROQ_API_KEY: str = os.environ.get("GROQ_API_KEY", "")
 
 # ── AI Provider (configurable) ───────────────────────────────────────────────
 
-AI_PROVIDER: str = os.environ.get("AI_PROVIDER", "dashscope")
-AI_MODEL: str = os.environ.get("AI_MODEL", "qwen3.5-plus-2026-02-15")
-AI_BASE_URL: str = os.environ.get("AI_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1")
-AI_API_KEY: str = os.environ.get("AI_API_KEY", "") or DASHSCOPE_API_KEY
+AI_PROVIDER: str = os.environ.get("AI_PROVIDER", "groq")
+AI_MODEL: str = os.environ.get("AI_MODEL", "llama-3.3-70b-versatile")
+AI_BASE_URL: str = os.environ.get("AI_BASE_URL", "https://api.groq.com/openai/v1")
+AI_API_KEY: str = os.environ.get("AI_API_KEY", "") or GROQ_API_KEY
 
 # ── Database ──────────────────────────────────────────────────────────────────
 

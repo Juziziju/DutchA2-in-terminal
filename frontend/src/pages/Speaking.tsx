@@ -1135,6 +1135,22 @@ function SceneDetailView({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [questions, setQuestions] = useState<api.SpeakingQuestions | null>(null);
   const [showQuestions, setShowQuestions] = useState(false);
+  const [vocabSaveState, setVocabSaveState] = useState<"idle" | "saving" | "done">("idle");
+  const [vocabResult, setVocabResult] = useState<api.SaveVocabResult | null>(null);
+  const [vocabError, setVocabError] = useState<string | null>(null);
+
+  const handleSaveVocab = async () => {
+    setVocabSaveState("saving");
+    setVocabError(null);
+    try {
+      const result = await api.saveSceneVocab(scene.id);
+      setVocabResult(result);
+      setVocabSaveState("done");
+    } catch (e: unknown) {
+      setVocabError(e instanceof Error ? e.message : "Failed to save");
+      setVocabSaveState("idle");
+    }
+  };
 
   const playSentence = async (idx: number) => {
     try {
@@ -1180,7 +1196,7 @@ function SceneDetailView({
 
       {/* Vocab */}
       <h2 className="text-lg font-semibold text-slate-800 mb-3">Vocabulary</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
         {scene.vocab.map((v, i) => (
           <div key={i} className="bg-slate-800 rounded-lg p-3 border border-slate-700">
             <div className="font-semibold text-white">{v.dutch}</div>
@@ -1189,6 +1205,26 @@ function SceneDetailView({
           </div>
         ))}
       </div>
+      <button
+        onClick={handleSaveVocab}
+        disabled={vocabSaveState !== "idle"}
+        className={`w-full py-3 rounded-lg font-semibold transition-colors mb-2 ${
+          vocabSaveState === "done"
+            ? "bg-green-600 text-white cursor-default"
+            : vocabSaveState === "saving"
+            ? "bg-slate-400 text-white cursor-wait"
+            : "bg-emerald-600 hover:bg-emerald-700 text-white"
+        }`}
+      >
+        {vocabSaveState === "saving" ? "Saving…" : vocabSaveState === "done" && vocabResult ? `✓ ${vocabResult.added} words added to Notebook` : "Add Vocabulary to Notebook"}
+      </button>
+      {vocabError && <p className="text-xs text-red-500 mb-2">{vocabError}</p>}
+      {vocabSaveState === "done" && vocabResult && (
+        <p className="text-xs text-slate-500 mb-6">
+          {vocabResult.added} new words added, {vocabResult.skipped} already existed, {vocabResult.progress_created} flashcards created
+        </p>
+      )}
+      {vocabSaveState !== "done" && <div className="mb-8" />}
 
       {/* Model sentences */}
       <h2 className="text-lg font-semibold text-slate-800 mb-3">Model Sentences</h2>

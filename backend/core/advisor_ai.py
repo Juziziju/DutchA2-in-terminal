@@ -1,15 +1,12 @@
 """AI wrapper for the learning advisor feature.
 
-Uses the same AI client as planner_ai (AI_API_KEY + AI_BASE_URL).
-Hardcoded model: qwen3.5-plus-2026-02-15.
+Uses AI_API_KEY + AI_BASE_URL + AI_MODEL from config.
 """
 
 import json
 import time
 
-from backend.config import AI_API_KEY, AI_BASE_URL
-
-ADVISOR_MODEL = "qwen3.5-plus-2026-02-15"
+from backend.config import AI_API_KEY, AI_BASE_URL, AI_MODEL
 
 
 def _get_ai_client():
@@ -163,7 +160,7 @@ def _call_advisor_llm(system_prompt: str, user_message: str) -> str:
     for attempt in range(2):
         try:
             response = client.chat.completions.create(
-                model=ADVISOR_MODEL,
+                model=AI_MODEL,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_message},
@@ -183,7 +180,7 @@ def stream_advisor_response(data: dict, user_message: str):
     client = _get_ai_client()
     system_prompt = build_system_prompt(data)
     stream = client.chat.completions.create(
-        model=ADVISOR_MODEL,
+        model=AI_MODEL,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_message},

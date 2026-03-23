@@ -1,13 +1,13 @@
-"""Qwen LLM calls via DashScope — extracted from scripts/listening.py."""
+"""LLM calls for listening exercises (via configurable OpenAI-compatible API)."""
 
 import json
 import os
 import time
 
-from backend.config import DASHSCOPE_API_KEY
+from backend.config import AI_API_KEY, AI_BASE_URL
 
-CONTENT_MODEL = os.getenv("CONTENT_MODEL", "qwen3.5-plus-2026-02-15")
-FAST_MODEL = os.getenv("FAST_MODEL", "qwen-turbo-latest")
+CONTENT_MODEL = os.getenv("CONTENT_MODEL", "llama-3.3-70b-versatile")
+FAST_MODEL = os.getenv("FAST_MODEL", "llama-3.1-8b-instant")
 
 LEVEL_CONFIGS = {
     "A1": {
@@ -62,10 +62,7 @@ Requirements:
 
 def _get_client():
     from openai import OpenAI
-    return OpenAI(
-        api_key=DASHSCOPE_API_KEY,
-        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-    )
+    return OpenAI(api_key=AI_API_KEY, base_url=AI_BASE_URL)
 
 
 def _call_qwen(level: str = "A2", topic: str = "") -> str:
@@ -82,6 +79,7 @@ def _call_qwen(level: str = "A2", topic: str = "") -> str:
             {"role": "user", "content": user_msg},
         ],
         temperature=0.9,
+        response_format={"type": "json_object"},
     )
     return response.choices[0].message.content.strip()
 
@@ -115,8 +113,8 @@ def _validate_dialogue(data: dict, level: str = "A2"):
 
 def generate_dialogue(level: str = "A2", topic: str = "") -> dict:
     """Call Qwen, parse + validate JSON. Retries once on failure."""
-    if not DASHSCOPE_API_KEY:
-        raise RuntimeError("DASHSCOPE_API_KEY is not set")
+    if not AI_API_KEY:
+        raise RuntimeError("AI_API_KEY is not set")
 
     last_err = None
     for attempt in range(2):
@@ -194,6 +192,7 @@ def _call_qwen_intensive(level: str = "A2", content_type: str = "dialogue", topi
             {"role": "user", "content": user_msg},
         ],
         temperature=0.9,
+        response_format={"type": "json_object"},
     )
     return response.choices[0].message.content.strip()
 
@@ -212,8 +211,8 @@ def _validate_intensive(data: dict):
 
 def generate_intensive(level: str = "A2", content_type: str = "dialogue", topic: str = "") -> dict:
     """Generate intensive listening content. Retries once on failure."""
-    if not DASHSCOPE_API_KEY:
-        raise RuntimeError("DASHSCOPE_API_KEY is not set")
+    if not AI_API_KEY:
+        raise RuntimeError("AI_API_KEY is not set")
 
     last_err = None
     for attempt in range(2):
@@ -235,8 +234,8 @@ def generate_intensive(level: str = "A2", content_type: str = "dialogue", topic:
 
 def get_explanation(data: dict, questions: list[dict], user_answers: list[str], level: str = "A2") -> str:
     """Call Qwen to explain quiz results. Returns the full explanation string."""
-    if not DASHSCOPE_API_KEY:
-        raise RuntimeError("DASHSCOPE_API_KEY is not set")
+    if not AI_API_KEY:
+        raise RuntimeError("AI_API_KEY is not set")
 
     client = _get_client()
 
@@ -302,8 +301,8 @@ def get_explanation(data: dict, questions: list[dict], user_answers: list[str], 
 
 def translate_phrase(dutch_text: str, context: str = "") -> str:
     """Translate a Dutch phrase to English using Qwen."""
-    if not DASHSCOPE_API_KEY:
-        raise RuntimeError("DASHSCOPE_API_KEY is not set")
+    if not AI_API_KEY:
+        raise RuntimeError("AI_API_KEY is not set")
 
     client = _get_client()
     system = (
@@ -337,8 +336,8 @@ SCENE_LEVEL_CONFIGS = {
 
 def generate_custom_scene(topic_en: str, level: str = "A2") -> dict:
     """Generate a full speaking scene (vocab + sentences + questions) for a topic."""
-    if not DASHSCOPE_API_KEY:
-        raise RuntimeError("DASHSCOPE_API_KEY is not set")
+    if not AI_API_KEY:
+        raise RuntimeError("AI_API_KEY is not set")
 
     cfg = SCENE_LEVEL_CONFIGS.get(level, SCENE_LEVEL_CONFIGS["A2"])
     client = _get_client()
@@ -384,6 +383,7 @@ Requirements:
                 model=CONTENT_MODEL,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.9,
+                response_format={"type": "json_object"},
             )
             raw = response.choices[0].message.content.strip()
             lines = raw.split("\n")

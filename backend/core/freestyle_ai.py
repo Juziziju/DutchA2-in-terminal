@@ -46,7 +46,7 @@ def stream_freestyle_response(
       {"type": "done", "full_text": "Hallo! Hoe gaat het?"}
     """
     if not AI_API_KEY:
-        raise RuntimeError("AI_API_KEY / DASHSCOPE_API_KEY is not set")
+        raise RuntimeError("AI_API_KEY is not set")
 
     client = _get_client()
 

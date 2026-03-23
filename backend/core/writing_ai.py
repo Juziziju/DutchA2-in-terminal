@@ -3,14 +3,14 @@
 import json
 import time
 
-from backend.config import DASHSCOPE_API_KEY
+from backend.config import AI_API_KEY, AI_BASE_URL
 from backend.core.qwen import CONTENT_MODEL, FAST_MODEL
 from backend.core.grammar_rules import format_rules_for_prompt, get_rule_for_category
 
 ERROR_CATEGORIES = [
     "de_het", "verb_conjugation", "word_order", "spelling",
     "plural", "adjective_inflection", "preposition", "article",
-    "pronoun", "capitalization", "punctuation", "other",
+    "pronoun", "other",
 ]
 
 TASK_TYPE_CONFIGS = {
@@ -76,7 +76,6 @@ TASK_TYPE_CONFIGS = {
 REVIEW_SCHEMA = """{
   "score": 75,
   "grammar_score": 70,
-  "vocabulary_score": 80,
   "completeness_score": 75,
   "grammar_errors": [
     {
@@ -94,10 +93,7 @@ REVIEW_SCHEMA = """{
 
 def _get_client():
     from openai import OpenAI
-    return OpenAI(
-        api_key=DASHSCOPE_API_KEY,
-        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-    )
+    return OpenAI(api_key=AI_API_KEY, base_url=AI_BASE_URL)
 
 
 def _strip_fences(raw: str) -> str:
@@ -109,8 +105,8 @@ def _strip_fences(raw: str) -> str:
 
 def generate_writing_prompt(task_type: str = "email", topic: str = "", weak_categories: list[str] | None = None) -> dict:
     """Generate a writing prompt. Optionally bias toward user's weak grammar areas."""
-    if not DASHSCOPE_API_KEY:
-        raise RuntimeError("DASHSCOPE_API_KEY is not set")
+    if not AI_API_KEY:
+        raise RuntimeError("AI_API_KEY is not set")
 
     cfg = TASK_TYPE_CONFIGS.get(task_type, TASK_TYPE_CONFIGS["email"])
 
@@ -135,7 +131,10 @@ Schema:
 Requirements:
 {cfg['requirements']}
 - All Dutch text must be A2 level
-- Include both Dutch and English where specified{topic_line}{weak_line}"""
+- Include both Dutch and English where specified
+- The model_answer MUST be written at A2 level: simple sentences, basic vocabulary, present/past tense only. Do NOT use conditional (zou), formal phrases, or B1+ constructions.
+  ✅ A2: "Ik heb tijd op dinsdag om twee uur."
+  ❌ Too advanced: "Zou het mogelijk zijn om de afspraak te verzetten naar dinsdag?"{topic_line}{weak_line}"""
 
     user_msg = f"Create a Dutch A2 writing prompt ({task_type}). Return only valid JSON."
     client = _get_client()
@@ -150,6 +149,7 @@ Requirements:
                     {"role": "user", "content": user_msg},
                 ],
                 temperature=0.95,
+                response_format={"type": "json_object"},
             )
             raw = _strip_fences(response.choices[0].message.content.strip())
             data = json.loads(raw)
@@ -168,8 +168,8 @@ Requirements:
 
 def review_writing(task_type: str, prompt: dict, user_response: str) -> dict:
     """Grade user's writing submission with AI. Returns structured feedback."""
-    if not DASHSCOPE_API_KEY:
-        raise RuntimeError("DASHSCOPE_API_KEY is not set")
+    if not AI_API_KEY:
+        raise RuntimeError("AI_API_KEY is not set")
 
     # Build context from prompt
     if task_type == "email":
@@ -194,41 +194,70 @@ def review_writing(task_type: str, prompt: dict, user_response: str) -> dict:
 
     error_cats = ", ".join(ERROR_CATEGORIES)
     grammar_ref = format_rules_for_prompt()
-    system = f"""You are a Dutch A2 writing exam grader for the DUO Inburgering Schrijven exam.
-Grade the student's writing based on: grammar, vocabulary, and completeness (did they address all requirements).
+    system = f"""You are a Dutch A2 (NT2 Inburgering) writing exam grader. Grade STRICTLY at A2 level — not B1, not B2.
 
-For grammar_errors, each error MUST have a "category" from this list: {error_cats}
+=== WHAT COUNTS AS AN A2 ERROR (flag these) ===
+- Wrong verb conjugation: komen/komt, wil/wilt, heb/heeft, etc.
+- Wrong word order in main clause (V2 rule: verb must be 2nd element)
+- Wrong auxiliary in perfectum: hebben vs zijn (ik heb gelopen → ik ben gelopen)
+- Missing or wrong article: de/het/een
+- Wrong negation: niet vs geen
+- Separable verbs not split in main clause: Ik opbel → Ik bel op
+- omdat vs want word order difference
+- Basic spelling errors of common A2 words
+- Wrong preposition in fixed A2 expressions
+
+=== NOT AN ERROR AT A2 (do NOT flag these) ===
+- Missing conditional tense (zou kunnen, zou willen) — this is B1+
+- Missing formal phrases like "Ik bied mijn excuses aan" — B1 level
+- Missing "Kunt u me laten weten" — B1 level
+- Punctuation or capitalization mistakes — not assessed at A2
+- Simple but correct sentences — A2 does NOT require complex constructions
+- Using "ik wil" instead of "ik zou graag willen" — both acceptable at A2
+- Not using relative clauses or passive voice — not expected at A2
+
+For grammar_errors, each error MUST have a "category" from: {error_cats}
 
 {grammar_ref}
 
-IMPORTANT — for each grammar error, explanation_en MUST:
-1. Quote the error and correction
-2. Cite the correct rule from the grammar reference above
+For each grammar error, explanation_en MUST:
+1. Quote the error and the correction
+2. Cite the correct A2 grammar rule
 3. Give a brief example
-Do NOT invent grammar rules. Use the reference above.
+Do NOT invent grammar rules. Do NOT suggest B1+ alternatives as improvements.
+
+=== SCORING (matches official inburgering A2 Schrijven exam) ===
+- completeness_score (50% of final score): Did the student address ALL required points/bullet points? A simple correct answer scores full marks.
+- grammar_score (50% of final score): A2-level grammar only. Simple correct sentences = high score. Do NOT penalise for lack of complexity.
+- score: overall 0-100, weighted as above.
+- A passing score is achievable with simple, correct A2 sentences.
+
+=== IMPROVED_ANSWER RULES ===
+- The improved_answer must stay at A2 level. Fix only actual errors.
+- Do NOT rewrite simple sentences into complex B1+ alternatives.
+- ✅ A2: "Ik heb tijd op dinsdag om twee uur."
+- ❌ Too advanced: "Zou het mogelijk zijn om de afspraak te verzetten naar dinsdag?"
+
+=== FEEDBACK TONE ===
+- Show what was wrong and why, in simple terms
+- Give the corrected sentence
+- Do NOT suggest B1+ alternatives as "improvements"
+- Be encouraging but honest
 
 Return ONLY valid JSON matching this schema:
-{REVIEW_SCHEMA}
+{REVIEW_SCHEMA}"""
 
-Scoring guide:
-- score: overall 0-100
-- grammar_score: 0-100 (verb conjugation, articles, word order, spelling)
-- vocabulary_score: 0-100 (appropriate word choice, variety, A2 level)
-- completeness_score: 0-100 (all bullet points/questions addressed, proper format)
-
-Be encouraging but honest. Focus on A2-level expectations."""
-
-    user_msg = f"""Grade this Dutch A2 writing submission.
+    user_msg = f"""Grade this Dutch A2 writing submission. Evaluate ONLY at A2 level.
 
 {context}
 
-Model answer:
+Model answer (A2 level reference):
 {prompt.get('model_answer', prompt.get('model_answers', 'N/A'))}
 
 Student's response:
 {user_response}
 
-Return only valid JSON."""
+Remember: simple correct sentences = good A2 writing. Return only valid JSON."""
 
     client = _get_client()
 
@@ -242,14 +271,15 @@ Return only valid JSON."""
                     {"role": "user", "content": user_msg},
                 ],
                 temperature=0.3,
+                response_format={"type": "json_object"},
             )
             raw = _strip_fences(response.choices[0].message.content.strip())
             data = json.loads(raw)
             # Ensure required fields
             data.setdefault("score", 0)
             data.setdefault("grammar_score", 0)
-            data.setdefault("vocabulary_score", 0)
             data.setdefault("completeness_score", 0)
+            data.pop("vocabulary_score", None)
             data.setdefault("grammar_errors", [])
             data.setdefault("feedback_nl", "")
             data.setdefault("feedback_en", "")
@@ -289,8 +319,6 @@ def _postvalidate_explanation(sentence: dict, category: str) -> None:
         "preposition": ["preposition"],
         "article": ["article", "de", "het", "een"],
         "pronoun": ["pronoun", "subject", "object"],
-        "capitalization": ["capital", "uppercase", "lowercase"],
-        "punctuation": ["comma", "punctuation"],
         "other": [],
     }
     terms = key_terms.get(category, [])
@@ -317,8 +345,8 @@ def generate_error_correction(topic: str = "", weak_categories: list[str] | None
     have one obvious A2 grammar mistake. Student judges each sentence and
     rewrites the wrong ones.
     """
-    if not DASHSCOPE_API_KEY:
-        raise RuntimeError("DASHSCOPE_API_KEY is not set")
+    if not AI_API_KEY:
+        raise RuntimeError("AI_API_KEY is not set")
 
     error_cats = ", ".join(ERROR_CATEGORIES)
     weak_line = ""
@@ -397,6 +425,7 @@ Requirements:
                     {"role": "user", "content": user_msg},
                 ],
                 temperature=0.85,
+                response_format={"type": "json_object"},
             )
             raw = _strip_fences(response.choices[0].message.content.strip())
             data = json.loads(raw)

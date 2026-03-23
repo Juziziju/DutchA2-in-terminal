@@ -3,7 +3,7 @@
 import json
 import time
 
-from backend.config import DASHSCOPE_API_KEY
+from backend.config import AI_API_KEY, AI_BASE_URL
 from backend.core.qwen import CONTENT_MODEL
 
 READING_TYPE_CONFIGS = {
@@ -17,10 +17,7 @@ READING_TYPE_CONFIGS = {
 
 def _get_client():
     from openai import OpenAI
-    return OpenAI(
-        api_key=DASHSCOPE_API_KEY,
-        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-    )
+    return OpenAI(api_key=AI_API_KEY, base_url=AI_BASE_URL)
 
 
 def _build_reading_prompt(content_type: str, level: str, topic: str = "") -> tuple[str, str]:
@@ -84,8 +81,8 @@ def _validate_reading(data: dict, content_type: str):
 
 def generate_reading(content_type: str = "short_text", level: str = "A2", topic: str = "") -> dict:
     """Generate a reading passage with comprehension questions. Retries once on failure."""
-    if not DASHSCOPE_API_KEY:
-        raise RuntimeError("DASHSCOPE_API_KEY is not set")
+    if not AI_API_KEY:
+        raise RuntimeError("AI_API_KEY is not set")
 
     system, user_msg = _build_reading_prompt(content_type, level, topic)
     client = _get_client()
@@ -100,6 +97,7 @@ def generate_reading(content_type: str = "short_text", level: str = "A2", topic:
                     {"role": "user", "content": user_msg},
                 ],
                 temperature=0.95,
+                response_format={"type": "json_object"},
             )
             raw = response.choices[0].message.content.strip()
             if raw.startswith("```"):

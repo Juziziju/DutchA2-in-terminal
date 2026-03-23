@@ -785,6 +785,11 @@ export function createCustomScene(topic: string, level: string, adminPassword?: 
   });
 }
 
+export interface SaveVocabResult { added: number; skipped: number; progress_created: number; }
+export function saveSceneVocab(sceneId: string): Promise<SaveVocabResult> {
+  return request<SaveVocabResult>("POST", `/speaking/scenes/${sceneId}/save-vocab`);
+}
+
 export async function submitSpeakingRecording(
   audio: Blob,
   scene: string,
@@ -1444,7 +1449,6 @@ export interface WritingGrammarError {
 export interface WritingFeedback {
   score: number;
   grammar_score: number;
-  vocabulary_score: number;
   completeness_score: number;
   grammar_errors: WritingGrammarError[];
   feedback_nl: string;

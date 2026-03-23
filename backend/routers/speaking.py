@@ -40,6 +40,8 @@ from backend.data.spreken_exams import (
 )
 from backend.database import get_session
 from backend.models.speaking import SpeakingSession
+from backend.models.vocab import Vocab
+from backend.models.progress import FlashcardProgress
 from backend.models.user import User
 from backend.routers.auth import get_current_user
 
@@ -805,6 +807,123 @@ def delete_recording(
         db.commit()
 
     return Response(status_code=204)
+
+
+# ── Save scene vocab to notebook ──────────────────────────────────────────────
+
+
+class SaveVocabResponse(BaseModel):
+    added: int
+    skipped: int
+    progress_created: int
+
+
+@router.post("/scenes/{scene_id}/save-vocab", response_model=SaveVocabResponse)
+def save_scene_vocab(
+    scene_id: str,
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Save scene vocabulary to Vocab Notebook + create FlashcardProgress."""
+    from backend.core.vocab_categories import categorize, categorize_batch_llm
+    from backend.core.audio import ensure_vocab_audio
+
+    # Find scene (built-in or custom)
+    scene = get_scene(scene_id) or _find_custom_scene(scene_id, user.id, db)
+    if not scene:
+        raise HTTPException(status_code=404, detail="Scene not found")
+
+    vocab_list = scene.get("vocab", [])
+    if not vocab_list:
+        return SaveVocabResponse(added=0, skipped=0, progress_created=0)
+
+    # Dedup: check which words already exist (case-insensitive)
+    existing_vocab: dict[str, Vocab] = {}
+    for v in db.exec(select(Vocab)).all():
+        existing_vocab[v.dutch.lower()] = v
+
+    new_words = []
+    existing_words = []
+    for v in vocab_list:
+        dutch = v.get("dutch", "").strip()
+        if not dutch:
+            continue
+        if dutch.lower() in existing_vocab:
+            existing_words.append(existing_vocab[dutch.lower()])
+        else:
+            new_words.append(v)
+
+    # Categorize new words
+    need_llm: list[dict[str, str]] = []
+    categories: dict[str, str] = {}
+    for w in new_words:
+        cat = categorize(w["dutch"])
+        if cat == "General":
+            need_llm.append({"dutch": w["dutch"], "english": w.get("english", "")})
+        else:
+            categories[w["dutch"]] = cat
+
+    if need_llm:
+        try:
+            llm_cats = categorize_batch_llm(need_llm)
+            categories.update(llm_cats)
+        except Exception:
+            pass  # fallback to "General"
+
+    # Create Vocab rows for new words
+    created_vocabs: list[Vocab] = []
+    for w in new_words:
+        dutch = w["dutch"].strip()
+        english = w.get("english", "").strip()
+        example = w.get("example", "").strip()
+        cat = categories.get(dutch, "General")
+
+        # Generate audio
+        try:
+            audio_file = ensure_vocab_audio(dutch)
+        except Exception:
+            audio_file = ""
+
+        vocab = Vocab(
+            dutch=dutch,
+            english=english,
+            category=cat,
+            example_dutch=example,
+            example_english="",
+            audio_file=audio_file,
+        )
+        db.add(vocab)
+        db.flush()  # get ID
+        created_vocabs.append(vocab)
+        existing_vocab[dutch.lower()] = vocab
+
+    # Create FlashcardProgress for ALL words (new + existing)
+    all_vocabs = existing_words + created_vocabs
+    progress_created = 0
+    for vocab in all_vocabs:
+        for direction in ("nl_en", "en_nl"):
+            exists = db.exec(
+                select(FlashcardProgress).where(
+                    FlashcardProgress.user_id == user.id,
+                    FlashcardProgress.vocab_id == vocab.id,
+                    FlashcardProgress.direction == direction,
+                )
+            ).first()
+            if not exists:
+                db.add(FlashcardProgress(
+                    user_id=user.id,
+                    vocab_id=vocab.id,
+                    direction=direction,
+                ))
+                progress_created += 1
+
+    db.commit()
+
+    return SaveVocabResponse(
+        added=len(created_vocabs),
+        skipped=len(existing_words),
+        progress_created=progress_created,
+    )
 
 
 # ── Knowledge Summary (notebook) ──────────────────────────────────────────────

@@ -8,7 +8,7 @@ venv/
 .env
 backend/.env
 frontend/.env.local
-
+backend/.env.example
 # Local SQLite DB (Supabase is used in production)
 dutch_a2.db
 

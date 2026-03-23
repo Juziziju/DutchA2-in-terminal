@@ -3,7 +3,7 @@
 import json
 import time
 
-from backend.config import DASHSCOPE_API_KEY
+from backend.config import AI_API_KEY, AI_BASE_URL
 from backend.core.qwen import CONTENT_MODEL
 
 KNM_CATEGORIES = {
@@ -98,16 +98,13 @@ KNM_CATEGORIES = {
 
 def _get_client():
     from openai import OpenAI
-    return OpenAI(
-        api_key=DASHSCOPE_API_KEY,
-        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-    )
+    return OpenAI(api_key=AI_API_KEY, base_url=AI_BASE_URL)
 
 
 def generate_knm_questions(category: str, count: int = 5) -> list[dict]:
     """Generate KNM practice questions for a category. Retries once on failure."""
-    if not DASHSCOPE_API_KEY:
-        raise RuntimeError("DASHSCOPE_API_KEY is not set")
+    if not AI_API_KEY:
+        raise RuntimeError("AI_API_KEY is not set")
 
     cat_info = KNM_CATEGORIES.get(category)
     if not cat_info:
@@ -156,6 +153,7 @@ Requirements:
                     {"role": "user", "content": user_msg},
                 ],
                 temperature=0.85,
+                response_format={"type": "json_object"},
             )
             raw = response.choices[0].message.content.strip()
             if raw.startswith("```"):

@@ -13,31 +13,18 @@ def _get_client():
 
 
 def transcribe_audio(audio_path: Path) -> str:
-    """Transcribe audio file using Qwen omni model via chat completions."""
+    """Transcribe audio file using Groq Whisper API."""
     if not AI_API_KEY:
-        raise RuntimeError("AI_API_KEY / DASHSCOPE_API_KEY is not set")
-
-    import base64
+        raise RuntimeError("AI_API_KEY is not set")
 
     client = _get_client()
     with open(audio_path, "rb") as f:
-        audio_b64 = base64.b64encode(f.read()).decode()
-
-    ext = audio_path.suffix.lstrip(".") or "webm"
-    data_uri = f"data:audio/{ext};base64,{audio_b64}"
-
-    result = client.chat.completions.create(
-        model="qwen-omni-turbo",
-        messages=[{
-            "role": "user",
-            "content": [
-                {"type": "input_audio", "input_audio": {"data": data_uri, "format": ext}},
-                {"type": "text", "text": "Transcribe this Dutch audio exactly. Return ONLY the transcription text, nothing else."},
-            ],
-        }],
-        temperature=0,
-    )
-    return (result.choices[0].message.content or "").strip()
+        result = client.audio.transcriptions.create(
+            model="whisper-large-v3-turbo",
+            file=f,
+            language="nl",
+        )
+    return (result.text or "").strip()
 
 
 def review_speaking(
@@ -50,7 +37,7 @@ def review_speaking(
 ) -> dict:
     """Use Qwen to evaluate a speaking transcript. Returns structured feedback."""
     if not AI_API_KEY:
-        raise RuntimeError("AI_API_KEY / DASHSCOPE_API_KEY is not set")
+        raise RuntimeError("AI_API_KEY is not set")
 
     client = _get_client()
 
@@ -97,13 +84,10 @@ Grade this response. Return only valid JSON."""
             {"role": "user", "content": user_msg},
         ],
         temperature=0.3,
+        response_format={"type": "json_object"},
     )
 
     raw = response.choices[0].message.content.strip()
-    # Strip markdown fences if present
-    if raw.startswith("```"):
-        lines = raw.splitlines()
-        raw = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
 
     try:
         return json.loads(raw)
@@ -124,7 +108,7 @@ Grade this response. Return only valid JSON."""
 def review_shadow(transcript: str, original_sentence: str) -> dict:
     """Compare a shadow-reading transcript to the original sentence. Returns similarity feedback."""
     if not AI_API_KEY:
-        raise RuntimeError("AI_API_KEY / DASHSCOPE_API_KEY is not set")
+        raise RuntimeError("AI_API_KEY is not set")
 
     client = _get_client()
 
@@ -150,12 +134,10 @@ Compare and return only valid JSON."""
             {"role": "user", "content": user_msg},
         ],
         temperature=0.3,
+        response_format={"type": "json_object"},
     )
 
     raw = response.choices[0].message.content.strip()
-    if raw.startswith("```"):
-        lines = raw.splitlines()
-        raw = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
 
     try:
         return json.loads(raw)
@@ -171,7 +153,7 @@ Compare and return only valid JSON."""
 def analyze_speaking_patterns(data: dict[str, Any]) -> dict:
     """Use LLM to identify speaking patterns and suggest focus areas from aggregated data."""
     if not AI_API_KEY:
-        raise RuntimeError("AI_API_KEY / DASHSCOPE_API_KEY is not set")
+        raise RuntimeError("AI_API_KEY is not set")
 
     client = _get_client()
 
@@ -210,12 +192,10 @@ Analyze and return only valid JSON."""
             {"role": "user", "content": user_msg},
         ],
         temperature=0.5,
+        response_format={"type": "json_object"},
     )
 
     raw = response.choices[0].message.content.strip()
-    if raw.startswith("```"):
-        lines = raw.splitlines()
-        raw = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
 
     try:
         return json.loads(raw)

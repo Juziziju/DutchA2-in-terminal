@@ -56,8 +56,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   preposition: "preposition",
   article: "article",
   pronoun: "pronoun",
-  capitalization: "capitals",
-  punctuation: "punctuation",
   other: "other",
 };
 
@@ -893,10 +891,9 @@ export default function Writing() {
           <p className="text-sm text-slate-500 mt-1">Overall Score</p>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           {[
             { label: "Grammar", score: feedback.grammar_score },
-            { label: "Vocabulary", score: feedback.vocabulary_score },
             { label: "Completeness", score: feedback.completeness_score },
           ].map((s) => (
             <div key={s.label} className="bg-white rounded-lg border p-3 text-center">
@@ -1219,10 +1216,9 @@ export default function Writing() {
             <div className="px-4 pb-4 space-y-3 border-t">
               {/* Sub-scores */}
               {r.feedback && (
-                <div className="grid grid-cols-3 gap-2 pt-3">
+                <div className="grid grid-cols-2 gap-2 pt-3">
                   {[
                     { label: "Grammar", score: r.feedback.grammar_score },
-                    { label: "Vocabulary", score: r.feedback.vocabulary_score },
                     { label: "Completeness", score: r.feedback.completeness_score },
                   ].map((s) => (
                     <div key={s.label} className="text-center">
