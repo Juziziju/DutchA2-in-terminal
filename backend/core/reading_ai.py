@@ -7,11 +7,11 @@ from backend.config import AI_API_KEY, AI_BASE_URL
 from backend.core.qwen import CONTENT_MODEL
 
 READING_TYPE_CONFIGS = {
-    "short_text": {"sentences": "3-5", "questions": 2, "desc": "short notice, sign, or label"},
-    "email": {"sentences": "6-10", "questions": 3, "desc": "formal or informal email/letter"},
-    "advertisement": {"sentences": "4-8", "questions": 3, "desc": "job/housing/product advertisement"},
-    "notice": {"sentences": "5-8", "questions": 3, "desc": "official notice from gemeente/school/employer"},
-    "article": {"sentences": "8-14", "questions": 4, "desc": "short newspaper or magazine article"},
+    "short_text": {"sentences": "6-8", "min_words": 60, "questions": 2, "desc": "short notice, sign, or label"},
+    "email": {"sentences": "10-14", "min_words": 100, "questions": 3, "desc": "formal or informal email/letter"},
+    "advertisement": {"sentences": "8-12", "min_words": 80, "questions": 3, "desc": "job/housing/product advertisement"},
+    "notice": {"sentences": "8-12", "min_words": 90, "questions": 3, "desc": "official notice from gemeente/school/employer"},
+    "article": {"sentences": "14-20", "min_words": 150, "questions": 4, "desc": "short newspaper or magazine article"},
 }
 
 
@@ -47,7 +47,7 @@ Schema:
 
 Requirements:
 - Write a {cfg['desc']} in Dutch at {level} level
-- {cfg['sentences']} sentences in the passage
+- {cfg['sentences']} sentences in the passage (minimum {cfg['min_words']} words total — write substantial, realistic content)
 - Exactly {cfg['questions']} multiple-choice questions (A/B/C/D)
 - Questions should test: main idea comprehension, detail extraction, inference, vocabulary in context
 - All question options must be plausible
