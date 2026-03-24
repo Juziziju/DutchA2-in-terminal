@@ -71,23 +71,43 @@ TASK_TYPE_CONFIGS = {
 }}""",
         "requirements": "- 5-8 fields: mix of text, select, and textarea\n- At least 1-2 textarea fields requiring free-text answers\n- Realistic form (sports club, library card, course registration, complaint, etc.)\n- Model answers for ALL fields",
     },
+    "briefje": {
+        "desc": "Write a short note (briefje) to a colleague, neighbour, or family member",
+        "prompt_schema": """{{
+  "task_type": "briefje",
+  "topic": "English topic description",
+  "situation_nl": "Dutch situation description (2-3 sentences)",
+  "situation_en": "English translation of situation",
+  "recipient": "Name and relation (e.g. 'je buurvrouw Maria')",
+  "bullet_points": [
+    {{"nl": "Dutch instruction", "en": "English translation"}},
+    {{"nl": "Dutch instruction", "en": "English translation"}}
+  ],
+  "greeting": "Suggested greeting (e.g. 'Beste Maria,')",
+  "closing": "Suggested closing (e.g. 'Groetjes, ...')",
+  "model_answer": "A complete model briefje in Dutch"
+}}""",
+        "requirements": "- 2-3 bullet points (things to tell/ask)\n- Use moet/kan/wil sentence patterns\n- Short: 3-5 sentences total\n- Greeting and closing provided in prompt\n- Realistic scenario: note for colleague about tasks, note for family about errands, note for neighbour about a package",
+    },
 }
 
 REVIEW_SCHEMA = """{
   "score": 75,
-  "grammar_score": 70,
-  "completeness_score": 75,
+  "content_score": 3,
+  "language_score": 2,
+  "content_checklist": [
+    {"point_nl": "要点荷兰语", "point_en": "bullet point English", "addressed": true}
+  ],
   "grammar_errors": [
     {
-      "text": "original text with error",
-      "correction": "corrected text",
-      "category": "preposition",
-      "explanation_en": "Explanation in English why this is wrong and the correction"
+      "text": "original sentence with error",
+      "correction": "corrected sentence",
+      "rule_nl": "Korte uitleg van de grammaticaregel",
+      "explanation_zh": "中文解释为什么错以及规则"
     }
   ],
   "feedback_nl": "Korte feedback in het Nederlands",
-  "feedback_en": "Short feedback in English",
-  "improved_answer": "The student's full text rewritten correctly in Dutch"
+  "improved_answer": "The student's full text rewritten correctly in Dutch (A2 level)"
 }"""
 
 
@@ -180,6 +200,14 @@ def review_writing(task_type: str, prompt: dict, user_response: str) -> dict:
             f"Requirements:\n" +
             "\n".join(f"- {bp.get('nl', bp) if isinstance(bp, dict) else bp}" for bp in prompt.get("bullet_points", []))
         )
+    elif task_type == "briefje":
+        context = (
+            f"Task: Write a short note (briefje)\n"
+            f"Situation: {prompt.get('situation_nl', '')}\n"
+            f"Recipient: {prompt.get('recipient', '')}\n"
+            f"Requirements:\n" +
+            "\n".join(f"- {bp.get('nl', bp) if isinstance(bp, dict) else bp}" for bp in prompt.get("bullet_points", []))
+        )
     elif task_type == "kort_verhaal":
         context = (
             f"Task: Write a short text about: {prompt.get('topic_nl', prompt.get('topic', ''))}\n"
@@ -192,57 +220,57 @@ def review_writing(task_type: str, prompt: dict, user_response: str) -> dict:
             f"Situation: {prompt.get('situation_nl', '')}"
         )
 
-    error_cats = ", ".join(ERROR_CATEGORIES)
     grammar_ref = format_rules_for_prompt()
-    system = f"""You are a Dutch A2 (NT2 Inburgering) writing exam grader. Grade STRICTLY at A2 level — not B1, not B2.
+    system = f"""You are a Dutch A2 (NT2 Inburgering) writing exam grader. Grade STRICTLY at A2 level.
+
+=== SCORING: 6-point scale (content 3 + language 3) ===
+
+**content_score (0-3)**: Did the student address the required points?
+- 3 = all points addressed
+- 2 = one point missing or unclear
+- 1 = two or more points missing
+- 0 = off-topic or empty
+For each bullet point / guiding question, report in content_checklist whether it was addressed (✅/❌).
+
+**language_score (0-3)**: A2-level grammar and vocabulary
+- 3 = no or very minor errors
+- 2 = 1-2 clear A2 errors
+- 1 = 3-4 errors or communication unclear
+- 0 = incomprehensible
+
+**score** = round((content_score + language_score) / 6 * 100)  → 0-100 for storage
 
 === WHAT COUNTS AS AN A2 ERROR (flag these) ===
-- Wrong verb conjugation: komen/komt, wil/wilt, heb/heeft, etc.
-- Wrong word order in main clause (V2 rule: verb must be 2nd element)
-- Wrong auxiliary in perfectum: hebben vs zijn (ik heb gelopen → ik ben gelopen)
-- Missing or wrong article: de/het/een
+- Wrong verb conjugation: komen/komt, wil/wilt, heb/heeft
+- Wrong word order (V2 rule)
+- Wrong auxiliary: hebben vs zijn
+- Wrong article: de/het/een
 - Wrong negation: niet vs geen
-- Separable verbs not split in main clause: Ik opbel → Ik bel op
-- omdat vs want word order difference
-- Basic spelling errors of common A2 words
-- Wrong preposition in fixed A2 expressions
+- Wrong preposition in fixed A2 expressions (naar school, op kantoor)
+- Separable verbs not split: Ik opbel → Ik bel op
+- omdat vs want word order
 
-=== NOT AN ERROR AT A2 (do NOT flag these) ===
-- Missing conditional tense (zou kunnen, zou willen) — this is B1+
-- Missing formal phrases like "Ik bied mijn excuses aan" — B1 level
-- Missing "Kunt u me laten weten" — B1 level
-- Punctuation or capitalization mistakes — not assessed at A2
-- Simple but correct sentences — A2 does NOT require complex constructions
-- Using "ik wil" instead of "ik zou graag willen" — both acceptable at A2
-- Not using relative clauses or passive voice — not expected at A2
-
-For grammar_errors, each error MUST have a "category" from: {error_cats}
+=== NOT AN ERROR AT A2 (do NOT flag) ===
+- Missing conditional (zou) — B1+
+- Missing formal phrases — B1+
+- Punctuation, capitalisation
+- Simple but correct sentences
+- Informal vocabulary
 
 {grammar_ref}
 
-For each grammar error, explanation_en MUST:
-1. Quote the error and the correction
-2. Cite the correct A2 grammar rule
-3. Give a brief example
-Do NOT invent grammar rules. Do NOT suggest B1+ alternatives as improvements.
+=== GRAMMAR ERRORS ===
+- Report at most 4 errors
+- Each error: original sentence → corrected sentence → Dutch grammar rule → 中文解释
+- Do NOT invent rules. Do NOT suggest B1+ improvements.
 
-=== SCORING (matches official inburgering A2 Schrijven exam) ===
-- completeness_score (50% of final score): Did the student address ALL required points/bullet points? A simple correct answer scores full marks.
-- grammar_score (50% of final score): A2-level grammar only. Simple correct sentences = high score. Do NOT penalise for lack of complexity.
-- score: overall 0-100, weighted as above.
-- A passing score is achievable with simple, correct A2 sentences.
+=== IMPROVED_ANSWER ===
+- Stay at A2 level. Fix only actual errors.
+- Do NOT rewrite to B1+.
 
-=== IMPROVED_ANSWER RULES ===
-- The improved_answer must stay at A2 level. Fix only actual errors.
-- Do NOT rewrite simple sentences into complex B1+ alternatives.
-- ✅ A2: "Ik heb tijd op dinsdag om twee uur."
-- ❌ Too advanced: "Zou het mogelijk zijn om de afspraak te verzetten naar dinsdag?"
-
-=== FEEDBACK TONE ===
-- Show what was wrong and why, in simple terms
-- Give the corrected sentence
-- Do NOT suggest B1+ alternatives as "improvements"
-- Be encouraging but honest
+=== FEEDBACK ===
+- feedback_nl: short encouraging feedback in Dutch
+- Each grammar error has explanation_zh in Chinese for the learner
 
 Return ONLY valid JSON matching this schema:
 {REVIEW_SCHEMA}"""
@@ -275,19 +303,23 @@ Remember: simple correct sentences = good A2 writing. Return only valid JSON."""
             )
             raw = _strip_fences(response.choices[0].message.content.strip())
             data = json.loads(raw)
-            # Ensure required fields
-            data.setdefault("score", 0)
-            data.setdefault("grammar_score", 0)
-            data.setdefault("completeness_score", 0)
-            data.pop("vocabulary_score", None)
+            # Ensure required fields (new 6-point schema)
+            data.setdefault("content_score", 0)
+            data.setdefault("language_score", 0)
+            data.setdefault("content_checklist", [])
             data.setdefault("grammar_errors", [])
             data.setdefault("feedback_nl", "")
-            data.setdefault("feedback_en", "")
             data.setdefault("improved_answer", "")
-            # Normalize error categories
-            for err in data["grammar_errors"]:
-                if err.get("category") not in ERROR_CATEGORIES:
-                    err["category"] = "other"
+            # Compute score (0-100) from 6-point scale if not already set
+            cs = data["content_score"]
+            ls = data["language_score"]
+            data["score"] = data.get("score") or round((cs + ls) / 6 * 100)
+            # Backward compat: populate old fields
+            data["grammar_score"] = round(ls / 3 * 100)
+            data["completeness_score"] = round(cs / 3 * 100)
+            data.setdefault("feedback_en", data.get("feedback_nl", ""))
+            # Cap grammar errors at 4
+            data["grammar_errors"] = data["grammar_errors"][:4]
             return data
         except Exception as e:
             last_err = e

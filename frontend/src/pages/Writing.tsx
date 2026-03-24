@@ -1,25 +1,20 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   generateWritingPrompt,
   submitWriting,
   submitErrorCorrection,
-  getSchrijvenExams,
-  getSchrijvenExamDetail,
   WritingPrompt,
   WritingFeedback,
   WritingGrammarError,
   ErrorCorrectionFeedback,
   ErrorCorrectionResult,
-  SchrijvenExamSummary,
-  SchrijvenExamDetail,
-  SchrijvenExamTask,
   SpellPrompt,
 } from "../api";
 import SpellPractice from "./SpellPractice";
 
-type Phase = "home" | "loading" | "writing" | "submitting" | "review" | "mock_list" | "mock_exam" | "mock_review";
-type TaskType = "email" | "kort_verhaal" | "formulier" | "error_correction";
+type Phase = "home" | "loading" | "writing" | "submitting" | "review";
+type TaskType = "email" | "kort_verhaal" | "formulier" | "briefje" | "error_correction";
 type WritingMode = "menu" | "scene" | "error_correction" | "spell";
 
 const TASK_CARDS: { type: TaskType; title: string; icon: string; desc: string; example: string }[] = [
@@ -43,6 +38,13 @@ const TASK_CARDS: { type: TaskType; title: string; icon: string; desc: string; e
     icon: "📋",
     desc: "Fill in a structured form with text fields and free-text answers.",
     example: "e.g. Sports club registration, library card application",
+  },
+  {
+    type: "briefje",
+    title: "Briefje schrijven",
+    icon: "📝",
+    desc: "Write a short note to a colleague, neighbour, or family member.",
+    example: "e.g. Note about tasks, errands, or packages",
   },
 ];
 
@@ -82,7 +84,7 @@ export default function Writing() {
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>("home");
   const [writingMode, setWritingMode] = useState<WritingMode>("menu");
-  const [topics, setTopics] = useState<Record<TaskType, string>>({ email: "", kort_verhaal: "", formulier: "", error_correction: "" });
+  const [topics, setTopics] = useState<Record<TaskType, string>>({ email: "", kort_verhaal: "", formulier: "", briefje: "", error_correction: "" });
   const [prompt, setPrompt] = useState<WritingPrompt | null>(null);
   const [showEn, setShowEn] = useState(false);
   const [userText, setUserText] = useState("");
@@ -137,117 +139,11 @@ export default function Writing() {
     }
   }, [location.state, location.pathname, navigate]);
 
-  // Mock exam state
-  const [mockExams, setMockExams] = useState<SchrijvenExamSummary[]>([]);
-  const [mockExam, setMockExam] = useState<SchrijvenExamDetail | null>(null);
-  const [mockTaskIndex, setMockTaskIndex] = useState(0);
-  const [mockResults, setMockResults] = useState<{ task: SchrijvenExamTask; feedback: WritingFeedback | null; score: number }[]>([]);
-  const [mockUserTexts, setMockUserTexts] = useState<string[]>([]);
-  const [mockFormAnswersArr, setMockFormAnswersArr] = useState<Record<string, string>[]>([]);
-
   const wordCount = userText.trim() ? userText.trim().split(/\s+/).length : 0;
   const sentenceCount = userText.trim() ? userText.trim().split(/[.!?]+/).filter(s => s.trim()).length : 0;
 
   const formFieldCount = prompt?.fields?.length ?? 0;
   const formFilledCount = prompt?.fields?.filter(f => (formAnswers[f.label_nl] || "").trim()).length ?? 0;
-
-  // ── Mock exam handlers ────────────────────────────────────────────────────
-
-  const loadMockExams = useCallback(async () => {
-    setPhase("loading");
-    setError("");
-    try {
-      const exams = await getSchrijvenExams();
-      setMockExams(exams);
-      setPhase("mock_list");
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to load mock exams");
-      setPhase("home");
-    }
-  }, []);
-
-  async function startMockExam(examId: string) {
-    setPhase("loading");
-    setError("");
-    try {
-      const exam = await getSchrijvenExamDetail(examId);
-      setMockExam(exam);
-      setMockTaskIndex(0);
-      setMockResults([]);
-      setMockUserTexts(exam.tasks.map(() => ""));
-      setMockFormAnswersArr(exam.tasks.map(() => ({})));
-      setUserText("");
-      setFormAnswers({});
-      startTimeRef.current = Date.now();
-      setPhase("mock_exam");
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to load exam");
-      setPhase("mock_list");
-    }
-  }
-
-  function mockCurrentTask(): SchrijvenExamTask | null {
-    return mockExam?.tasks[mockTaskIndex] ?? null;
-  }
-
-  async function submitMockTask() {
-    const task = mockCurrentTask();
-    if (!task || !mockExam) return;
-
-    const duration = Math.round((Date.now() - startTimeRef.current) / 1000);
-    setPhase("submitting");
-    setError("");
-
-    // Build the prompt object from the mock task to match WritingPrompt shape
-    const promptObj: WritingPrompt = {
-      task_type: task.task_type,
-      topic: task.title,
-      situation_nl: task.situation_nl,
-      situation_en: task.situation_en,
-      recipient: task.recipient,
-      bullet_points: task.bullet_points,
-      topic_nl: task.situation_nl,
-      topic_en: task.situation_en,
-      guiding_questions: task.guiding_questions,
-      form_title_nl: task.form_title_nl,
-      form_title_en: task.form_title_en,
-      fields: task.fields,
-      model_answer: task.model_answer,
-      model_answers: task.model_answers,
-    };
-
-    const responseText = task.task_type === "formulier"
-      ? JSON.stringify(formAnswers, null, 2)
-      : userText;
-
-    try {
-      const res = await submitWriting({
-        task_type: task.task_type,
-        prompt: promptObj,
-        response_text: responseText,
-        duration_seconds: duration,
-      });
-
-      // Save result and user text
-      setMockResults(prev => [...prev, { task, feedback: res.feedback, score: res.score_pct }]);
-      setMockUserTexts(prev => { const a = [...prev]; a[mockTaskIndex] = responseText; return a; });
-      setMockFormAnswersArr(prev => { const a = [...prev]; a[mockTaskIndex] = { ...formAnswers }; return a; });
-
-      // Move to next task or finish
-      if (mockTaskIndex < mockExam.tasks.length - 1) {
-        setMockTaskIndex(prev => prev + 1);
-        setUserText("");
-        setFormAnswers({});
-        startTimeRef.current = Date.now();
-        setPhase("mock_exam");
-      } else {
-        setPhase("mock_review");
-      }
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to submit");
-      setPhase("mock_exam");
-    }
-  }
 
   async function handleStart(taskType: TaskType) {
     setCurrentTask(taskType);
@@ -359,20 +255,6 @@ export default function Writing() {
             </div>
 
             {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
-
-            {/* Mock Exam Button */}
-            <button
-              onClick={loadMockExams}
-              className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl p-5 text-left hover:from-purple-700 hover:to-indigo-700 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-3xl">📄</span>
-                <div>
-                  <h3 className="font-semibold text-lg">Oefenexamen (Mock Exam)</h3>
-                  <p className="text-purple-100 text-sm">Take a full official DUO writing exam — 4 tasks just like the real test</p>
-                </div>
-              </div>
-            </button>
 
             <div className="space-y-4">
               {TASK_CARDS.map((card) => (
@@ -893,22 +775,37 @@ export default function Writing() {
 
         <div className="grid grid-cols-2 gap-3">
           {[
-            { label: "Grammar", score: feedback.grammar_score },
-            { label: "Completeness", score: feedback.completeness_score },
+            { label: "Content", score: feedback.content_score ?? 0, max: 3 },
+            { label: "Language", score: feedback.language_score ?? 0, max: 3 },
           ].map((s) => (
             <div key={s.label} className="bg-white rounded-lg border p-3 text-center">
-              <p className={`text-2xl font-bold ${scoreColor(s.score)}`}>{s.score}</p>
+              <p className={`text-2xl font-bold ${scoreColor(Math.round(s.score / s.max * 100))}`}>{s.score}/{s.max}</p>
               <p className="text-xs text-slate-500">{s.label}</p>
             </div>
           ))}
         </div>
 
+        {/* Content checklist */}
+        {feedback.content_checklist && feedback.content_checklist.length > 0 && (
+          <div className="bg-white rounded-xl border p-4 space-y-2">
+            <p className="text-xs font-medium text-slate-500">Content Checklist</p>
+            {feedback.content_checklist.map((item, i) => (
+              <div key={i} className="flex items-start gap-2 text-sm">
+                <span className={item.addressed ? "text-green-600" : "text-red-500"}>
+                  {item.addressed ? "✅" : "❌"}
+                </span>
+                <div>
+                  <span>{item.point_nl}</span>
+                  {item.point_en && <span className="text-slate-400 ml-1">({item.point_en})</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="bg-white rounded-xl border p-5 space-y-2">
           <h3 className="font-semibold">Feedback</h3>
-          <p className="text-sm">{feedback.feedback_en}</p>
-          {feedback.feedback_nl && (
-            <p className="text-sm text-slate-500 italic">{feedback.feedback_nl}</p>
-          )}
+          <p className="text-sm">{feedback.feedback_nl}</p>
         </div>
 
         {feedback.grammar_errors.length > 0 && (
@@ -917,16 +814,15 @@ export default function Writing() {
             <div className="space-y-3">
               {feedback.grammar_errors.map((err: WritingGrammarError, i: number) => (
                 <div key={i} className="bg-red-50 rounded-lg p-3 space-y-1">
-                  <span className="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded font-medium">
-                    {CATEGORY_LABELS[err.category] || err.category}
-                  </span>
                   <p className="text-sm">
                     <span className="line-through text-red-600">{err.text}</span>
                   </p>
                   <p className="text-sm">
                     <span className="text-green-700 font-medium">{err.correction}</span>
                   </p>
-                  <p className="text-xs text-slate-600">{err.explanation_en}</p>
+                  {err.rule_nl && <p className="text-xs text-slate-600">📏 {err.rule_nl}</p>}
+                  {err.explanation_zh && <p className="text-xs text-slate-500">💡 {err.explanation_zh}</p>}
+                  {!err.rule_nl && err.explanation_en && <p className="text-xs text-slate-600">{err.explanation_en}</p>}
                 </div>
               ))}
             </div>
@@ -974,325 +870,6 @@ export default function Writing() {
             className="flex-1 border border-slate-300 text-slate-700 py-3 rounded-lg font-medium hover:bg-slate-50"
           >
             New Prompt
-          </button>
-          <button
-            onClick={handleNewPrompt}
-            className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700"
-          >
-            Home
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ── MOCK EXAM LIST ──────────────────────────────────────────────────────
-
-  if (phase === "mock_list") {
-    return (
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="flex items-center gap-3">
-          <button onClick={handleNewPrompt} className="text-sm text-slate-500 hover:text-slate-700">&larr; Back</button>
-          <h1 className="text-2xl font-bold">Oefenexamens Schrijven</h1>
-        </div>
-        <p className="text-slate-500 text-sm">Choose an official DUO practice exam. Each exam has 4 tasks (2 emails, 1 short text, 1 form).</p>
-        {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
-        <div className="space-y-3">
-          {mockExams.map((exam) => (
-            <button
-              key={exam.id}
-              onClick={() => startMockExam(exam.id)}
-              className="w-full bg-white rounded-xl border p-5 text-left hover:border-purple-300 hover:bg-purple-50 transition-colors"
-            >
-              <h3 className="font-semibold text-lg">{exam.title}</h3>
-              <div className="flex gap-3 mt-2 text-xs text-slate-500">
-                <span>{exam.task_count} opgaven</span>
-                {Object.entries(exam.task_types).map(([t, c]) => (
-                  <span key={t} className="bg-slate-100 px-2 py-0.5 rounded">
-                    {t === "email" ? "Email" : t === "kort_verhaal" ? "Kort verhaal" : "Formulier"} x{c}
-                  </span>
-                ))}
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // ── MOCK EXAM: Writing a task ─────────────────────────────────────────────
-
-  if (phase === "mock_exam" && mockExam) {
-    const task = mockCurrentTask();
-    if (!task) return null;
-
-    const isFormulier = task.task_type === "formulier";
-    const mockFormFieldCount = task.fields?.length ?? 0;
-    const mockFormFilledCount = task.fields?.filter(f => (formAnswers[f.label_nl] || "").trim()).length ?? 0;
-    const canSubmitMock = isFormulier
-      ? mockFormFilledCount >= Math.max(1, Math.ceil(mockFormFieldCount * 0.5))
-      : wordCount >= 3;
-
-    return (
-      <div className="max-w-2xl mx-auto space-y-5">
-        <div className="flex items-center justify-between">
-          <button onClick={handleNewPrompt} className="text-sm text-slate-500 hover:text-slate-700">&larr; Stop exam</button>
-          <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded font-medium">
-            {mockExam.title} — Opgave {mockTaskIndex + 1}/{mockExam.tasks.length}
-          </span>
-        </div>
-
-        {/* Task progress */}
-        <div className="flex gap-1">
-          {mockExam.tasks.map((_, i) => (
-            <div key={i} className={`flex-1 h-1.5 rounded-full ${
-              i < mockTaskIndex ? "bg-green-400" : i === mockTaskIndex ? "bg-purple-500" : "bg-slate-200"
-            }`} />
-          ))}
-        </div>
-
-        {/* Prompt */}
-        <div className="bg-white rounded-xl border p-5 space-y-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
-              {task.task_type === "email" ? "Email" : task.task_type === "kort_verhaal" ? "Kort verhaal" : "Formulier"}
-            </span>
-            <h3 className="font-semibold">{task.title}</h3>
-          </div>
-
-          <p className="text-sm">{showEn ? task.situation_en : task.situation_nl}</p>
-
-          {task.bullet_points && (
-            <ul className="list-disc ml-5 space-y-1 text-sm">
-              {task.bullet_points.map((bp, i) => (
-                <li key={i}>{showEn ? bp.en : bp.nl}</li>
-              ))}
-            </ul>
-          )}
-
-          {task.guiding_questions && (
-            <ul className="list-disc ml-5 space-y-1 text-sm">
-              {task.guiding_questions.map((q, i) => (
-                <li key={i}>{showEn ? q.en : q.nl}</li>
-              ))}
-            </ul>
-          )}
-
-          {isFormulier && task.form_title_nl && (
-            <p className="text-sm font-medium">{showEn ? task.form_title_en : task.form_title_nl}</p>
-          )}
-
-          <p className="text-xs text-slate-500 italic">
-            {showEn ? task.instructions_en : task.instructions_nl}
-          </p>
-
-          <button
-            onClick={() => setShowEn(!showEn)}
-            className="text-xs text-blue-600 hover:underline"
-          >
-            {showEn ? "Show Dutch" : "Show English"}
-          </button>
-        </div>
-
-        {/* Input area */}
-        {isFormulier ? (
-          <div className="bg-white rounded-xl border p-5 space-y-4">
-            {task.fields?.map((field, i) => (
-              <div key={i}>
-                <label className="block text-sm font-medium mb-1">
-                  {field.label_nl}
-                  <span className="text-slate-400 font-normal ml-1">({field.label_en})</span>
-                </label>
-                {field.field_type === "select" && field.options ? (
-                  <select
-                    className="w-full border rounded-lg px-3 py-2 text-sm"
-                    value={formAnswers[field.label_nl] || ""}
-                    onChange={(e) => setFormAnswers(prev => ({ ...prev, [field.label_nl]: e.target.value }))}
-                  >
-                    <option value="">-- Kies --</option>
-                    {field.options.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                ) : field.field_type === "textarea" ? (
-                  <textarea
-                    className="w-full border rounded-lg px-3 py-2 text-sm min-h-[80px]"
-                    placeholder={field.placeholder || ""}
-                    value={formAnswers[field.label_nl] || ""}
-                    onChange={(e) => setFormAnswers(prev => ({ ...prev, [field.label_nl]: e.target.value }))}
-                  />
-                ) : (
-                  <input
-                    type="text"
-                    className="w-full border rounded-lg px-3 py-2 text-sm"
-                    placeholder={field.placeholder || ""}
-                    value={formAnswers[field.label_nl] || ""}
-                    onChange={(e) => setFormAnswers(prev => ({ ...prev, [field.label_nl]: e.target.value }))}
-                  />
-                )}
-              </div>
-            ))}
-            <p className="text-xs text-slate-400">{mockFormFilledCount}/{mockFormFieldCount} fields filled</p>
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl border p-5 space-y-2">
-            {task.greeting && <p className="text-sm text-slate-500 italic">{task.greeting}</p>}
-            {task.starter_text && <p className="text-sm text-slate-500 italic">{task.starter_text}</p>}
-            <textarea
-              className="w-full border rounded-lg px-4 py-3 text-sm min-h-[200px] focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none"
-              placeholder={task.task_type === "email"
-                ? "Beste ...,\n\n\n\nMet vriendelijke groet,\n..."
-                : "Schrijf hier je tekst..."}
-              value={userText}
-              onChange={(e) => setUserText(e.target.value)}
-              autoFocus
-            />
-            {task.closing && <p className="text-sm text-slate-500 italic">{task.closing}</p>}
-            <div className="flex gap-4 text-xs text-slate-400">
-              <span>{wordCount} words</span>
-              <span>{sentenceCount} sentences</span>
-            </div>
-          </div>
-        )}
-
-        {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
-
-        <button
-          onClick={submitMockTask}
-          disabled={!canSubmitMock}
-          className="w-full bg-purple-600 text-white py-3 rounded-lg font-medium hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {mockTaskIndex < mockExam.tasks.length - 1
-            ? `Submit & Next (${mockTaskIndex + 1}/${mockExam.tasks.length})`
-            : "Submit & Finish Exam"}
-        </button>
-      </div>
-    );
-  }
-
-  // ── MOCK EXAM: Final Review ───────────────────────────────────────────────
-
-  if (phase === "mock_review" && mockExam && mockResults.length > 0) {
-    const avgScore = Math.round(mockResults.reduce((s, r) => s + r.score, 0) / mockResults.length);
-
-    return (
-      <div className="max-w-2xl mx-auto space-y-5">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold">{mockExam.title}</h1>
-          <p className="text-slate-500 mt-1">Exam Complete</p>
-        </div>
-
-        {/* Overall score */}
-        <div className={`rounded-xl border p-6 text-center ${scoreBg(avgScore)}`}>
-          <p className={`text-5xl font-bold ${scoreColor(avgScore)}`}>{avgScore}%</p>
-          <p className="text-sm text-slate-500 mt-1">Average Score</p>
-        </div>
-
-        {/* Per-task scores */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {mockResults.map((r, i) => (
-            <div key={i} className="bg-white rounded-lg border p-3 text-center">
-              <p className="text-xs text-slate-500 mb-1">
-                {r.task.task_type === "email" ? "Email" : r.task.task_type === "kort_verhaal" ? "Kort verhaal" : "Formulier"}
-              </p>
-              <p className={`text-2xl font-bold ${scoreColor(r.score)}`}>{r.score}%</p>
-              <p className="text-xs text-slate-400 truncate">{r.task.title}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Per-task detail */}
-        {mockResults.map((r, i) => (
-          <details key={i} className="bg-white rounded-xl border">
-            <summary className="p-4 cursor-pointer flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
-                  Opgave {i + 1}
-                </span>
-                <span className="font-medium">{r.task.title}</span>
-              </div>
-              <span className={`font-bold ${scoreColor(r.score)}`}>{r.score}%</span>
-            </summary>
-            <div className="px-4 pb-4 space-y-3 border-t">
-              {/* Sub-scores */}
-              {r.feedback && (
-                <div className="grid grid-cols-2 gap-2 pt-3">
-                  {[
-                    { label: "Grammar", score: r.feedback.grammar_score },
-                    { label: "Completeness", score: r.feedback.completeness_score },
-                  ].map((s) => (
-                    <div key={s.label} className="text-center">
-                      <p className={`text-lg font-bold ${scoreColor(s.score)}`}>{s.score}</p>
-                      <p className="text-xs text-slate-500">{s.label}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Feedback */}
-              {r.feedback?.feedback_en && (
-                <p className="text-sm">{r.feedback.feedback_en}</p>
-              )}
-
-              {/* Grammar errors */}
-              {r.feedback && r.feedback.grammar_errors.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-slate-500">Grammar Errors ({r.feedback.grammar_errors.length})</p>
-                  {r.feedback.grammar_errors.map((err: WritingGrammarError, j: number) => (
-                    <div key={j} className="bg-red-50 rounded-lg p-2 text-sm space-y-1">
-                      <span className="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded">
-                        {CATEGORY_LABELS[err.category] || err.category}
-                      </span>
-                      <p><span className="line-through text-red-600">{err.text}</span></p>
-                      <p><span className="text-green-700">{err.correction}</span></p>
-                      <p className="text-xs text-slate-500">{err.explanation_en}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* User text vs improved */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs text-slate-400 mb-1 font-medium">Your text</p>
-                  <div className="bg-slate-50 rounded-lg p-2 text-sm whitespace-pre-wrap text-slate-700">
-                    {mockUserTexts[i] || "—"}
-                  </div>
-                </div>
-                {r.feedback?.improved_answer && (
-                  <div>
-                    <p className="text-xs text-slate-400 mb-1 font-medium">Improved version</p>
-                    <div className="bg-green-50 rounded-lg p-2 text-sm whitespace-pre-wrap">
-                      {r.feedback.improved_answer}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Model answer */}
-              {r.task.model_answer && (
-                <details className="text-sm">
-                  <summary className="cursor-pointer text-blue-600 hover:underline text-xs">Show model answer</summary>
-                  <div className="mt-2 bg-blue-50 rounded-lg p-2 whitespace-pre-wrap">{r.task.model_answer}</div>
-                </details>
-              )}
-            </div>
-          </details>
-        ))}
-
-        {/* Action buttons */}
-        <div className="flex gap-3">
-          <button
-            onClick={() => startMockExam(mockExam.id)}
-            className="flex-1 border border-purple-600 text-purple-600 py-3 rounded-lg font-medium hover:bg-purple-50"
-          >
-            Retry Exam
-          </button>
-          <button
-            onClick={loadMockExams}
-            className="flex-1 border border-slate-300 text-slate-700 py-3 rounded-lg font-medium hover:bg-slate-50"
-          >
-            Other Exams
           </button>
           <button
             onClick={handleNewPrompt}

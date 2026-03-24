@@ -1,59 +1,22 @@
-import { createContext, useContext, useState, Dispatch, SetStateAction, ReactNode } from "react";
-import { ExamQuestion, ExamResultOut, ExamSessionOut, GradedItem, SectionInfo } from "../api";
-
-type Phase = "menu" | "section" | "section_review" | "results";
+import { createContext, useContext, useState, ReactNode } from "react";
 
 export interface MockExamState {
-  examData: ExamSessionOut | null;
-  scores: Record<string, number | null>;
-  phase: Phase;
-  activeSection: SectionInfo | null;
-  timerExpired: boolean;
-  finalResult: ExamResultOut | null;
-  submitting: boolean;
-  mode: "full" | "single";
-  sectionQueue: SectionInfo[];
-  loaded: boolean;
-  // Question state
-  questions: ExamQuestion[];
-  questionIndex: number;
-  answers: Record<string, string>;  // question_id -> answer
-  gradedItems: GradedItem[];
-  sectionScore: number | null;
-  loadingQuestions: boolean;
+  active: boolean;
 }
 
-const INITIAL: MockExamState = {
-  examData: null,
-  scores: {},
-  phase: "menu",
-  activeSection: null,
-  timerExpired: false,
-  finalResult: null,
-  submitting: false,
-  mode: "full",
-  sectionQueue: [],
-  loaded: false,
-  questions: [],
-  questionIndex: 0,
-  answers: {},
-  gradedItems: [],
-  sectionScore: null,
-  loadingQuestions: false,
-};
+const INITIAL: MockExamState = { active: false };
 
 interface Ctx {
   state: MockExamState;
-  set: Dispatch<SetStateAction<MockExamState>>;
-  reset: () => void;
+  setActive: (v: boolean) => void;
 }
 
 const MockExamCtx = createContext<Ctx>(null!);
 
 export function MockExamProvider({ children }: { children: ReactNode }) {
-  const [state, set] = useState(INITIAL);
-  const reset = () => set(INITIAL);
-  return <MockExamCtx.Provider value={{ state, set, reset }}>{children}</MockExamCtx.Provider>;
+  const [state, setState] = useState(INITIAL);
+  const setActive = (v: boolean) => setState({ active: v });
+  return <MockExamCtx.Provider value={{ state, setActive }}>{children}</MockExamCtx.Provider>;
 }
 
 export function useMockExamState() {
@@ -61,5 +24,5 @@ export function useMockExamState() {
 }
 
 export function isMockExamActive(state: MockExamState) {
-  return state.phase !== "menu";
+  return state.active;
 }

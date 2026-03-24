@@ -1412,11 +1412,14 @@ export interface ErrorCorrectionSentence {
 export interface WritingPrompt {
   task_type: string;
   topic: string;
-  // email
+  // email / briefje
   situation_nl?: string;
   situation_en?: string;
   recipient?: string;
   bullet_points?: WritingBulletPoint[];
+  // briefje
+  greeting?: string;
+  closing?: string;
   // kort_verhaal
   topic_nl?: string;
   topic_en?: string;
@@ -1439,20 +1442,35 @@ export function generateWritingPrompt(taskType?: string, topic?: string) {
   });
 }
 
+export interface ContentChecklistItem {
+  point_nl: string;
+  point_en: string;
+  addressed: boolean;
+}
+
 export interface WritingGrammarError {
   text: string;
   correction: string;
-  category: string;
-  explanation_en: string;
+  // New fields
+  rule_nl?: string;
+  explanation_zh?: string;
+  // Legacy fields
+  category?: string;
+  explanation_en?: string;
 }
 
 export interface WritingFeedback {
   score: number;
-  grammar_score: number;
-  completeness_score: number;
+  // New 6-point fields
+  content_score?: number;
+  language_score?: number;
+  content_checklist?: ContentChecklistItem[];
+  // Legacy fields
+  grammar_score?: number;
+  completeness_score?: number;
   grammar_errors: WritingGrammarError[];
   feedback_nl: string;
-  feedback_en: string;
+  feedback_en?: string;
   improved_answer: string;
 }
 
@@ -1665,7 +1683,7 @@ export interface SchrijvenExamSummary {
 
 export interface SchrijvenExamTask {
   id: string;
-  task_type: "email" | "kort_verhaal" | "formulier";
+  task_type: "email" | "kort_verhaal" | "formulier" | "briefje";
   title: string;
   situation_nl?: string;
   situation_en?: string;

@@ -1,369 +1,656 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ExamQuestion,
-  MockExamSummary,
-  SectionInfo,
-  SprekenExamSummary,
-  getExamQuestions,
-  getExamSession,
-  getMockExams,
-  getSprekenExams,
-  gradeExamSection,
-  submitExam,
+  generateWritingPrompt,
+  submitWriting,
+  getSchrijvenExams,
+  getSchrijvenExamDetail,
+  WritingPrompt,
+  WritingFeedback,
+  WritingGrammarError,
+  ContentChecklistItem,
+  SchrijvenExamSummary,
+  SchrijvenExamDetail,
+  SchrijvenExamTask,
 } from "../api";
-import Timer from "../components/Timer";
 import { useMockExamState } from "../contexts/MockExamContext";
 
-const PASS_SCORE = 60;
+type Phase =
+  | "menu"
+  | "schrijven"
+  | "schrijven_real_list"
+  | "schrijven_real_exam"
+  | "schrijven_real_review"
+  | "schrijven_ai_pick"
+  | "schrijven_ai_loading"
+  | "schrijven_ai_writing"
+  | "schrijven_ai_submitting"
+  | "schrijven_ai_review";
+
+type SchrijvenMode = "real" | "ai";
+type AITaskType = "email" | "kort_verhaal" | "formulier" | "briefje";
+
+const SECTION_CARDS = [
+  { code: "LZ", label: "Lezen", icon: "📖", desc: "Leesexamen — reading comprehension" },
+  { code: "LU", label: "Luisteren", icon: "🎧", desc: "Luisterexamen — listening comprehension" },
+  { code: "SC", label: "Schrijven", icon: "✏️", desc: "Schrijfexamen — writing tasks" },
+  { code: "SP", label: "Spreken", icon: "🎤", desc: "Spreekexamen — speaking tasks" },
+  { code: "KNM", label: "KNM", icon: "🏛️", desc: "Kennis Nederlandse Maatschappij" },
+];
+
+const AI_TASK_CARDS: { type: AITaskType; title: string; icon: string; desc: string; pct: string }[] = [
+  { type: "email", title: "Email", icon: "✉️", desc: "Reschedule, request info, complain", pct: "50%" },
+  { type: "kort_verhaal", title: "Wijkkrant", icon: "📰", desc: "Write for community newspaper", pct: "25%" },
+  { type: "formulier", title: "Formulier", icon: "📋", desc: "Fill in a structured form", pct: "15%" },
+  { type: "briefje", title: "Briefje", icon: "📝", desc: "Short note to colleague/family", pct: "10%" },
+];
+
+function scoreColor(score: number) {
+  if (score >= 80) return "text-green-600";
+  if (score >= 60) return "text-yellow-600";
+  return "text-red-600";
+}
+
+function scoreBg(score: number) {
+  if (score >= 80) return "bg-green-50 border-green-200";
+  if (score >= 60) return "bg-yellow-50 border-yellow-200";
+  return "bg-red-50 border-red-200";
+}
+
+function taskTypeLabel(t: string) {
+  if (t === "email") return "Email";
+  if (t === "kort_verhaal") return "Kort verhaal";
+  if (t === "formulier") return "Formulier";
+  if (t === "briefje") return "Briefje";
+  return t;
+}
 
 export default function MockExam() {
   const nav = useNavigate();
-  const { state: s, set, reset } = useMockExamState();
-  const [speakingExams, setSpeakingExams] = useState<MockExamSummary[]>([]);
-  const [sprekenExams, setSprekenExams] = useState<SprekenExamSummary[]>([]);
+  const { setActive } = useMockExamState();
 
+  const [phase, setPhase] = useState<Phase>("menu");
+  const [error, setError] = useState("");
+
+  // Schrijven sub-menu
+  const [schrijvenMode, setSchrijvenMode] = useState<SchrijvenMode>("ai");
+
+  // Real exam state
+  const [realExams, setRealExams] = useState<SchrijvenExamSummary[]>([]);
+  const [realExam, setRealExam] = useState<SchrijvenExamDetail | null>(null);
+  const [realTaskIndex, setRealTaskIndex] = useState(0);
+  const [realResults, setRealResults] = useState<{ task: SchrijvenExamTask; feedback: WritingFeedback | null; score: number }[]>([]);
+  const [realUserTexts, setRealUserTexts] = useState<string[]>([]);
+
+  // AI single task state
+  const [aiPrompt, setAiPrompt] = useState<WritingPrompt | null>(null);
+  const [aiFeedback, setAiFeedback] = useState<WritingFeedback | null>(null);
+
+  // Shared writing state
+  const [userText, setUserText] = useState("");
+  const [formAnswers, setFormAnswers] = useState<Record<string, string>>({});
+  const [showEn, setShowEn] = useState(false);
+  const startTimeRef = useRef(0);
+
+  const wordCount = userText.trim() ? userText.trim().split(/\s+/).length : 0;
+
+  // Guard: mark active when not on menu
   useEffect(() => {
-    if (s.loaded) return;
-    getExamSession()
-      .then((data) => set((p) => ({ ...p, examData: data, loaded: true })))
-      .catch(() => set((p) => ({ ...p, loaded: true })));
-    getMockExams().then(setSpeakingExams).catch(() => {});
-    getSprekenExams().then(setSprekenExams).catch(() => {});
-  }, [s.loaded]);
+    setActive(phase !== "menu");
+  }, [phase, setActive]);
 
-  function startFull() {
-    if (!s.examData) return;
-    const queue = [...s.examData.sections];
-    launchSection(queue[0], queue.slice(1), "full", {});
+  function goMenu() {
+    setPhase("menu");
+    setError("");
   }
 
-  function startSingle(section: SectionInfo) {
-    launchSection(section, [], "single", {});
-  }
+  // ── Real exam handlers ──
 
-  function launchSection(
-    section: SectionInfo,
-    remaining: SectionInfo[],
-    mode: "full" | "single",
-    scores: Record<string, number | null>,
-  ) {
-    set((p) => ({
-      ...p,
-      activeSection: section,
-      timerExpired: false,
-      sectionQueue: remaining,
-      phase: "section",
-      mode,
-      scores,
-      questions: [],
-      questionIndex: 0,
-      answers: {},
-      gradedItems: [],
-      sectionScore: null,
-      loadingQuestions: true,
-    }));
-    getExamQuestions(section.code)
-      .then((qs) => set((p) => ({ ...p, questions: qs, loadingQuestions: false })))
-      .catch(() => set((p) => ({ ...p, loadingQuestions: false })));
-  }
-
-  function setAnswer(questionId: string, answer: string) {
-    set((p) => ({ ...p, answers: { ...p.answers, [questionId]: answer } }));
-  }
-
-  async function submitSection() {
-    if (!s.activeSection) return;
-    set((p) => ({ ...p, submitting: true }));
-    const answerList = s.questions.map((q) => ({
-      question_id: q.id,
-      answer: s.answers[q.id] ?? "",
-    }));
+  const loadRealExams = useCallback(async () => {
+    setError("");
     try {
-      const result = await gradeExamSection(s.activeSection.code, answerList);
-      set((p) => ({
-        ...p,
-        gradedItems: result.items,
-        sectionScore: result.score_pct,
-        phase: "section_review",
-        submitting: false,
-      }));
-    } catch {
-      set((p) => ({ ...p, submitting: false }));
+      const exams = await getSchrijvenExams();
+      setRealExams(exams);
+      setPhase("schrijven_real_list");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to load exams");
     }
-  }
+  }, []);
 
-  function nextAfterReview() {
-    if (!s.activeSection) return;
-    const newScores = { ...s.scores, [s.activeSection.code]: s.sectionScore };
-    if (s.mode === "full" && s.sectionQueue.length > 0) {
-      launchSection(s.sectionQueue[0], s.sectionQueue.slice(1), s.mode, newScores);
-    } else {
-      finishExam(newScores);
-    }
-  }
-
-  async function finishExam(finalScores: Record<string, number | null>) {
-    set((p) => ({ ...p, submitting: true }));
+  async function startRealExam(examId: string) {
+    setError("");
     try {
-      const r = await submitExam("official", finalScores);
-      set((p) => ({ ...p, finalResult: r, phase: "results", submitting: false }));
-    } catch {
-      set((p) => ({ ...p, phase: "results", submitting: false }));
+      const exam = await getSchrijvenExamDetail(examId);
+      setRealExam(exam);
+      setRealTaskIndex(0);
+      setRealResults([]);
+      setRealUserTexts(exam.tasks.map(() => ""));
+      setUserText("");
+      setFormAnswers({});
+      startTimeRef.current = Date.now();
+      setPhase("schrijven_real_exam");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to load exam");
     }
   }
 
-  // ── Menu ──
-  if (s.phase === "menu") {
+  function realCurrentTask(): SchrijvenExamTask | null {
+    return realExam?.tasks[realTaskIndex] ?? null;
+  }
+
+  async function submitRealTask() {
+    const task = realCurrentTask();
+    if (!task || !realExam) return;
+
+    const duration = Math.round((Date.now() - startTimeRef.current) / 1000);
+    setError("");
+
+    const promptObj: WritingPrompt = {
+      task_type: task.task_type,
+      topic: task.title,
+      situation_nl: task.situation_nl,
+      situation_en: task.situation_en,
+      recipient: task.recipient,
+      bullet_points: task.bullet_points,
+      topic_nl: task.situation_nl,
+      topic_en: task.situation_en,
+      guiding_questions: task.guiding_questions,
+      form_title_nl: task.form_title_nl,
+      form_title_en: task.form_title_en,
+      fields: task.fields,
+      model_answer: task.model_answer,
+      model_answers: task.model_answers,
+    };
+
+    const responseText = task.task_type === "formulier"
+      ? JSON.stringify(formAnswers, null, 2)
+      : userText;
+
+    // Show submitting state by disabling button (reuse phase)
+    try {
+      const res = await submitWriting({
+        task_type: task.task_type,
+        prompt: promptObj,
+        response_text: responseText,
+        duration_seconds: duration,
+      });
+
+      setRealResults(prev => [...prev, { task, feedback: res.feedback, score: res.score_pct }]);
+      setRealUserTexts(prev => { const a = [...prev]; a[realTaskIndex] = responseText; return a; });
+
+      if (realTaskIndex < realExam.tasks.length - 1) {
+        setRealTaskIndex(prev => prev + 1);
+        setUserText("");
+        setFormAnswers({});
+        startTimeRef.current = Date.now();
+        setPhase("schrijven_real_exam");
+      } else {
+        setPhase("schrijven_real_review");
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to submit");
+    }
+  }
+
+  // ── AI task handlers ──
+
+  async function startAITask(taskType: AITaskType) {
+    setPhase("schrijven_ai_loading");
+    setError("");
+    setUserText("");
+    setFormAnswers({});
+    setAiFeedback(null);
+    setShowEn(false);
+    try {
+      const data = await generateWritingPrompt(taskType);
+      setAiPrompt(data);
+      startTimeRef.current = Date.now();
+      setPhase("schrijven_ai_writing");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to generate prompt");
+      setPhase("schrijven_ai_pick");
+    }
+  }
+
+  async function submitAITask() {
+    if (!aiPrompt) return;
+    setPhase("schrijven_ai_submitting");
+    setError("");
+
+    const duration = Math.round((Date.now() - startTimeRef.current) / 1000);
+    const responseText = aiPrompt.task_type === "formulier"
+      ? JSON.stringify(formAnswers, null, 2)
+      : userText;
+
+    try {
+      const res = await submitWriting({
+        task_type: aiPrompt.task_type,
+        prompt: aiPrompt,
+        response_text: responseText,
+        duration_seconds: duration,
+      });
+      setAiFeedback(res.feedback);
+      setPhase("schrijven_ai_review");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to submit");
+      setPhase("schrijven_ai_writing");
+    }
+  }
+
+  // ── RENDER: Menu ──
+
+  if (phase === "menu") {
     return (
       <div className="max-w-lg mx-auto space-y-6">
         <h2 className="text-xl font-bold">Mock Exam — Inburgeringsexamen A2</h2>
+        <p className="text-sm text-slate-500">Choose a section to practice</p>
 
-        <button
-          onClick={startFull}
-          disabled={!s.examData}
-          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 shadow-md disabled:opacity-50"
-        >
-          Start full exam (all 5 sections)
-        </button>
-
-        <div>
-          <p className="text-sm font-medium mb-2">Or practice a single section</p>
-          <div className="space-y-2">
-            {s.examData?.sections.map((sec) => (
+        <div className="grid grid-cols-1 gap-3">
+          {SECTION_CARDS.map((sec) => {
+            const isSchrijven = sec.code === "SC";
+            const comingSoon = !isSchrijven;
+            return (
               <button
                 key={sec.code}
-                onClick={() => startSingle(sec)}
-                className="w-full flex justify-between items-center bg-white border border-slate-200 rounded-2xl px-4 py-3 hover:shadow-md cursor-pointer transition-all"
+                onClick={() => {
+                  if (isSchrijven) {
+                    setPhase("schrijven");
+                  }
+                }}
+                disabled={comingSoon}
+                className={`w-full flex items-center gap-4 bg-white border rounded-2xl px-5 py-4 text-left transition-all ${
+                  comingSoon
+                    ? "opacity-50 cursor-not-allowed border-slate-200"
+                    : "border-slate-200 hover:border-blue-300 hover:shadow-md cursor-pointer"
+                }`}
               >
-                <div>
-                  <span className="font-medium">{sec.label}</span>
-                  <span className="text-xs text-slate-400 ml-2">{sec.question_count} questions</span>
+                <span className="text-3xl">{sec.icon}</span>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-lg">{sec.label}</span>
+                    {comingSoon && (
+                      <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded">Coming soon</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-slate-500">{sec.desc}</p>
                 </div>
-                <span className="text-sm text-slate-400">{sec.default_minutes} min</span>
+                {!comingSoon && <span className="text-slate-400">→</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // ── RENDER: Schrijven sub-menu ──
+
+  if (phase === "schrijven") {
+    return (
+      <div className="max-w-lg mx-auto space-y-6">
+        <div className="flex items-center gap-3">
+          <button onClick={goMenu} className="text-sm text-slate-500 hover:text-slate-700">&larr; Back</button>
+          <h2 className="text-xl font-bold">✏️ Schrijven</h2>
+        </div>
+
+        {/* Toggle */}
+        <div className="flex bg-slate-100 rounded-xl p-1">
+          <button
+            onClick={() => setSchrijvenMode("ai")}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+              schrijvenMode === "ai" ? "bg-white shadow text-blue-700" : "text-slate-500"
+            }`}
+          >
+            AI Generated
+          </button>
+          <button
+            onClick={() => setSchrijvenMode("real")}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+              schrijvenMode === "real" ? "bg-white shadow text-purple-700" : "text-slate-500"
+            }`}
+          >
+            Real Exams
+          </button>
+        </div>
+
+        {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
+
+        {schrijvenMode === "ai" ? (
+          <div className="space-y-3">
+            <p className="text-sm text-slate-500">Choose a task type. AI will generate a unique prompt for you.</p>
+            {AI_TASK_CARDS.map((card) => (
+              <button
+                key={card.type}
+                onClick={() => startAITask(card.type)}
+                className="w-full flex items-center gap-4 bg-white border border-slate-200 rounded-2xl px-5 py-4 text-left hover:border-blue-300 hover:shadow-md transition-all"
+              >
+                <span className="text-2xl">{card.icon}</span>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">{card.title}</span>
+                    <span className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">{card.pct}</span>
+                  </div>
+                  <p className="text-sm text-slate-500">{card.desc}</p>
+                </div>
               </button>
             ))}
           </div>
-        </div>
-
-        {/* Speaking Mock Exams */}
-        {speakingExams.length > 0 && (
-          <div>
-            <p className="text-sm font-medium mb-2">Speaking practice exams (real DUO questions)</p>
-            <div className="space-y-2">
-              {speakingExams.map((e) => (
-                <button
-                  key={e.id}
-                  onClick={() => nav(`/study/speaking?mock=${e.id}`)}
-                  className="w-full flex justify-between items-center bg-white border border-slate-200 rounded-2xl px-4 py-3 hover:shadow-md cursor-pointer transition-all"
-                >
-                  <div>
-                    <span className="font-medium">{e.title}</span>
-                    <span className="text-xs text-slate-400 ml-2">{e.short_count} short + {e.long_count} long</span>
-                  </div>
-                  <span className="text-sm text-slate-400">~35 min</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Spreken Exam (official DUO format) */}
-        {sprekenExams.length > 0 && (
-          <div>
-            <p className="text-sm font-medium mb-2">Spreken A2 oefenexamen (official DUO format)</p>
-            <div className="space-y-2">
-              {sprekenExams.map((e) => (
-                <button
-                  key={e.id}
-                  onClick={() => nav(`/study/speaking?spreken=${e.id}`)}
-                  className="w-full flex justify-between items-center bg-white border border-slate-200 rounded-2xl px-4 py-3 hover:shadow-md cursor-pointer transition-all"
-                >
-                  <div>
-                    <span className="font-medium">{e.title}</span>
-                    <span className="text-xs text-slate-400 ml-2">{e.onderdeel_count} onderdelen · {e.question_count} vragen</span>
-                  </div>
-                  <span className="text-sm text-slate-400">~35 min</span>
-                </button>
-              ))}
-            </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-slate-500">Take a full official DUO writing exam — 4 tasks just like the real test.</p>
+            <button
+              onClick={loadRealExams}
+              className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl p-4 text-left hover:from-purple-700 hover:to-indigo-700 transition-colors font-medium"
+            >
+              Load Official Exams
+            </button>
           </div>
         )}
       </div>
     );
   }
 
-  // ── Active section (answering questions) ──
-  if (s.phase === "section" && s.activeSection) {
-    const sec = s.activeSection;
-    const seconds = sec.default_minutes * 60;
-    const q = s.questions[s.questionIndex];
-    const total = s.questions.length;
-    const isLast = s.questionIndex >= total - 1;
+  // ── RENDER: Real exam list ──
 
+  if (phase === "schrijven_real_list") {
     return (
-      <div className="max-w-lg mx-auto">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="font-semibold">{sec.label}</p>
-            <p className="text-xs text-slate-400">
-              {total > 0 ? `Question ${s.questionIndex + 1} / ${total}` : "Loading..."}
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Timer
-              initialSeconds={seconds}
-              onExpired={() => set((p) => ({ ...p, timerExpired: true }))}
-            />
-            <button onClick={reset} className="text-xs text-slate-400 hover:text-red-500">Exit</button>
-          </div>
+      <div className="max-w-lg mx-auto space-y-6">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setPhase("schrijven")} className="text-sm text-slate-500 hover:text-slate-700">&larr; Back</button>
+          <h2 className="text-xl font-bold">Oefenexamens Schrijven</h2>
         </div>
-
-        {/* Progress bar */}
-        {total > 0 && (
-          <div className="w-full bg-slate-200 rounded-full h-1.5 mb-6">
-            <div
-              className="bg-blue-500 h-1.5 rounded-full transition-all"
-              style={{ width: `${((s.questionIndex) / total) * 100}%` }}
-            />
-          </div>
-        )}
-
-        {s.loadingQuestions && <p className="text-slate-400 text-sm text-center py-8">Loading questions...</p>}
-
-        {q && <QuestionCard question={q} answer={s.answers[q.id] ?? ""} onAnswer={(a) => setAnswer(q.id, a)} />}
-
-        {q && (
-          <div className="flex gap-2 mt-4">
-            {s.questionIndex > 0 && (
-              <button
-                onClick={() => set((p) => ({ ...p, questionIndex: p.questionIndex - 1 }))}
-                className="flex-1 border border-slate-300 py-2.5 rounded-xl text-sm hover:bg-slate-50"
-              >
-                Previous
-              </button>
-            )}
-            {!isLast ? (
-              <button
-                onClick={() => set((p) => ({ ...p, questionIndex: p.questionIndex + 1 }))}
-                className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2.5 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700"
-              >
-                Next
-              </button>
-            ) : (
-              <button
-                onClick={submitSection}
-                disabled={s.submitting}
-                className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white py-2.5 rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 disabled:opacity-50"
-              >
-                {s.submitting ? "Grading..." : "Submit Section"}
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // ── Section review (graded) ──
-  if (s.phase === "section_review" && s.activeSection) {
-    const sec = s.activeSection;
-    return (
-      <div className="max-w-lg mx-auto space-y-4">
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 text-center">
-          <p className="text-sm text-slate-500">{sec.label}</p>
-          <p className={`text-4xl font-bold mt-1 ${(s.sectionScore ?? 0) >= PASS_SCORE ? "text-green-600" : "text-red-500"}`}>
-            {s.sectionScore}%
-          </p>
-          <p className={`text-sm font-medium mt-1 ${(s.sectionScore ?? 0) >= PASS_SCORE ? "text-green-600" : "text-red-500"}`}>
-            {(s.sectionScore ?? 0) >= PASS_SCORE ? "PASS" : "FAIL"}
-          </p>
-        </div>
-
-        {/* Review each question */}
+        <p className="text-slate-500 text-sm">Each exam has 4 tasks. AI grades each one individually.</p>
+        {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
         <div className="space-y-3">
-          {s.gradedItems.map((item, i) => {
-            const q = s.questions.find((qq) => qq.id === item.question_id);
-            return (
-              <div key={item.question_id} className={`bg-white rounded-2xl border p-4 ${item.correct ? "border-green-200" : "border-red-200"}`}>
-                <div className="flex items-start gap-2 mb-2">
-                  <span className={`text-sm font-bold ${item.correct ? "text-green-600" : "text-red-500"}`}>
-                    {item.correct ? "\u2713" : "\u2717"}
+          {realExams.map((exam) => (
+            <button
+              key={exam.id}
+              onClick={() => startRealExam(exam.id)}
+              className="w-full bg-white rounded-xl border p-5 text-left hover:border-purple-300 hover:bg-purple-50 transition-colors"
+            >
+              <h3 className="font-semibold text-lg">{exam.title}</h3>
+              <div className="flex gap-3 mt-2 text-xs text-slate-500">
+                <span>{exam.task_count} opgaven</span>
+                {Object.entries(exam.task_types).map(([t, c]) => (
+                  <span key={t} className="bg-slate-100 px-2 py-0.5 rounded">
+                    {taskTypeLabel(t)} x{c}
                   </span>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{q?.question_nl || q?.prompt_nl || q?.situation_nl || `Question ${i + 1}`}</p>
-                    {q?.question_en && <p className="text-xs text-slate-400">{q.question_en}</p>}
-                  </div>
-                </div>
-                {!item.correct && item.correct_answer && q?.options && (
-                  <div className="text-xs space-y-1 ml-6">
-                    <p className="text-red-500">Your answer: {item.user_answer} — {q.options[item.user_answer]}</p>
-                    <p className="text-green-600">Correct: {item.correct_answer} — {q.options[item.correct_answer]}</p>
-                  </div>
-                )}
-                {item.explanation && (
-                  <p className="text-xs text-slate-500 ml-6 mt-1">{item.explanation}</p>
-                )}
+                ))}
               </div>
-            );
-          })}
+            </button>
+          ))}
         </div>
-
-        <button
-          onClick={nextAfterReview}
-          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 shadow-md"
-        >
-          {s.mode === "full" && s.sectionQueue.length > 0
-            ? `Next: ${s.sectionQueue[0].label}`
-            : "See Results"}
-        </button>
       </div>
     );
   }
 
-  // ── Final results ──
-  if (s.phase === "results" && s.finalResult) {
-    const done = Object.values(s.finalResult.scores).filter((v) => v !== null) as number[];
-    const avg = s.finalResult.avg_score ?? 0;
+  // ── RENDER: Real exam — writing a task ──
 
+  if (phase === "schrijven_real_exam" && realExam) {
+    const task = realCurrentTask();
+    if (!task) return null;
     return (
-      <div className="max-w-lg mx-auto space-y-4">
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 text-center">
-          <p className="text-sm text-slate-500">Overall Score</p>
-          <p className={`text-5xl font-bold mt-1 ${avg >= PASS_SCORE ? "text-green-600" : "text-red-500"}`}>{avg}%</p>
-          <p className={`text-lg font-semibold mt-1 ${s.finalResult.passed ? "text-green-600" : "text-red-500"}`}>
-            {s.finalResult.passed ? "PASSED" : "FAILED"}
-          </p>
+      <div className="max-w-2xl mx-auto space-y-5">
+        <div className="flex items-center justify-between">
+          <button onClick={goMenu} className="text-sm text-slate-500 hover:text-slate-700">&larr; Stop exam</button>
+          <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded font-medium">
+            {realExam.title} — Opgave {realTaskIndex + 1}/{realExam.tasks.length}
+          </span>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-2">
-          {s.examData?.sections.map((sec) => {
-            const sc = s.finalResult!.scores[sec.code];
-            if (sc === null || sc === undefined) return null;
-            const pass = sc >= PASS_SCORE;
+        {/* Progress */}
+        <div className="flex gap-1">
+          {realExam.tasks.map((_, i) => (
+            <div key={i} className={`flex-1 h-1.5 rounded-full ${
+              i < realTaskIndex ? "bg-green-400" : i === realTaskIndex ? "bg-purple-500" : "bg-slate-200"
+            }`} />
+          ))}
+        </div>
+
+        <TaskPromptCard task={task} showEn={showEn} onToggleLang={() => setShowEn(!showEn)} />
+
+        <TaskInputArea
+          task={task}
+          userText={userText}
+          onUserText={setUserText}
+          formAnswers={formAnswers}
+          onFormAnswers={setFormAnswers}
+          wordCount={wordCount}
+        />
+
+        {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
+
+        <SubmitButton
+          label={
+            realTaskIndex < realExam.tasks.length - 1
+              ? `Submit & Next (${realTaskIndex + 1}/${realExam.tasks.length})`
+              : "Submit & Finish Exam"
+          }
+          disabled={!canSubmit(task, userText, formAnswers)}
+          onClick={submitRealTask}
+        />
+      </div>
+    );
+  }
+
+  // ── RENDER: Real exam review ──
+
+  if (phase === "schrijven_real_review" && realExam && realResults.length > 0) {
+    const avgScore = Math.round(realResults.reduce((s, r) => s + r.score, 0) / realResults.length);
+    const totalOf6 = realResults.reduce((s, r) => {
+      const cs = r.feedback?.content_score ?? 0;
+      const ls = r.feedback?.language_score ?? 0;
+      return s + cs + ls;
+    }, 0);
+    const maxOf6 = realResults.length * 6;
+
+    return (
+      <div className="max-w-2xl mx-auto space-y-5">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold">{realExam.title}</h1>
+          <p className="text-slate-500 mt-1">Exam Complete</p>
+        </div>
+
+        <div className={`rounded-xl border p-6 text-center ${scoreBg(avgScore)}`}>
+          <p className={`text-5xl font-bold ${scoreColor(avgScore)}`}>{totalOf6}/{maxOf6}</p>
+          <p className="text-sm text-slate-500 mt-1">Total Score ({avgScore}%)</p>
+        </div>
+
+        {/* Per-task scores */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {realResults.map((r, i) => {
+            const cs = r.feedback?.content_score ?? 0;
+            const ls = r.feedback?.language_score ?? 0;
             return (
-              <div key={sec.code} className="flex justify-between text-sm">
-                <span>{sec.label}</span>
-                <span className={`font-semibold ${pass ? "text-green-600" : "text-red-500"}`}>
-                  {sc}% — {pass ? "PASS" : "FAIL"}
-                </span>
+              <div key={i} className="bg-white rounded-lg border p-3 text-center">
+                <p className="text-xs text-slate-500 mb-1">{taskTypeLabel(r.task.task_type)}</p>
+                <p className={`text-2xl font-bold ${scoreColor(r.score)}`}>{cs + ls}/6</p>
+                <p className="text-xs text-slate-400 truncate">{r.task.title}</p>
               </div>
             );
           })}
         </div>
 
-        <div className="flex gap-2">
+        {/* Per-task detail */}
+        {realResults.map((r, i) => (
+          <TaskReviewDetail key={i} index={i} result={r} userText={realUserTexts[i]} />
+        ))}
+
+        <div className="flex gap-3">
           <button
-            onClick={() => nav("/study-material")}
-            className="flex-1 border border-slate-300 py-2 rounded-xl text-sm hover:bg-slate-50"
+            onClick={() => startRealExam(realExam.id)}
+            className="flex-1 border border-purple-600 text-purple-600 py-3 rounded-lg font-medium hover:bg-purple-50"
           >
-            See history
+            Retry
           </button>
           <button
-            onClick={reset}
-            className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 rounded-xl text-sm font-semibold hover:from-blue-700 hover:to-indigo-700"
+            onClick={() => setPhase("schrijven")}
+            className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700"
           >
-            New exam
+            Back to Schrijven
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── RENDER: AI loading ──
+
+  if (phase === "schrijven_ai_loading") {
+    return (
+      <div className="max-w-lg mx-auto text-center py-16">
+        <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4" />
+        <p className="text-slate-500">Generating your writing prompt...</p>
+      </div>
+    );
+  }
+
+  // ── RENDER: AI pick task type ──
+
+  if (phase === "schrijven_ai_pick") {
+    // Re-show the task type picker (after error etc.)
+    setPhase("schrijven");
+    return null;
+  }
+
+  // ── RENDER: AI writing ──
+
+  if ((phase === "schrijven_ai_writing" || phase === "schrijven_ai_submitting") && aiPrompt) {
+    const isFormulier = aiPrompt.task_type === "formulier";
+    const submitting = phase === "schrijven_ai_submitting";
+
+    // Build a pseudo-task from the AI prompt for reuse of TaskPromptCard
+    const pseudoTask: SchrijvenExamTask = {
+      id: "ai",
+      task_type: aiPrompt.task_type as SchrijvenExamTask["task_type"],
+      title: aiPrompt.topic || aiPrompt.topic_nl || "",
+      situation_nl: aiPrompt.situation_nl,
+      situation_en: aiPrompt.situation_en,
+      recipient: aiPrompt.recipient,
+      bullet_points: aiPrompt.bullet_points,
+      guiding_questions: aiPrompt.guiding_questions,
+      form_title_nl: aiPrompt.form_title_nl,
+      form_title_en: aiPrompt.form_title_en,
+      fields: aiPrompt.fields,
+      instructions_nl: aiPrompt.task_type === "briefje"
+        ? "Schrijf een kort briefje. Gebruik de punten hieronder."
+        : aiPrompt.task_type === "email"
+          ? "Schrijf een email. Gebruik de punten hieronder."
+          : aiPrompt.task_type === "formulier"
+            ? "Vul het formulier in."
+            : "Schrijf een kort tekst.",
+      instructions_en: "",
+      model_answer: aiPrompt.model_answer,
+      model_answers: aiPrompt.model_answers,
+      // briefje fields
+      greeting: aiPrompt.greeting,
+      closing: aiPrompt.closing,
+    };
+
+    return (
+      <div className="max-w-2xl mx-auto space-y-5">
+        <div className="flex items-center justify-between">
+          <button onClick={() => setPhase("schrijven")} className="text-sm text-slate-500 hover:text-slate-700">&larr; Back</button>
+          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">
+            AI — {taskTypeLabel(aiPrompt.task_type)}
+          </span>
+        </div>
+
+        <TaskPromptCard task={pseudoTask} showEn={showEn} onToggleLang={() => setShowEn(!showEn)} />
+
+        <TaskInputArea
+          task={pseudoTask}
+          userText={userText}
+          onUserText={setUserText}
+          formAnswers={formAnswers}
+          onFormAnswers={setFormAnswers}
+          wordCount={wordCount}
+        />
+
+        {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
+
+        <SubmitButton
+          label={submitting ? "Grading..." : "Submit"}
+          disabled={submitting || !canSubmit(pseudoTask, userText, formAnswers)}
+          onClick={submitAITask}
+        />
+      </div>
+    );
+  }
+
+  // ── RENDER: AI review ──
+
+  if (phase === "schrijven_ai_review" && aiFeedback && aiPrompt) {
+    const cs = aiFeedback.content_score ?? 0;
+    const ls = aiFeedback.language_score ?? 0;
+    const total6 = cs + ls;
+
+    return (
+      <div className="max-w-2xl mx-auto space-y-5">
+        <div className="text-center">
+          <p className="text-slate-500 text-sm">AI — {taskTypeLabel(aiPrompt.task_type)}</p>
+          <h2 className="text-2xl font-bold mt-1">Your Score</h2>
+        </div>
+
+        <div className={`rounded-xl border p-6 text-center ${scoreBg(aiFeedback.score)}`}>
+          <p className={`text-5xl font-bold ${scoreColor(aiFeedback.score)}`}>{total6}/6</p>
+          <div className="flex justify-center gap-6 mt-3">
+            <div>
+              <p className="text-2xl font-bold">{cs}/3</p>
+              <p className="text-xs text-slate-500">Content</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{ls}/3</p>
+              <p className="text-xs text-slate-500">Language</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Content checklist */}
+        <ContentChecklist items={aiFeedback.content_checklist} />
+
+        {/* Feedback */}
+        {aiFeedback.feedback_nl && (
+          <div className="bg-blue-50 rounded-xl p-4 text-sm">{aiFeedback.feedback_nl}</div>
+        )}
+
+        {/* Grammar errors */}
+        <GrammarErrorList errors={aiFeedback.grammar_errors} />
+
+        {/* Your text vs improved */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <p className="text-xs text-slate-400 mb-1 font-medium">Your text</p>
+            <div className="bg-slate-50 rounded-lg p-3 text-sm whitespace-pre-wrap text-slate-700">{userText || "—"}</div>
+          </div>
+          {aiFeedback.improved_answer && (
+            <div>
+              <p className="text-xs text-slate-400 mb-1 font-medium">Improved version</p>
+              <div className="bg-green-50 rounded-lg p-3 text-sm whitespace-pre-wrap">{aiFeedback.improved_answer}</div>
+            </div>
+          )}
+        </div>
+
+        {/* Model answer */}
+        {aiPrompt.model_answer && (
+          <details className="text-sm">
+            <summary className="cursor-pointer text-blue-600 hover:underline text-xs">Show model answer</summary>
+            <div className="mt-2 bg-blue-50 rounded-lg p-3 whitespace-pre-wrap">{aiPrompt.model_answer}</div>
+          </details>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            onClick={() => startAITask(aiPrompt.task_type as AITaskType)}
+            className="flex-1 border border-blue-600 text-blue-600 py-3 rounded-lg font-medium hover:bg-blue-50"
+          >
+            Try Again
+          </button>
+          <button
+            onClick={() => setPhase("schrijven")}
+            className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700"
+          >
+            Back to Schrijven
           </button>
         </div>
       </div>
@@ -373,117 +660,253 @@ export default function MockExam() {
   return null;
 }
 
-// ── Question rendering ──
+// ── Shared Components ──
 
-function QuestionCard({
-  question: q,
-  answer,
-  onAnswer,
+function canSubmit(task: SchrijvenExamTask, userText: string, formAnswers: Record<string, string>): boolean {
+  if (task.task_type === "formulier") {
+    const total = task.fields?.length ?? 0;
+    const filled = task.fields?.filter(f => (formAnswers[f.label_nl] || "").trim()).length ?? 0;
+    return filled >= Math.max(1, Math.ceil(total * 0.5));
+  }
+  return userText.trim().split(/\s+/).length >= 3;
+}
+
+function TaskPromptCard({ task, showEn, onToggleLang }: { task: SchrijvenExamTask; showEn: boolean; onToggleLang: () => void }) {
+  return (
+    <div className="bg-white rounded-xl border p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{taskTypeLabel(task.task_type)}</span>
+        <h3 className="font-semibold">{task.title}</h3>
+      </div>
+
+      {task.situation_nl && <p className="text-sm">{showEn ? task.situation_en : task.situation_nl}</p>}
+
+      {task.bullet_points && (
+        <ul className="list-disc ml-5 space-y-1 text-sm">
+          {task.bullet_points.map((bp, i) => (
+            <li key={i}>{showEn ? bp.en : bp.nl}</li>
+          ))}
+        </ul>
+      )}
+
+      {task.guiding_questions && (
+        <ul className="list-disc ml-5 space-y-1 text-sm">
+          {task.guiding_questions.map((q, i) => (
+            <li key={i}>{showEn ? q.en : q.nl}</li>
+          ))}
+        </ul>
+      )}
+
+      {task.task_type === "formulier" && task.form_title_nl && (
+        <p className="text-sm font-medium">{showEn ? task.form_title_en : task.form_title_nl}</p>
+      )}
+
+      {task.instructions_nl && (
+        <p className="text-xs text-slate-500 italic">{showEn ? task.instructions_en : task.instructions_nl}</p>
+      )}
+
+      <button onClick={onToggleLang} className="text-xs text-blue-600 hover:underline">
+        {showEn ? "Show Dutch" : "Show English"}
+      </button>
+    </div>
+  );
+}
+
+function TaskInputArea({
+  task,
+  userText,
+  onUserText,
+  formAnswers,
+  onFormAnswers,
+  wordCount,
 }: {
-  question: ExamQuestion;
-  answer: string;
-  onAnswer: (a: string) => void;
+  task: SchrijvenExamTask;
+  userText: string;
+  onUserText: (v: string) => void;
+  formAnswers: Record<string, string>;
+  onFormAnswers: (v: Record<string, string>) => void;
+  wordCount: number;
 }) {
-  const sec = q.section;
-
-  // MC sections: LZ, LU, KNM
-  if (sec === "LZ" || sec === "LU" || sec === "KNM") {
+  if (task.task_type === "formulier") {
+    const total = task.fields?.length ?? 0;
+    const filled = task.fields?.filter(f => (formAnswers[f.label_nl] || "").trim()).length ?? 0;
     return (
-      <div className="bg-white rounded-2xl border border-slate-200 shadow p-6 space-y-4">
-        {/* Reading passage */}
-        {q.text_nl && (
-          <div className="bg-slate-50 rounded-xl p-4">
-            <p className="text-sm leading-relaxed">{q.text_nl}</p>
-          </div>
-        )}
-        {/* Listening scenario */}
-        {q.scenario_nl && (
-          <div className="bg-blue-50 rounded-xl p-4">
-            <p className="text-xs font-semibold text-blue-600 uppercase mb-1">Scenario</p>
-            <p className="text-sm leading-relaxed">{q.scenario_nl}</p>
-          </div>
-        )}
-        {/* Question */}
-        <p className="font-medium">{q.question_nl}</p>
-        {q.question_en && <p className="text-xs text-slate-400 -mt-2">{q.question_en}</p>}
-        {/* Options */}
-        {q.options && (
-          <div className="space-y-2">
-            {Object.entries(q.options).map(([key, val]) => (
-              <button
-                key={key}
-                onClick={() => onAnswer(key)}
-                className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition-all ${
-                  answer === key
-                    ? "border-blue-500 bg-blue-50 font-medium"
-                    : "border-slate-200 hover:border-slate-300"
-                }`}
+      <div className="bg-white rounded-xl border p-5 space-y-4">
+        {task.fields?.map((field, i) => (
+          <div key={i}>
+            <label className="block text-sm font-medium mb-1">
+              {field.label_nl}
+              <span className="text-slate-400 font-normal ml-1">({field.label_en})</span>
+            </label>
+            {field.field_type === "select" && field.options ? (
+              <select
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+                value={formAnswers[field.label_nl] || ""}
+                onChange={(e) => onFormAnswers({ ...formAnswers, [field.label_nl]: e.target.value })}
               >
-                <span className="font-semibold mr-2">{key}.</span>
-                {val}
-              </button>
-            ))}
+                <option value="">-- Kies --</option>
+                {field.options.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            ) : field.field_type === "textarea" ? (
+              <textarea
+                className="w-full border rounded-lg px-3 py-2 text-sm min-h-[80px]"
+                placeholder={field.placeholder || ""}
+                value={formAnswers[field.label_nl] || ""}
+                onChange={(e) => onFormAnswers({ ...formAnswers, [field.label_nl]: e.target.value })}
+              />
+            ) : (
+              <input
+                type="text"
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+                placeholder={field.placeholder || ""}
+                value={formAnswers[field.label_nl] || ""}
+                onChange={(e) => onFormAnswers({ ...formAnswers, [field.label_nl]: e.target.value })}
+              />
+            )}
           </div>
-        )}
+        ))}
+        <p className="text-xs text-slate-400">{filled}/{total} fields filled</p>
       </div>
     );
   }
 
-  // Writing section
-  if (sec === "SC") {
-    return (
-      <div className="bg-white rounded-2xl border border-slate-200 shadow p-6 space-y-4">
-        <div className="bg-amber-50 rounded-xl p-4">
-          <p className="text-xs font-semibold text-amber-600 uppercase mb-1">Situation</p>
-          <p className="text-sm">{q.prompt_nl}</p>
-          {q.prompt_en && <p className="text-xs text-slate-400 mt-1">{q.prompt_en}</p>}
-        </div>
-        <p className="font-medium text-sm">{q.task_nl}</p>
-        {q.task_en && <p className="text-xs text-slate-400 -mt-2">{q.task_en}</p>}
-        <textarea
-          value={answer}
-          onChange={(e) => onAnswer(e.target.value)}
-          placeholder="Schrijf hier je antwoord..."
-          rows={5}
-          className="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
-        />
-      </div>
-    );
-  }
+  return (
+    <div className="bg-white rounded-xl border p-5 space-y-2">
+      {task.greeting && <p className="text-sm text-slate-500 italic">{task.greeting}</p>}
+      {task.starter_text && <p className="text-sm text-slate-500 italic">{task.starter_text}</p>}
+      <textarea
+        className="w-full border rounded-lg px-4 py-3 text-sm min-h-[200px] focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none"
+        placeholder={
+          task.task_type === "email" || task.task_type === "briefje"
+            ? "Beste ...,\n\n\n\nMet vriendelijke groet,\n..."
+            : "Schrijf hier je tekst..."
+        }
+        value={userText}
+        onChange={(e) => onUserText(e.target.value)}
+        autoFocus
+      />
+      {task.closing && <p className="text-sm text-slate-500 italic">{task.closing}</p>}
+      <p className="text-xs text-slate-400">{wordCount} words</p>
+    </div>
+  );
+}
 
-  // Speaking section
-  if (sec === "SP") {
-    return (
-      <div className="bg-white rounded-2xl border border-slate-200 shadow p-6 space-y-4">
-        <div className="bg-purple-50 rounded-xl p-4">
-          <p className="text-xs font-semibold text-purple-600 uppercase mb-1">Situation</p>
-          <p className="text-sm">{q.situation_nl}</p>
-          {q.situation_en && <p className="text-xs text-slate-400 mt-1">{q.situation_en}</p>}
-        </div>
-        {q.expected_phrases && (
+function SubmitButton({ label, disabled, onClick }: { label: string; disabled: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full bg-purple-600 text-white py-3 rounded-lg font-medium hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed"
+    >
+      {label}
+    </button>
+  );
+}
+
+function ContentChecklist({ items }: { items?: ContentChecklistItem[] }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <div className="bg-white rounded-xl border p-4 space-y-2">
+      <p className="text-xs font-medium text-slate-500">Content Checklist</p>
+      {items.map((item, i) => (
+        <div key={i} className="flex items-start gap-2 text-sm">
+          <span className={item.addressed ? "text-green-600" : "text-red-500"}>
+            {item.addressed ? "✅" : "❌"}
+          </span>
           <div>
-            <p className="text-xs text-slate-500 mb-1">Expected phrases to use:</p>
-            <div className="flex flex-wrap gap-1">
-              {q.expected_phrases.map((p, i) => (
-                <span key={i} className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">{p}</span>
-              ))}
+            <span>{item.point_nl}</span>
+            {item.point_en && <span className="text-slate-400 ml-1">({item.point_en})</span>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function GrammarErrorList({ errors }: { errors: WritingGrammarError[] }) {
+  if (!errors || errors.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium text-slate-500">Grammar Errors ({errors.length})</p>
+      {errors.map((err, i) => (
+        <div key={i} className="bg-red-50 rounded-lg p-3 text-sm space-y-1">
+          <p><span className="line-through text-red-600">{err.text}</span></p>
+          <p><span className="text-green-700">{err.correction}</span></p>
+          {err.rule_nl && <p className="text-xs text-slate-600">📏 {err.rule_nl}</p>}
+          {err.explanation_zh && <p className="text-xs text-slate-500">💡 {err.explanation_zh}</p>}
+          {!err.rule_nl && err.explanation_en && <p className="text-xs text-slate-500">{err.explanation_en}</p>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TaskReviewDetail({
+  index,
+  result,
+  userText,
+}: {
+  index: number;
+  result: { task: SchrijvenExamTask; feedback: WritingFeedback | null; score: number };
+  userText: string;
+}) {
+  const r = result;
+  const cs = r.feedback?.content_score ?? 0;
+  const ls = r.feedback?.language_score ?? 0;
+
+  return (
+    <details className="bg-white rounded-xl border">
+      <summary className="p-4 cursor-pointer flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">Opgave {index + 1}</span>
+          <span className="font-medium">{r.task.title}</span>
+        </div>
+        <span className={`font-bold ${scoreColor(r.score)}`}>{cs + ls}/6</span>
+      </summary>
+      <div className="px-4 pb-4 space-y-3 border-t">
+        {r.feedback && (
+          <div className="grid grid-cols-2 gap-2 pt-3">
+            <div className="text-center">
+              <p className={`text-lg font-bold ${scoreColor(Math.round(cs / 3 * 100))}`}>{cs}/3</p>
+              <p className="text-xs text-slate-500">Content</p>
+            </div>
+            <div className="text-center">
+              <p className={`text-lg font-bold ${scoreColor(Math.round(ls / 3 * 100))}`}>{ls}/3</p>
+              <p className="text-xs text-slate-500">Language</p>
             </div>
           </div>
         )}
-        <p className="text-xs text-slate-400">Speaking practice — say your response out loud, then mark as done.</p>
-        <button
-          onClick={() => onAnswer("done")}
-          className={`w-full py-3 rounded-xl text-sm font-medium transition-all ${
-            answer === "done"
-              ? "bg-green-100 text-green-700 border border-green-300"
-              : "border border-slate-200 hover:bg-slate-50"
-          }`}
-        >
-          {answer === "done" ? "\u2713 Done" : "Mark as done"}
-        </button>
-      </div>
-    );
-  }
 
-  return null;
+        <ContentChecklist items={r.feedback?.content_checklist} />
+
+        {r.feedback?.feedback_nl && (
+          <p className="text-sm">{r.feedback.feedback_nl}</p>
+        )}
+
+        <GrammarErrorList errors={r.feedback?.grammar_errors ?? []} />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <p className="text-xs text-slate-400 mb-1 font-medium">Your text</p>
+            <div className="bg-slate-50 rounded-lg p-2 text-sm whitespace-pre-wrap text-slate-700">{userText || "—"}</div>
+          </div>
+          {r.feedback?.improved_answer && (
+            <div>
+              <p className="text-xs text-slate-400 mb-1 font-medium">Improved version</p>
+              <div className="bg-green-50 rounded-lg p-2 text-sm whitespace-pre-wrap">{r.feedback.improved_answer}</div>
+            </div>
+          )}
+        </div>
+
+        {r.task.model_answer && (
+          <details className="text-sm">
+            <summary className="cursor-pointer text-blue-600 hover:underline text-xs">Show model answer</summary>
+            <div className="mt-2 bg-blue-50 rounded-lg p-2 whitespace-pre-wrap">{r.task.model_answer}</div>
+          </details>
+        )}
+      </div>
+    </details>
+  );
 }

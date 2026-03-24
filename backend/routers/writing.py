@@ -22,7 +22,7 @@ router = APIRouter(prefix="/writing", tags=["writing"])
 # ── Generate ─────────────────────────────────────────────────────────────────
 
 
-VALID_TASK_TYPES = ("email", "kort_verhaal", "formulier", "error_correction")
+VALID_TASK_TYPES = ("email", "kort_verhaal", "formulier", "briefje", "error_correction")
 
 
 class GenerateRequest(BaseModel):
@@ -76,20 +76,35 @@ class SubmitRequest(BaseModel):
     duration_seconds: int | None = None
 
 
+class ContentChecklistItem(BaseModel):
+    point_nl: str = ""
+    point_en: str = ""
+    addressed: bool = False
+
+
 class GrammarError(BaseModel):
     text: str
     correction: str
-    category: str
-    explanation_en: str
+    # New fields
+    rule_nl: str = ""
+    explanation_zh: str = ""
+    # Legacy fields (backward compat)
+    category: str = ""
+    explanation_en: str = ""
 
 
 class WritingFeedback(BaseModel):
     score: int
-    grammar_score: int
-    completeness_score: int
+    # New 6-point fields
+    content_score: int = 0
+    language_score: int = 0
+    content_checklist: list[ContentChecklistItem] = []
+    # Legacy fields (backward compat)
+    grammar_score: int = 0
+    completeness_score: int = 0
     grammar_errors: list[GrammarError]
     feedback_nl: str
-    feedback_en: str
+    feedback_en: str = ""
     improved_answer: str
 
 
@@ -128,7 +143,7 @@ def submit(
     db: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
-    task_type = req.task_type if req.task_type in ("email", "kort_verhaal", "formulier") else "email"
+    task_type = req.task_type if req.task_type in ("email", "kort_verhaal", "formulier", "briefje") else "email"
 
     try:
         feedback = review_writing(task_type, req.prompt, req.response_text)
@@ -162,10 +177,21 @@ def submit(
         GrammarError(
             text=e.get("text", ""),
             correction=e.get("correction", ""),
+            rule_nl=e.get("rule_nl", ""),
+            explanation_zh=e.get("explanation_zh", ""),
             category=e.get("category", "other"),
             explanation_en=e.get("explanation_en", ""),
         )
         for e in feedback.get("grammar_errors", [])
+    ]
+
+    content_checklist = [
+        ContentChecklistItem(
+            point_nl=c.get("point_nl", ""),
+            point_en=c.get("point_en", ""),
+            addressed=c.get("addressed", False),
+        )
+        for c in feedback.get("content_checklist", [])
     ]
 
     return SubmitResponse(
@@ -173,6 +199,9 @@ def submit(
         score_pct=score_pct,
         feedback=WritingFeedback(
             score=feedback.get("score", 0),
+            content_score=feedback.get("content_score", 0),
+            language_score=feedback.get("language_score", 0),
+            content_checklist=content_checklist,
             grammar_score=feedback.get("grammar_score", 0),
             completeness_score=feedback.get("completeness_score", 0),
             grammar_errors=grammar_errors,
