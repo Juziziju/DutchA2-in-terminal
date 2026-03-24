@@ -1112,6 +1112,55 @@ export function getSprekenQuestionAudio(examId: string, questionId: string) {
   return request<{ audio_file: string }>("GET", `/speaking/spreken-tts/${examId}/${questionId}`);
 }
 
+export function generateSprekenPrompt(promptType: "afbeelding" | "persoonlijk") {
+  return request<SprekenVraag>("POST", "/speaking/generate-spreken-prompt", { prompt_type: promptType });
+}
+
+export interface MockexamSpeakingFeedback {
+  score: number;
+  content_score: number;
+  grammar_score: number;
+  grammar_errors: { wrong: string; correct: string; explanation_nl: string; explanation_zh: string }[];
+  feedback_nl: string;
+  improved_answer: string;
+}
+
+export async function submitMockexamSpeaking(
+  audio: Blob,
+  scene: string,
+  questionId: string,
+  questionType: string,
+  mode: string,
+  promptNl: string,
+  promptEn: string,
+  expectedPhrases: string[],
+  modelAnswer: string,
+): Promise<SpeakingSubmitResponse> {
+  const token = getToken();
+  const form = new FormData();
+  form.append("audio", audio, "recording.webm");
+  form.append("scene", scene);
+  form.append("question_id", questionId);
+  form.append("question_type", questionType);
+  form.append("mode", mode);
+  form.append("prompt_nl", promptNl);
+  form.append("prompt_en", promptEn);
+  form.append("expected_phrases_json", JSON.stringify(expectedPhrases));
+  form.append("model_answer_str", modelAnswer);
+
+  const res = await fetch(BASE + "/speaking/submit-recording", {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail ?? "Upload failed");
+  }
+  return res.json();
+}
+
 // ── Personal Vocab ──────────────────────────────────────────────────────────
 
 export interface PersonalVocabItem {

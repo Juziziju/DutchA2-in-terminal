@@ -12,7 +12,19 @@ import {
   SchrijvenExamSummary,
   SchrijvenExamDetail,
   SchrijvenExamTask,
+  getSprekenExams,
+  getSprekenExamDetail,
+  generateSprekenPrompt,
+  submitSpeakingRecording,
+  submitMockexamSpeaking,
+  SprekenExamSummary,
+  SprekenExamDetail,
+  SprekenVraag,
+  SprekenOnderdeel,
+  SpeakingSubmitResponse,
+  MockexamSpeakingFeedback,
 } from "../api";
+import { useAudioRecorder } from "../hooks/useAudioRecorder";
 import { useMockExamState } from "../contexts/MockExamContext";
 
 type Phase =
@@ -25,7 +37,18 @@ type Phase =
   | "schrijven_ai_loading"
   | "schrijven_ai_writing"
   | "schrijven_ai_submitting"
-  | "schrijven_ai_review";
+  | "schrijven_ai_review"
+  | "spreken"
+  | "spreken_real_list"
+  | "spreken_real_exam"
+  | "spreken_real_onderdeel_intro"
+  | "spreken_real_review"
+  | "spreken_ai_pick"
+  | "spreken_ai_loading"
+  | "spreken_ai_prep"
+  | "spreken_ai_recording"
+  | "spreken_ai_submitting"
+  | "spreken_ai_review";
 
 type SchrijvenMode = "real" | "ai";
 type AITaskType = "email" | "kort_verhaal" | "formulier" | "briefje";
@@ -85,6 +108,24 @@ export default function MockExam() {
   // AI single task state
   const [aiPrompt, setAiPrompt] = useState<WritingPrompt | null>(null);
   const [aiFeedback, setAiFeedback] = useState<WritingFeedback | null>(null);
+
+  // ── Spreken state ──
+  const [sprekenMode, setSprekenMode] = useState<"ai" | "real">("ai");
+  const [sprekenRealExams, setSprekenRealExams] = useState<SprekenExamSummary[]>([]);
+  const [sprekenRealExam, setSprekenRealExam] = useState<SprekenExamDetail | null>(null);
+  const [sprekenQuestionIndex, setSprekenQuestionIndex] = useState(0);
+  const [sprekenOnderdeelIndex, setSprekenOnderdeelIndex] = useState(0);
+  const [sprekenResults, setSprekenResults] = useState<{ vraag: SprekenVraag; transcript: string; feedback: Record<string, unknown>; score: number; model_answer: string }[]>([]);
+  const [sprekenAIPrompt, setSprekenAIPrompt] = useState<SprekenVraag | null>(null);
+  const [sprekenAIFeedback, setSprekenAIFeedback] = useState<MockexamSpeakingFeedback | null>(null);
+  const [sprekenAITranscript, setSprekenAITranscript] = useState("");
+  const [prepCountdown, setPrepCountdown] = useState(0);
+  const [recordCountdown, setRecordCountdown] = useState(0);
+  const [recordingPhase, setRecordingPhase] = useState<"prep" | "ready" | "recording" | "done">("prep");
+  const [sprekenShowEn, setSprekenShowEn] = useState(false);
+  const prepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recorder = useAudioRecorder();
 
   // Shared writing state
   const [userText, setUserText] = useState("");
@@ -237,6 +278,262 @@ export default function MockExam() {
     }
   }
 
+  // ── Spreken helpers ──
+
+  function clearTimers() {
+    if (prepTimerRef.current) { clearInterval(prepTimerRef.current); prepTimerRef.current = null; }
+    if (recordTimerRef.current) { clearInterval(recordTimerRef.current); recordTimerRef.current = null; }
+  }
+
+  // Cleanup timers on unmount
+  useEffect(() => () => clearTimers(), []);
+
+  function startPrepCountdown(seconds: number, onDone: () => void) {
+    clearTimers();
+    setPrepCountdown(seconds);
+    setRecordingPhase("prep");
+    prepTimerRef.current = setInterval(() => {
+      setPrepCountdown(prev => {
+        if (prev <= 1) {
+          if (prepTimerRef.current) clearInterval(prepTimerRef.current);
+          prepTimerRef.current = null;
+          onDone();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }
+
+  function startRecordCountdown(seconds: number, onDone: () => void) {
+    setRecordCountdown(seconds);
+    setRecordingPhase("recording");
+    recordTimerRef.current = setInterval(() => {
+      setRecordCountdown(prev => {
+        if (prev <= 1) {
+          if (recordTimerRef.current) clearInterval(recordTimerRef.current);
+          recordTimerRef.current = null;
+          onDone();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }
+
+  // ── Spreken Real handlers ──
+
+  const loadSprekenRealExams = useCallback(async () => {
+    setError("");
+    try {
+      const exams = await getSprekenExams();
+      setSprekenRealExams(exams);
+      setPhase("spreken_real_list");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to load spreken exams");
+    }
+  }, []);
+
+  async function startSprekenRealExam(examId: string) {
+    setError("");
+    try {
+      const exam = await getSprekenExamDetail(examId);
+      setSprekenRealExam(exam);
+      setSprekenOnderdeelIndex(0);
+      setSprekenQuestionIndex(0);
+      setSprekenResults([]);
+      recorder.reset();
+      setRecordingPhase("prep");
+      setPhase("spreken_real_onderdeel_intro");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to load exam");
+    }
+  }
+
+  function sprekenRealCurrentVraag(): SprekenVraag | null {
+    if (!sprekenRealExam) return null;
+    const onderdeel = sprekenRealExam.onderdelen[sprekenOnderdeelIndex];
+    if (!onderdeel) return null;
+    // questionIndex is relative to current onderdeel
+    const localIdx = sprekenQuestionIndex - onderdeel.vragen.reduce((_, __, i) => {
+      // count questions in previous onderdelen
+      return 0;
+    }, 0);
+    // Actually, sprekenQuestionIndex is the global question index across all onderdelen
+    let globalIdx = 0;
+    for (const o of sprekenRealExam.onderdelen) {
+      for (const v of o.vragen) {
+        if (globalIdx === sprekenQuestionIndex) return v;
+        globalIdx++;
+      }
+    }
+    return null;
+  }
+
+  function sprekenRealCurrentOnderdeel(): SprekenOnderdeel | null {
+    if (!sprekenRealExam) return null;
+    let globalIdx = 0;
+    for (const o of sprekenRealExam.onderdelen) {
+      for (const _ of o.vragen) {
+        if (globalIdx === sprekenQuestionIndex) return o;
+        globalIdx++;
+      }
+    }
+    return null;
+  }
+
+  function sprekenRealTotalQuestions(): number {
+    if (!sprekenRealExam) return 0;
+    return sprekenRealExam.onderdelen.reduce((s, o) => s + o.vragen.length, 0);
+  }
+
+  function startSprekenRealQuestion() {
+    const vraag = sprekenRealCurrentVraag();
+    if (!vraag) return;
+    recorder.reset();
+    setRecordingPhase("prep");
+    setSprekenShowEn(false);
+    setPhase("spreken_real_exam");
+
+    // Acquire mic during prep
+    recorder.acquireStream();
+
+    startPrepCountdown(vraag.prep_seconds, () => {
+      setRecordingPhase("ready");
+    });
+  }
+
+  async function startSprekenRealRecording() {
+    const vraag = sprekenRealCurrentVraag();
+    if (!vraag) return;
+    await recorder.start();
+    startRecordCountdown(vraag.record_seconds, () => {
+      recorder.stop();
+      setRecordingPhase("done");
+    });
+  }
+
+  function stopSprekenRealRecordingEarly() {
+    clearTimers();
+    recorder.stop();
+    setRecordingPhase("done");
+  }
+
+  async function submitSprekenRealRecording() {
+    const vraag = sprekenRealCurrentVraag();
+    if (!vraag || !recorder.audioBlob || !sprekenRealExam) return;
+    setError("");
+
+    try {
+      const res = await submitSpeakingRecording(
+        recorder.audioBlob,
+        sprekenRealExam.id,
+        vraag.id,
+        vraag.question_type,
+        "mockexam",
+      );
+      setSprekenResults(prev => [...prev, {
+        vraag,
+        transcript: res.transcript,
+        feedback: res.feedback as unknown as Record<string, unknown>,
+        score: res.score_pct,
+        model_answer: res.model_answer,
+      }]);
+
+      // Move to next question or finish
+      const total = sprekenRealTotalQuestions();
+      if (sprekenQuestionIndex < total - 1) {
+        setSprekenQuestionIndex(prev => prev + 1);
+        // Check if we moved to a new onderdeel
+        const nextOnderdeel = (() => {
+          let gi = 0;
+          for (let oi = 0; oi < sprekenRealExam.onderdelen.length; oi++) {
+            for (let vi = 0; vi < sprekenRealExam.onderdelen[oi].vragen.length; vi++) {
+              if (gi === sprekenQuestionIndex + 1) return oi;
+              gi++;
+            }
+          }
+          return sprekenOnderdeelIndex;
+        })();
+        if (nextOnderdeel !== sprekenOnderdeelIndex) {
+          setSprekenOnderdeelIndex(nextOnderdeel);
+          setPhase("spreken_real_onderdeel_intro");
+        } else {
+          startSprekenRealQuestion();
+        }
+      } else {
+        setPhase("spreken_real_review");
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to submit recording");
+    }
+  }
+
+  // ── Spreken AI handlers ──
+
+  async function startSprekenAI(promptType: "afbeelding" | "persoonlijk") {
+    setPhase("spreken_ai_loading");
+    setError("");
+    setSprekenAIFeedback(null);
+    setSprekenAITranscript("");
+    recorder.reset();
+    try {
+      const prompt = await generateSprekenPrompt(promptType);
+      setSprekenAIPrompt(prompt);
+      setSprekenShowEn(false);
+      setRecordingPhase("prep");
+      setPhase("spreken_ai_prep");
+      recorder.acquireStream();
+      startPrepCountdown(prompt.prep_seconds, () => {
+        setRecordingPhase("ready");
+      });
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to generate prompt");
+      setPhase("spreken_ai_pick");
+    }
+  }
+
+  async function startSprekenAIRecording() {
+    if (!sprekenAIPrompt) return;
+    await recorder.start();
+    setPhase("spreken_ai_recording");
+    startRecordCountdown(sprekenAIPrompt.record_seconds, () => {
+      recorder.stop();
+      setRecordingPhase("done");
+    });
+  }
+
+  function stopSprekenAIRecordingEarly() {
+    clearTimers();
+    recorder.stop();
+    setRecordingPhase("done");
+  }
+
+  async function submitSprekenAIRecording() {
+    if (!sprekenAIPrompt || !recorder.audioBlob) return;
+    setPhase("spreken_ai_submitting");
+    setError("");
+    try {
+      const res = await submitMockexamSpeaking(
+        recorder.audioBlob,
+        "mockexam_ai",
+        sprekenAIPrompt.id,
+        sprekenAIPrompt.question_type,
+        "mockexam_ai",
+        sprekenAIPrompt.vraag_nl,
+        sprekenAIPrompt.vraag_en,
+        sprekenAIPrompt.expected_phrases,
+        sprekenAIPrompt.model_answer,
+      );
+      setSprekenAITranscript(res.transcript);
+      setSprekenAIFeedback(res.feedback as unknown as MockexamSpeakingFeedback);
+      setPhase("spreken_ai_review");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to submit recording");
+      setPhase("spreken_ai_prep");
+    }
+  }
+
   // ── RENDER: Menu ──
 
   if (phase === "menu") {
@@ -247,15 +544,13 @@ export default function MockExam() {
 
         <div className="grid grid-cols-1 gap-3">
           {SECTION_CARDS.map((sec) => {
-            const isSchrijven = sec.code === "SC";
-            const comingSoon = !isSchrijven;
+            const comingSoon = sec.code !== "SC" && sec.code !== "SP";
             return (
               <button
                 key={sec.code}
                 onClick={() => {
-                  if (isSchrijven) {
-                    setPhase("schrijven");
-                  }
+                  if (sec.code === "SC") setPhase("schrijven");
+                  if (sec.code === "SP") setPhase("spreken");
                 }}
                 disabled={comingSoon}
                 className={`w-full flex items-center gap-4 bg-white border rounded-2xl px-5 py-4 text-left transition-all ${
@@ -574,6 +869,386 @@ export default function MockExam() {
           disabled={submitting || !canSubmit(pseudoTask, userText, formAnswers)}
           onClick={submitAITask}
         />
+      </div>
+    );
+  }
+
+  // ── RENDER: Spreken sub-menu ──
+
+  if (phase === "spreken") {
+    return (
+      <div className="max-w-lg mx-auto space-y-6">
+        <div className="flex items-center gap-3">
+          <button onClick={goMenu} className="text-sm text-slate-500 hover:text-slate-700">&larr; Back</button>
+          <h2 className="text-xl font-bold">Spreken</h2>
+        </div>
+
+        <div className="flex bg-slate-100 rounded-xl p-1">
+          <button
+            onClick={() => setSprekenMode("ai")}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+              sprekenMode === "ai" ? "bg-white shadow text-blue-700" : "text-slate-500"
+            }`}
+          >
+            AI Generated
+          </button>
+          <button
+            onClick={() => setSprekenMode("real")}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+              sprekenMode === "real" ? "bg-white shadow text-purple-700" : "text-slate-500"
+            }`}
+          >
+            Real Exams
+          </button>
+        </div>
+
+        {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
+
+        {sprekenMode === "ai" ? (
+          <div className="space-y-3">
+            <p className="text-sm text-slate-500">Choose a question type. AI will generate a unique prompt.</p>
+            <button
+              onClick={() => startSprekenAI("afbeelding")}
+              className="w-full flex items-center gap-4 bg-white border border-slate-200 rounded-2xl px-5 py-4 text-left hover:border-blue-300 hover:shadow-md transition-all"
+            >
+              <span className="text-2xl">🖼️</span>
+              <div className="flex-1">
+                <span className="font-semibold">Afbeelding + Persoonlijke vraag</span>
+                <p className="text-sm text-slate-500">Describe a scene + answer a personal question</p>
+              </div>
+            </button>
+            <button
+              onClick={() => startSprekenAI("persoonlijk")}
+              className="w-full flex items-center gap-4 bg-white border border-slate-200 rounded-2xl px-5 py-4 text-left hover:border-blue-300 hover:shadow-md transition-all"
+            >
+              <span className="text-2xl">💬</span>
+              <div className="flex-1">
+                <span className="font-semibold">Persoonlijke vragen</span>
+                <p className="text-sm text-slate-500">Daily life questions — hobby, work, routine</p>
+              </div>
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-slate-500">Take a full official DUO spreken exam — 4 onderdelen, 16 questions.</p>
+            <button
+              onClick={loadSprekenRealExams}
+              className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl p-4 text-left hover:from-purple-700 hover:to-indigo-700 transition-colors font-medium"
+            >
+              Load Official Exams
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── RENDER: Spreken real exam list ──
+
+  if (phase === "spreken_real_list") {
+    return (
+      <div className="max-w-lg mx-auto space-y-6">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setPhase("spreken")} className="text-sm text-slate-500 hover:text-slate-700">&larr; Back</button>
+          <h2 className="text-xl font-bold">Oefenexamens Spreken</h2>
+        </div>
+        <p className="text-slate-500 text-sm">Each exam has 4 onderdelen with 16 questions total.</p>
+        {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
+        <div className="space-y-3">
+          {sprekenRealExams.map((exam) => (
+            <button
+              key={exam.id}
+              onClick={() => startSprekenRealExam(exam.id)}
+              className="w-full bg-white rounded-xl border p-5 text-left hover:border-purple-300 hover:bg-purple-50 transition-colors"
+            >
+              <h3 className="font-semibold text-lg">{exam.title}</h3>
+              <div className="flex gap-3 mt-2 text-xs text-slate-500">
+                <span>{exam.onderdeel_count} onderdelen</span>
+                <span>{exam.question_count} vragen</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── RENDER: Spreken real — onderdeel intro ──
+
+  if (phase === "spreken_real_onderdeel_intro" && sprekenRealExam) {
+    const onderdeel = sprekenRealExam.onderdelen[sprekenOnderdeelIndex];
+    if (!onderdeel) { setPhase("spreken_real_review"); return null; }
+    return (
+      <div className="max-w-lg mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <button onClick={goMenu} className="text-sm text-slate-500 hover:text-slate-700">&larr; Stop exam</button>
+          <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded font-medium">
+            Onderdeel {onderdeel.nummer}/4
+          </span>
+        </div>
+
+        <div className="bg-white rounded-xl border p-6 text-center space-y-4">
+          <h2 className="text-2xl font-bold">{onderdeel.titel}</h2>
+          <p className="text-slate-600">{onderdeel.beschrijving}</p>
+          <p className="text-slate-400 text-sm">{onderdeel.beschrijving_en}</p>
+          <p className="text-sm text-slate-500">{onderdeel.vragen.length} vragen</p>
+        </div>
+
+        <button
+          onClick={() => startSprekenRealQuestion()}
+          className="w-full bg-purple-600 text-white py-3 rounded-lg font-medium hover:bg-purple-700"
+        >
+          Start Onderdeel {onderdeel.nummer}
+        </button>
+      </div>
+    );
+  }
+
+  // ── RENDER: Spreken real — question (prep → record → submit) ──
+
+  if (phase === "spreken_real_exam" && sprekenRealExam) {
+    const vraag = sprekenRealCurrentVraag();
+    const onderdeel = sprekenRealCurrentOnderdeel();
+    const total = sprekenRealTotalQuestions();
+    if (!vraag || !onderdeel) return null;
+
+    return (
+      <div className="max-w-2xl mx-auto space-y-5">
+        <div className="flex items-center justify-between">
+          <button onClick={goMenu} className="text-sm text-slate-500 hover:text-slate-700">&larr; Stop exam</button>
+          <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded font-medium">
+            {onderdeel.titel} — Vraag {sprekenQuestionIndex + 1}/{total}
+          </span>
+        </div>
+
+        {/* Progress bar */}
+        <div className="flex gap-1">
+          {Array.from({ length: total }).map((_, i) => (
+            <div key={i} className={`flex-1 h-1.5 rounded-full ${
+              i < sprekenQuestionIndex ? "bg-green-400" : i === sprekenQuestionIndex ? "bg-purple-500" : "bg-slate-200"
+            }`} />
+          ))}
+        </div>
+
+        {/* Question card */}
+        <SprekenQuestionCard vraag={vraag} showEn={sprekenShowEn} onToggleLang={() => setSprekenShowEn(!sprekenShowEn)} />
+
+        {/* Recording area */}
+        <SprekenRecordingArea
+          recordingPhase={recordingPhase}
+          prepCountdown={prepCountdown}
+          recordCountdown={recordCountdown}
+          isRecording={recorder.isRecording}
+          audioBlob={recorder.audioBlob}
+          recorderError={recorder.error}
+          permissionDenied={recorder.permissionDenied}
+          onStartRecording={startSprekenRealRecording}
+          onStopRecording={stopSprekenRealRecordingEarly}
+          onSubmit={submitSprekenRealRecording}
+        />
+
+        {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
+      </div>
+    );
+  }
+
+  // ── RENDER: Spreken real — review ──
+
+  if (phase === "spreken_real_review" && sprekenRealExam && sprekenResults.length > 0) {
+    const avgScore = Math.round(sprekenResults.reduce((s, r) => s + r.score, 0) / sprekenResults.length);
+
+    // Group results by onderdeel
+    const resultsByOnderdeel: { onderdeel: SprekenOnderdeel; results: typeof sprekenResults }[] = [];
+    let gi = 0;
+    for (const o of sprekenRealExam.onderdelen) {
+      const oResults = sprekenResults.slice(gi, gi + o.vragen.length);
+      resultsByOnderdeel.push({ onderdeel: o, results: oResults });
+      gi += o.vragen.length;
+    }
+
+    return (
+      <div className="max-w-2xl mx-auto space-y-5">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold">{sprekenRealExam.title}</h1>
+          <p className="text-slate-500 mt-1">Exam Complete</p>
+        </div>
+
+        <div className={`rounded-xl border p-6 text-center ${scoreBg(avgScore)}`}>
+          <p className={`text-5xl font-bold ${scoreColor(avgScore)}`}>{avgScore}%</p>
+          <p className="text-sm text-slate-500 mt-1">Average Score</p>
+        </div>
+
+        {/* Per onderdeel scores */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {resultsByOnderdeel.map(({ onderdeel, results: oRes }) => {
+            const oAvg = oRes.length > 0 ? Math.round(oRes.reduce((s, r) => s + r.score, 0) / oRes.length) : 0;
+            const contentAvg = oRes.length > 0 ? (oRes.reduce((s, r) => s + ((r.feedback as Record<string, number>).content_score ?? 0), 0) / oRes.length).toFixed(1) : "0";
+            const grammarAvg = oRes.length > 0 ? (oRes.reduce((s, r) => s + ((r.feedback as Record<string, number>).grammar_score ?? 0), 0) / oRes.length).toFixed(1) : "0";
+            return (
+              <div key={onderdeel.nummer} className="bg-white rounded-lg border p-3 text-center">
+                <p className="text-xs text-slate-500 mb-1">Onderdeel {onderdeel.nummer}</p>
+                <p className={`text-2xl font-bold ${scoreColor(oAvg)}`}>{contentAvg}/{grammarAvg}</p>
+                <p className="text-xs text-slate-400 truncate">{onderdeel.titel}</p>
+                <p className="text-xs text-slate-400">Content / Grammar</p>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Per-question detail */}
+        {sprekenResults.map((r, i) => (
+          <SprekenResultDetail key={i} index={i} result={r} />
+        ))}
+
+        <div className="flex gap-3">
+          <button
+            onClick={() => startSprekenRealExam(sprekenRealExam.id)}
+            className="flex-1 border border-purple-600 text-purple-600 py-3 rounded-lg font-medium hover:bg-purple-50"
+          >
+            Retry
+          </button>
+          <button
+            onClick={() => setPhase("spreken")}
+            className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700"
+          >
+            Back to Spreken
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── RENDER: Spreken AI loading ──
+
+  if (phase === "spreken_ai_loading") {
+    return (
+      <div className="max-w-lg mx-auto text-center py-16">
+        <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4" />
+        <p className="text-slate-500">Generating your speaking prompt...</p>
+      </div>
+    );
+  }
+
+  // ── RENDER: Spreken AI pick (after error) ──
+
+  if (phase === "spreken_ai_pick") {
+    setPhase("spreken");
+    return null;
+  }
+
+  // ── RENDER: Spreken AI prep + recording ──
+
+  if ((phase === "spreken_ai_prep" || phase === "spreken_ai_recording") && sprekenAIPrompt) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-5">
+        <div className="flex items-center justify-between">
+          <button onClick={() => { clearTimers(); recorder.reset(); setPhase("spreken"); }} className="text-sm text-slate-500 hover:text-slate-700">&larr; Back</button>
+          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">AI Spreken</span>
+        </div>
+
+        <SprekenQuestionCard vraag={sprekenAIPrompt} showEn={sprekenShowEn} onToggleLang={() => setSprekenShowEn(!sprekenShowEn)} />
+
+        <SprekenRecordingArea
+          recordingPhase={recordingPhase}
+          prepCountdown={prepCountdown}
+          recordCountdown={recordCountdown}
+          isRecording={recorder.isRecording}
+          audioBlob={recorder.audioBlob}
+          recorderError={recorder.error}
+          permissionDenied={recorder.permissionDenied}
+          onStartRecording={startSprekenAIRecording}
+          onStopRecording={stopSprekenAIRecordingEarly}
+          onSubmit={submitSprekenAIRecording}
+        />
+
+        {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
+      </div>
+    );
+  }
+
+  // ── RENDER: Spreken AI submitting ──
+
+  if (phase === "spreken_ai_submitting") {
+    return (
+      <div className="max-w-lg mx-auto text-center py-16">
+        <div className="animate-spin w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full mx-auto mb-4" />
+        <p className="text-slate-500">Transcribing & grading your response...</p>
+      </div>
+    );
+  }
+
+  // ── RENDER: Spreken AI review ──
+
+  if (phase === "spreken_ai_review" && sprekenAIFeedback && sprekenAIPrompt) {
+    const cs = sprekenAIFeedback.content_score ?? 0;
+    const gs = sprekenAIFeedback.grammar_score ?? 0;
+    const total5 = Math.round((cs + gs) / 2 * 10) / 10;
+    const pct = sprekenAIFeedback.score ?? Math.round((cs + gs) / 10 * 100);
+
+    return (
+      <div className="max-w-2xl mx-auto space-y-5">
+        <div className="text-center">
+          <p className="text-slate-500 text-sm">AI Spreken</p>
+          <h2 className="text-2xl font-bold mt-1">Your Score</h2>
+        </div>
+
+        <div className={`rounded-xl border p-6 text-center ${scoreBg(pct)}`}>
+          <p className={`text-5xl font-bold ${scoreColor(pct)}`}>{total5}/5</p>
+          <div className="flex justify-center gap-6 mt-3">
+            <div>
+              <p className="text-2xl font-bold">{cs}/5</p>
+              <p className="text-xs text-slate-500">Content</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{gs}/5</p>
+              <p className="text-xs text-slate-500">Grammar</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Feedback */}
+        {sprekenAIFeedback.feedback_nl && (
+          <div className="bg-blue-50 rounded-xl p-4 text-sm">{sprekenAIFeedback.feedback_nl}</div>
+        )}
+
+        {/* Transcript */}
+        <div className="bg-white rounded-xl border p-4 space-y-2">
+          <p className="text-xs font-medium text-slate-500">Your transcript (STT)</p>
+          <p className="text-sm whitespace-pre-wrap">{sprekenAITranscript || "(no speech detected)"}</p>
+          <p className="text-xs text-slate-400 italic">Als de tekst niet klopt, probeer het opnieuw</p>
+        </div>
+
+        {/* Grammar errors */}
+        <SprekenGrammarErrors errors={sprekenAIFeedback.grammar_errors} />
+
+        {/* Improved vs model */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {sprekenAIFeedback.improved_answer && (
+            <div>
+              <p className="text-xs text-slate-400 mb-1 font-medium">Improved version</p>
+              <div className="bg-green-50 rounded-lg p-3 text-sm whitespace-pre-wrap">{sprekenAIFeedback.improved_answer}</div>
+            </div>
+          )}
+          <div>
+            <p className="text-xs text-slate-400 mb-1 font-medium">Model answer</p>
+            <div className="bg-blue-50 rounded-lg p-3 text-sm whitespace-pre-wrap">{sprekenAIPrompt.model_answer}</div>
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={() => startSprekenAI(sprekenAIPrompt.id.startsWith("ai_afb") ? "afbeelding" : "persoonlijk")}
+            className="flex-1 border border-blue-600 text-blue-600 py-3 rounded-lg font-medium hover:bg-blue-50"
+          >
+            Try Again
+          </button>
+          <button
+            onClick={() => setPhase("spreken")}
+            className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700"
+          >
+            Back to Spreken
+          </button>
+        </div>
       </div>
     );
   }
@@ -906,6 +1581,200 @@ function TaskReviewDetail({
             <div className="mt-2 bg-blue-50 rounded-lg p-2 whitespace-pre-wrap">{r.task.model_answer}</div>
           </details>
         )}
+      </div>
+    </details>
+  );
+}
+
+// ── Spreken Components ──
+
+function SprekenQuestionCard({ vraag, showEn, onToggleLang }: { vraag: SprekenVraag; showEn: boolean; onToggleLang: () => void }) {
+  return (
+    <div className="bg-white rounded-xl border p-5 space-y-3">
+      {vraag.image_url && (
+        <img src={vraag.image_url} alt="exam" className="w-full h-48 object-cover rounded-lg" />
+      )}
+      <p className="text-sm text-slate-600">{showEn ? vraag.situatie_en : vraag.situatie_nl}</p>
+      <p className="font-semibold">{showEn ? vraag.vraag_en : vraag.vraag_nl}</p>
+      {vraag.tips && vraag.tips.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {vraag.tips.map((tip, i) => (
+            <span key={i} className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{tip}</span>
+          ))}
+        </div>
+      )}
+      <button onClick={onToggleLang} className="text-xs text-blue-600 hover:underline">
+        {showEn ? "Show Dutch" : "Show English"}
+      </button>
+    </div>
+  );
+}
+
+function SprekenRecordingArea({
+  recordingPhase,
+  prepCountdown,
+  recordCountdown,
+  isRecording,
+  audioBlob,
+  recorderError,
+  permissionDenied,
+  onStartRecording,
+  onStopRecording,
+  onSubmit,
+}: {
+  recordingPhase: "prep" | "ready" | "recording" | "done";
+  prepCountdown: number;
+  recordCountdown: number;
+  isRecording: boolean;
+  audioBlob: Blob | null;
+  recorderError: string | null;
+  permissionDenied: boolean;
+  onStartRecording: () => void;
+  onStopRecording: () => void;
+  onSubmit: () => void;
+}) {
+  if (permissionDenied) {
+    return (
+      <div className="bg-red-50 rounded-xl p-4 text-center text-sm text-red-700">
+        Microphone access denied. Please allow microphone access in your browser settings.
+      </div>
+    );
+  }
+
+  if (recorderError) {
+    return (
+      <div className="bg-red-50 rounded-xl p-4 text-center text-sm text-red-700">
+        Recording error: {recorderError}
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-xl border p-5 text-center space-y-3">
+      {recordingPhase === "prep" && (
+        <>
+          <div className="text-4xl font-bold text-blue-600">{prepCountdown}s</div>
+          <p className="text-sm text-slate-500">Preparation time — read the question and think about your answer</p>
+        </>
+      )}
+
+      {recordingPhase === "ready" && (
+        <>
+          <p className="text-sm text-slate-600 font-medium">Ready to record!</p>
+          <button
+            onClick={onStartRecording}
+            className="bg-red-500 text-white px-8 py-3 rounded-full font-medium hover:bg-red-600 transition-colors"
+          >
+            Start Recording
+          </button>
+        </>
+      )}
+
+      {recordingPhase === "recording" && (
+        <>
+          <div className="flex items-center justify-center gap-2">
+            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+            <span className="text-4xl font-bold text-red-600">{recordCountdown}s</span>
+          </div>
+          <p className="text-sm text-slate-500">Recording... Speak now!</p>
+          <button
+            onClick={onStopRecording}
+            className="border border-slate-300 text-slate-600 px-6 py-2 rounded-lg text-sm hover:bg-slate-50"
+          >
+            Stop Early
+          </button>
+        </>
+      )}
+
+      {recordingPhase === "done" && audioBlob && (
+        <>
+          <p className="text-sm text-green-600 font-medium">Recording complete!</p>
+          <button
+            onClick={onSubmit}
+            className="bg-purple-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-purple-700 transition-colors"
+          >
+            Submit for Grading
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function SprekenGrammarErrors({ errors }: { errors?: { wrong: string; correct: string; explanation_nl: string; explanation_zh: string }[] }) {
+  if (!errors || errors.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium text-slate-500">Grammar Errors ({errors.length})</p>
+      {errors.map((err, i) => (
+        <div key={i} className="bg-red-50 rounded-lg p-3 text-sm space-y-1">
+          <p><span className="line-through text-red-600">{err.wrong}</span></p>
+          <p><span className="text-green-700">{err.correct}</span></p>
+          <p className="text-xs text-slate-600">{err.explanation_nl}</p>
+          <p className="text-xs text-slate-500">{err.explanation_zh}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SprekenResultDetail({
+  index,
+  result,
+}: {
+  index: number;
+  result: { vraag: SprekenVraag; transcript: string; feedback: Record<string, unknown>; score: number; model_answer: string };
+}) {
+  const fb = result.feedback as Record<string, unknown>;
+  const cs = (fb.content_score as number) ?? 0;
+  const gs = (fb.grammar_score as number) ?? 0;
+  const grammarErrors = (fb.grammar_errors as { wrong: string; correct: string; explanation_nl: string; explanation_zh: string }[]) ?? [];
+
+  return (
+    <details className="bg-white rounded-xl border">
+      <summary className="p-4 cursor-pointer flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">Vraag {index + 1}</span>
+          <span className="font-medium text-sm truncate">{result.vraag.vraag_nl}</span>
+        </div>
+        <span className={`font-bold ${scoreColor(result.score)}`}>{cs}/{gs}</span>
+      </summary>
+      <div className="px-4 pb-4 space-y-3 border-t">
+        <div className="grid grid-cols-2 gap-2 pt-3">
+          <div className="text-center">
+            <p className={`text-lg font-bold ${scoreColor(cs * 20)}`}>{cs}/5</p>
+            <p className="text-xs text-slate-500">Content</p>
+          </div>
+          <div className="text-center">
+            <p className={`text-lg font-bold ${scoreColor(gs * 20)}`}>{gs}/5</p>
+            <p className="text-xs text-slate-500">Grammar</p>
+          </div>
+        </div>
+
+        {typeof fb.feedback_nl === "string" && fb.feedback_nl && (
+          <div className="bg-blue-50 rounded-lg p-3 text-sm">{fb.feedback_nl}</div>
+        )}
+
+        <SprekenGrammarErrors errors={grammarErrors} />
+
+        <div className="bg-white rounded-lg border p-3 space-y-2">
+          <p className="text-xs font-medium text-slate-500">Your transcript</p>
+          <p className="text-sm whitespace-pre-wrap">{result.transcript || "(no speech detected)"}</p>
+          <p className="text-xs text-slate-400 italic">Als de tekst niet klopt, probeer het opnieuw</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {typeof fb.improved_answer === "string" && fb.improved_answer && (
+            <div>
+              <p className="text-xs text-slate-400 mb-1 font-medium">Improved version</p>
+              <div className="bg-green-50 rounded-lg p-2 text-sm whitespace-pre-wrap">{fb.improved_answer}</div>
+            </div>
+          )}
+          <div>
+            <p className="text-xs text-slate-400 mb-1 font-medium">Model answer</p>
+            <div className="bg-blue-50 rounded-lg p-2 text-sm whitespace-pre-wrap">{result.model_answer}</div>
+          </div>
+        </div>
       </div>
     </details>
   );

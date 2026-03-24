@@ -14,7 +14,7 @@ from fastapi.responses import Response
 
 from backend.config import AUDIO_SPEAKING_DIR
 from backend.core.audio import new_session_prefix
-from backend.core.speaking_ai import analyze_speaking_patterns, review_shadow, review_speaking, transcribe_audio
+from backend.core.speaking_ai import analyze_speaking_patterns, generate_spreken_prompt, review_shadow, review_speaking, review_speaking_mockexam, transcribe_audio
 from backend.core.speaking_analysis import (
     aggregate_grammar_errors,
     aggregate_missed_words,
@@ -183,6 +183,10 @@ async def submit_recording(
     question_id: str = Form(...),
     question_type: str = Form("short"),
     mode: str = Form("scene_drill"),
+    prompt_nl: Optional[str] = Form(None),
+    prompt_en: Optional[str] = Form(None),
+    expected_phrases_json: Optional[str] = Form(None),
+    model_answer_str: Optional[str] = Form(None),
     db: Session = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
@@ -212,6 +216,22 @@ async def submit_recording(
                         break
                 if question:
                     break
+    # For AI-generated mockexam prompts, build question from form fields
+    if not question and scene == "mockexam_ai" and prompt_nl:
+        ep = []
+        if expected_phrases_json:
+            try:
+                ep = json.loads(expected_phrases_json)
+            except json.JSONDecodeError:
+                ep = []
+        question = {
+            "id": question_id,
+            "prompt_nl": prompt_nl,
+            "prompt_en": prompt_en or "",
+            "expected_phrases": ep,
+            "model_answer": model_answer_str or "",
+            "question_type": question_type,
+        }
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
 
@@ -246,28 +266,48 @@ async def submit_recording(
     if not transcript.strip():
         transcript = "(no speech detected)"
 
-    # AI review
+    # AI review — use mockexam grader for mockexam modes
+    is_mockexam = mode in ("mockexam", "mockexam_ai")
     try:
-        feedback = review_speaking(
-            transcript=transcript,
-            prompt_nl=question["prompt_nl"],
-            prompt_en=question["prompt_en"],
-            expected_phrases=question["expected_phrases"],
-            model_answer=question["model_answer"],
-            question_type=question["question_type"],
-        )
+        if is_mockexam:
+            feedback = review_speaking_mockexam(
+                transcript=transcript,
+                prompt_nl=question["prompt_nl"],
+                prompt_en=question["prompt_en"],
+                expected_phrases=question["expected_phrases"],
+                model_answer=question["model_answer"],
+            )
+        else:
+            feedback = review_speaking(
+                transcript=transcript,
+                prompt_nl=question["prompt_nl"],
+                prompt_en=question["prompt_en"],
+                expected_phrases=question["expected_phrases"],
+                model_answer=question["model_answer"],
+                question_type=question["question_type"],
+            )
     except Exception as e:
-        feedback = {
-            "score": 0,
-            "vocabulary_score": 0,
-            "grammar_score": 0,
-            "completeness_score": 0,
-            "matched_phrases": [],
-            "missing_phrases": question["expected_phrases"],
-            "grammar_errors": [],
-            "feedback_en": f"AI review failed: {e}",
-            "improved_answer": question["model_answer"],
-        }
+        if is_mockexam:
+            feedback = {
+                "score": 0,
+                "content_score": 0,
+                "grammar_score": 0,
+                "grammar_errors": [],
+                "feedback_nl": f"AI beoordeling mislukt: {e}",
+                "improved_answer": question["model_answer"],
+            }
+        else:
+            feedback = {
+                "score": 0,
+                "vocabulary_score": 0,
+                "grammar_score": 0,
+                "completeness_score": 0,
+                "matched_phrases": [],
+                "missing_phrases": question["expected_phrases"],
+                "grammar_errors": [],
+                "feedback_en": f"AI review failed: {e}",
+                "improved_answer": question["model_answer"],
+            }
 
     score_pct = feedback.get("score", 0)
 
@@ -575,6 +615,27 @@ def spreken_exam_detail(
     if not exam:
         raise HTTPException(status_code=404, detail="Spreken exam not found")
     return exam
+
+
+# ── Generate AI spreken prompt ────────────────────────────────────────────────
+
+
+class GenerateSprekenPromptRequest(BaseModel):
+    prompt_type: str  # "afbeelding" | "persoonlijk"
+
+
+@router.post("/generate-spreken-prompt")
+def generate_spreken_prompt_endpoint(
+    req: GenerateSprekenPromptRequest,
+    _user: User = Depends(get_current_user),
+):
+    """Generate an AI speaking prompt for MockExam Spreken."""
+    if req.prompt_type not in ("afbeelding", "persoonlijk"):
+        raise HTTPException(status_code=400, detail="Invalid prompt_type")
+    try:
+        return generate_spreken_prompt(req.prompt_type)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Generation failed: {e}")
 
 
 # ── TTS for model sentences ─────────────────────────────────────────────────
