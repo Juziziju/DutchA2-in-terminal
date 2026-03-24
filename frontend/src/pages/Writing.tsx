@@ -369,7 +369,7 @@ export default function Writing() {
                 </div>
               </button>
 
-              {/* Spell Practice */}
+              {/* Translation Practice */}
               <button
                 onClick={() => setWritingMode("spell")}
                 className="w-full bg-white rounded-xl border border-slate-200 p-5 text-left hover:shadow-md hover:border-purple-300 transition-all"
@@ -377,8 +377,8 @@ export default function Writing() {
                 <div className="flex items-center gap-4">
                   <span className="text-3xl">✏️</span>
                   <div>
-                    <h3 className="font-semibold text-lg">Spell Practice</h3>
-                    <p className="text-slate-500 text-sm">Translate English sentences to Dutch</p>
+                    <h3 className="font-semibold text-lg">Translation Practice</h3>
+                    <p className="text-slate-500 text-sm">Translate English → Dutch, one sentence at a time</p>
                   </div>
                 </div>
               </button>

@@ -1646,7 +1646,10 @@ export interface SpellScene {
 export interface SpellSentence {
   text_en: string;
   text_nl: string;
-  hint_parts: (string | null)[];
+  hints: string[];
+  grammar_focus: string;
+  scene: string;
+  difficulty: string;
 }
 
 export interface SpellVocabItem {
@@ -1664,19 +1667,33 @@ export interface SpellPrompt {
   vocabulary?: SpellVocabItem[];
 }
 
+export interface TranslationError {
+  wrong: string;
+  correct: string;
+  rule_nl: string;
+  explanation_zh: string;
+}
+
 export interface SpellResult {
   sentence_index: number;
   text_en: string;
   text_nl: string;
   user_text: string;
   correct: boolean;
-  feedback: string | null;
-  ai_reviewed: boolean;
+  score: number;
+  errors: TranslationError[];
+  alternative_accepted: boolean;
+  feedback_nl: string;
+  hints_penalty: number;
 }
 
-export interface SpellReviewResponse {
+export interface TranslationReviewResponse {
   correct: boolean;
-  feedback: string;
+  score: number;
+  errors: TranslationError[];
+  alternative_accepted: boolean;
+  feedback_nl: string;
+  hints_penalty: number;
 }
 
 export interface SpellFeedback {
@@ -1686,6 +1703,7 @@ export interface SpellFeedback {
   results: SpellResult[];
   feedback_en: string;
   feedback_nl: string;
+  weak_points: string[];
 }
 
 export interface SpellSubmitResponse {
@@ -1708,16 +1726,18 @@ export function generateSpellExercise(sceneId: string, level: string) {
 export function submitSpellExercise(data: {
   prompt: SpellPrompt;
   answers: { sentence_index: number; user_text: string }[];
+  hints_used: number[];
   duration_seconds?: number;
 }) {
   return request<SpellSubmitResponse>("POST", "/writing/spell-submit", data);
 }
 
-export function reviewSpellSentence(textEn: string, textNl: string, userText: string) {
-  return request<SpellReviewResponse>("POST", "/writing/spell-review-sentence", {
+export function reviewTranslation(textEn: string, textNl: string, userText: string, hintsUsed: number) {
+  return request<TranslationReviewResponse>("POST", "/writing/translation-review", {
     text_en: textEn,
     text_nl: textNl,
     user_text: userText,
+    hints_used: hintsUsed,
   });
 }
 

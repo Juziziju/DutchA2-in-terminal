@@ -1,12 +1,12 @@
-"""AI generation and grading for spell practice (translation) exercises."""
+"""AI generation and grading for translation practice exercises."""
 
 import json
 import time
 
 from backend.config import AI_API_KEY
-from backend.core.qwen import FAST_MODEL
+from backend.core.qwen import CONTENT_MODEL, FAST_MODEL
 from backend.core.spell_scenes import SPELL_SCENES
-from backend.core.writing_ai import _get_client, _strip_fences, _normalize, _correction_matches
+from backend.core.writing_ai import _get_client, _strip_fences
 
 
 def _get_scene(scene_id: str) -> dict | None:
@@ -17,9 +17,9 @@ def _get_scene(scene_id: str) -> dict | None:
 
 
 def generate_spell_exercise(scene_id: str, level: str = "A2") -> dict:
-    """Generate 8 English→Dutch translation sentences for a scene at given level.
+    """Generate 6 English→Dutch translation sentences for a scene at given level.
 
-    Also generates a vocabulary list of key words used in the sentences.
+    Each sentence includes word hints and grammar focus.
     """
     if not AI_API_KEY:
         raise RuntimeError("AI_API_KEY is not set")
@@ -28,38 +28,46 @@ def generate_spell_exercise(scene_id: str, level: str = "A2") -> dict:
     if not scene:
         raise ValueError(f"Unknown scene: {scene_id}")
 
-    system = f"""You are a Dutch language teacher creating translation exercises at {level} level.
-Generate exactly 8 sentences for the scene: "{scene['title_en']}" ({scene['description']}).
+    system = f"""You are a Dutch language teacher creating translation exercises strictly at {level} level.
+Generate exactly 6 sentences for the scene: "{scene['title_en']}" ({scene['description']}).
 
-Each sentence should be a natural, everyday sentence that someone would say or write in this situation.
-Use {level}-appropriate vocabulary and grammar.
+STRICT RULES:
+- ALL vocabulary must be {level} level or below. NO B1+ words.
+- FORBIDDEN words: contract, factuur, bestelling, terugkoppeling, bevestigen, vergadering, afdeling, beoordeling, sollicitatie, deadline, budget, collega's (use "mensen op het werk" if needed)
+- FORBIDDEN topics: business meetings, contracts, invoices, job interviews, corporate email
+- ALLOWED scenes: daily shopping, doctor/pharmacy, public transport, simple emails to friends/family/neighbours, daily routines, restaurant/cafe, city hall (simple requests)
+- Each sentence: maximum 10 words
+- Use simple, everyday language a beginner would know
+- Vary sentence types: questions, statements, polite requests (with "graag", "alstublieft")
+- Include common A2 constructions: modal verbs (willen, kunnen, moeten), separable verbs, basic word order
 
-Also generate a vocabulary list of 10-15 key Dutch words/phrases used in the sentences,
-with their English translations. Focus on content words (nouns, verbs, adjectives) that
-students might not know.
+For each sentence, provide:
+- text_en: English sentence
+- text_nl: Dutch translation
+- hints: exactly 3 word-level hints, each formatted as "dutch_word = English meaning" (pick the 3 most useful content words)
+- grammar_focus: the main grammar point tested (e.g. "willen + infinitief", "V2 woordvolgorde", "scheidbaar werkwoord")
+- scene: short scene label (e.g. "dokter", "supermarkt", "station")
+- difficulty: "easy" or "medium"
 
-Return ONLY valid JSON with no markdown fences:
+Also provide a vocabulary list of 8-12 key Dutch words used in the sentences.
+
+Return ONLY valid JSON:
 {{
   "sentences": [
     {{
-      "text_en": "I would like two kilos of apples.",
-      "text_nl": "Ik wil graag twee kilo appels."
+      "text_en": "I would like to make an appointment.",
+      "text_nl": "Ik wil graag een afspraak maken.",
+      "hints": ["afspraak = appointment", "maken = to make", "graag = gladly/please"],
+      "grammar_focus": "willen + infinitief",
+      "scene": "dokter",
+      "difficulty": "easy"
     }}
   ],
   "vocabulary": [
-    {{"nl": "appels", "en": "apples"}},
-    {{"nl": "kilo", "en": "kilo"}}
+    {{"nl": "afspraak", "en": "appointment"}},
+    {{"nl": "maken", "en": "to make"}}
   ]
-}}
-
-Requirements:
-- Exactly 8 sentences
-- Each sentence 5-15 words
-- Natural, realistic sentences for this scene
-- {level} level vocabulary and grammar
-- Vary sentence structures (questions, statements, requests)
-- Include common Dutch constructions (separable verbs, modal verbs, etc.)
-- Vocabulary list: 10-15 key content words from the sentences"""
+}}"""
 
     client = _get_client()
     last_err = None
@@ -67,10 +75,10 @@ Requirements:
     for attempt in range(2):
         try:
             response = client.chat.completions.create(
-                model=FAST_MODEL,
+                model=CONTENT_MODEL,
                 messages=[
                     {"role": "system", "content": system},
-                    {"role": "user", "content": f"Create 8 translation sentences for: {scene['title_en']}. Return only valid JSON."},
+                    {"role": "user", "content": f"Create 6 translation sentences for: {scene['title_en']}. Strictly A2 level. Return only valid JSON."},
                 ],
                 temperature=0.9,
                 response_format={"type": "json_object"},
@@ -82,8 +90,19 @@ Requirements:
             if len(sentences) < 4:
                 raise ValueError("Too few sentences generated")
 
+            # Ensure each sentence has the new fields with defaults
             for s in sentences:
-                s["hint_parts"] = _build_hint_parts(s["text_nl"])
+                if "hints" not in s:
+                    s["hints"] = []
+                if "grammar_focus" not in s:
+                    s["grammar_focus"] = ""
+                if "scene" not in s:
+                    s["scene"] = scene_id
+                if "difficulty" not in s:
+                    s["difficulty"] = "medium"
+
+            # Validate: check that Dutch translations actually match the English
+            sentences = _validate_translations(client, sentences)
 
             vocabulary = data.get("vocabulary", [])
 
@@ -104,92 +123,230 @@ Requirements:
     raise RuntimeError(f"Spell exercise generation failed after 2 attempts: {last_err}")
 
 
-def _build_hint_parts(text_nl: str) -> list[str | None]:
-    """Build hint_parts: reveal ~40-50% of words (function words), hide the rest."""
-    FUNCTION_WORDS = {
-        "de", "het", "een",
-        "in", "op", "aan", "met", "van", "voor", "naar", "uit", "bij", "tot",
-        "om", "over", "door", "onder", "tussen", "zonder", "tegen", "langs",
-        "ik", "jij", "je", "hij", "zij", "ze", "het", "wij", "we", "jullie", "u",
-        "mij", "me", "hem", "haar", "ons",
-        "en", "of", "maar", "want", "dat", "als", "omdat", "toen", "dan",
-        "dus", "ook", "nog", "wel", "niet", "geen",
-        "is", "ben", "bent", "zijn", "was", "waren", "er", "hier", "daar",
-        "heel", "erg", "te", "al", "zo",
-    }
+def _validate_translations(client, sentences: list[dict]) -> list[dict]:
+    """Validate that each Dutch sentence correctly translates the English.
 
-    words = text_nl.split()
-    parts: list[str | None] = []
-    revealed = 0
+    Sends one batch request. Drops any sentence where subject/object/meaning
+    is wrong and returns the rest (at least keep what's valid).
+    """
+    if not sentences:
+        return sentences
 
-    for w in words:
-        core = w.rstrip(".,;:!?\"'()").lower()
-        if core in FUNCTION_WORDS:
-            parts.append(w)
-            revealed += 1
-        else:
-            parts.append(None)
+    checks = []
+    for i, s in enumerate(sentences):
+        checks.append(f'{i+1}. EN: "{s["text_en"]}" → NL: "{s["text_nl"]}"')
+    pairs_text = "\n".join(checks)
 
-    target_min = len(words) * 0.35
-    if revealed < target_min:
-        for i, w in enumerate(words):
-            if parts[i] is None and len(w.rstrip(".,;:!?")) <= 3:
-                parts[i] = w
-                revealed += 1
-                if revealed >= target_min:
-                    break
+    try:
+        response = client.chat.completions.create(
+            model=CONTENT_MODEL,
+            messages=[
+                {"role": "system", "content": (
+                    "You are a Dutch language expert. For each English→Dutch pair below, "
+                    "check if the Dutch sentence is a correct translation of the English.\n"
+                    "Check carefully: subject, object, verb meaning, pronouns must all match.\n"
+                    "Example of a BAD pair: EN \"Can I help you?\" → NL \"Kunnen jullie me helpen?\" "
+                    "(subject/object are swapped).\n\n"
+                    "Return ONLY valid JSON: {\"results\": [{\"index\": 1, \"ok\": true/false, "
+                    "\"fixed_nl\": \"...\"}]}\n"
+                    "- If ok=true, fixed_nl can be empty string.\n"
+                    "- If ok=false, provide the corrected Dutch in fixed_nl."
+                )},
+                {"role": "user", "content": pairs_text},
+            ],
+            temperature=0.0,
+            response_format={"type": "json_object"},
+        )
+        raw = _strip_fences(response.choices[0].message.content.strip())
+        data = json.loads(raw)
 
-    target_max = len(words) * 0.55
-    if revealed > target_max:
-        for i in range(len(parts) - 1, -1, -1):
-            if parts[i] is not None:
-                core = words[i].rstrip(".,;:!?\"'()").lower()
-                if core not in {"de", "het", "een", "ik", "jij", "je", "hij", "zij", "ze", "wij", "we", "u"}:
-                    parts[i] = None
-                    revealed -= 1
-                    if revealed <= target_max:
-                        break
+        validation = {r["index"]: r for r in data.get("results", [])}
 
-    return parts
+        for i, s in enumerate(sentences):
+            v = validation.get(i + 1)
+            if v and not v.get("ok", True) and v.get("fixed_nl"):
+                s["text_nl"] = v["fixed_nl"]
+
+        return sentences
+    except Exception:
+        # Validation failed — return sentences as-is rather than blocking
+        return sentences
 
 
-def grade_spell_exercise(prompt: dict, user_answers: list[dict]) -> dict:
-    """Grade spell practice — purely deterministic, no AI calls.
+def review_translation(
+    english: str,
+    expected_nl: str,
+    user_text: str,
+    hints_used: int = 0,
+) -> dict:
+    """AI review a single translation sentence.
 
-    Compares user answers against the pre-generated correct Dutch translations.
+    Returns structured feedback with score, errors, and Chinese explanations.
+    """
+    if not AI_API_KEY:
+        raise RuntimeError("AI_API_KEY is not set")
+
+    hints_penalty = 0
+    if hints_used == 1:
+        hints_penalty = 10
+    elif hints_used >= 2:
+        hints_penalty = 20
+
+    client = _get_client()
+    try:
+        response = client.chat.completions.create(
+            model=CONTENT_MODEL,
+            messages=[
+                {"role": "system", "content": (
+                    "You are a Dutch A2 language teacher reviewing a student's English→Dutch translation.\n"
+                    "The student is a Chinese speaker learning Dutch at A2 level.\n\n"
+                    "GRADING RULES (strict A2 standard):\n"
+                    "ACCEPT as correct (do NOT flag):\n"
+                    "- Minor spelling errors (1-2 letters off)\n"
+                    "- jij/u substitution (both are fine)\n"
+                    "- Missing capitalisation\n"
+                    "- Informal alternatives that are natural Dutch (e.g. 'hoi' for 'hallo')\n"
+                    "- Valid alternative translations with different word choice\n"
+                    "- Missing final punctuation\n"
+                    "- Simple sentence structures (no need for complex ones at A2)\n\n"
+                    "FLAG as errors:\n"
+                    "- Wrong verb conjugation (ik heb vs ik heeft)\n"
+                    "- V2 word order violation\n"
+                    "- de/het error\n"
+                    "- niet/geen confusion\n"
+                    "- Missing required preposition (e.g. naar)\n"
+                    "- Separable verb not separated when it should be\n"
+                    "- Completely wrong word that changes meaning\n\n"
+                    "SCORING:\n"
+                    "- Start at 100\n"
+                    "- Each error: -15 to -25 depending on severity\n"
+                    "- Valid alternative translation with no errors: 100\n"
+                    "- Empty or completely wrong: 0\n\n"
+                    "Reply ONLY with valid JSON:\n"
+                    "{\n"
+                    "  \"correct\": true/false,\n"
+                    "  \"score\": 0-100,\n"
+                    "  \"errors\": [{\"wrong\": \"...\", \"correct\": \"...\", \"rule_nl\": \"...\", \"explanation_zh\": \"...\"}],\n"
+                    "  \"alternative_accepted\": true/false,\n"
+                    "  \"feedback_nl\": \"Korte feedback in het Nederlands\"\n"
+                    "}\n\n"
+                    "For errors array:\n"
+                    "- wrong: the incorrect part from student's answer\n"
+                    "- correct: what it should be\n"
+                    "- rule_nl: the Dutch grammar rule name (e.g. 'V2 woordvolgorde', 'de/het', 'werkwoordvervoeging')\n"
+                    "- explanation_zh: explanation in Chinese (简体中文) for the student\n\n"
+                    "If the answer is correct (including valid alternatives), return empty errors array and correct=true."
+                )},
+                {"role": "user", "content": (
+                    f"English: \"{english}\"\n"
+                    f"Expected Dutch: \"{expected_nl}\"\n"
+                    f"Student wrote: \"{user_text}\"\n\n"
+                    f"Grade this translation."
+                )},
+            ],
+            temperature=0.0,
+            response_format={"type": "json_object"},
+        )
+        raw = _strip_fences(response.choices[0].message.content.strip())
+        data = json.loads(raw)
+
+        score = max(0, min(100, data.get("score", 0)))
+        # Apply hints penalty
+        score = max(0, score - hints_penalty)
+
+        return {
+            "correct": bool(data.get("correct", False)),
+            "score": score,
+            "errors": data.get("errors", []),
+            "alternative_accepted": bool(data.get("alternative_accepted", False)),
+            "feedback_nl": data.get("feedback_nl", ""),
+            "hints_penalty": hints_penalty,
+        }
+    except Exception as e:
+        return {
+            "correct": False,
+            "score": 0,
+            "errors": [],
+            "alternative_accepted": False,
+            "feedback_nl": f"AI review failed: {e}",
+            "hints_penalty": hints_penalty,
+        }
+
+
+def grade_spell_exercise(prompt: dict, user_answers: list[dict], hints_used: list[int] | None = None) -> dict:
+    """Grade spell practice using AI review for each sentence.
+
+    Args:
+        prompt: the exercise prompt with sentences
+        user_answers: list of {sentence_index, user_text}
+        hints_used: list of hint counts per sentence (0, 1, 2, ...)
     """
     sentences = prompt.get("sentences", [])
     answer_map: dict[int, str] = {}
     for a in user_answers:
         answer_map[a.get("sentence_index", -1)] = a.get("user_text", "")
 
+    if hints_used is None:
+        hints_used = [0] * len(sentences)
+
     results = []
     correct_count = 0
+    total_score = 0
 
     for i, s in enumerate(sentences):
         user_text = answer_map.get(i, "").strip()
         expected = s.get("text_nl", "")
         english = s.get("text_en", "")
+        hint_count = hints_used[i] if i < len(hints_used) else 0
 
-        correct = False
         if not user_text:
-            pass
-        elif _correction_matches(user_text, expected):
-            correct = True
+            results.append({
+                "sentence_index": i,
+                "text_en": english,
+                "text_nl": expected,
+                "user_text": "",
+                "correct": False,
+                "score": 0,
+                "errors": [],
+                "alternative_accepted": False,
+                "feedback_nl": "Geen antwoord ingevuld.",
+                "hints_penalty": 0,
+            })
+            continue
+
+        # Use AI review
+        review = review_translation(english, expected, user_text, hint_count)
+
+        if review["correct"]:
             correct_count += 1
+
+        total_score += review["score"]
 
         results.append({
             "sentence_index": i,
             "text_en": english,
             "text_nl": expected,
             "user_text": user_text,
-            "correct": correct,
-            "feedback": None,
-            "ai_reviewed": False,
+            "correct": review["correct"],
+            "score": review["score"],
+            "errors": review["errors"],
+            "alternative_accepted": review["alternative_accepted"],
+            "feedback_nl": review["feedback_nl"],
+            "hints_penalty": review["hints_penalty"],
         })
 
     total = len(sentences)
     score = round((correct_count / max(total, 1)) * 100)
+
+    # Collect weak points (repeated grammar rules)
+    rule_counts: dict[str, int] = {}
+    for r in results:
+        for e in r.get("errors", []):
+            rule = e.get("rule_nl", "")
+            if rule:
+                rule_counts[rule] = rule_counts.get(rule, 0) + 1
+    weak_points = [rule for rule, count in sorted(rule_counts.items(), key=lambda x: -x[1]) if count >= 1]
+
     feedback_en, feedback_nl = _generate_spell_feedback(correct_count, total, score)
 
     return {
@@ -199,51 +356,8 @@ def grade_spell_exercise(prompt: dict, user_answers: list[dict]) -> dict:
         "results": results,
         "feedback_en": feedback_en,
         "feedback_nl": feedback_nl,
+        "weak_points": weak_points,
     }
-
-
-def review_spell_sentence(english: str, expected_nl: str, user_text: str) -> dict:
-    """AI review a single sentence — called on demand when user clicks 'AI Review'.
-
-    Returns { correct: bool, feedback: str }
-    """
-    if not AI_API_KEY:
-        raise RuntimeError("AI_API_KEY is not set")
-
-    client = _get_client()
-    try:
-        response = client.chat.completions.create(
-            model=FAST_MODEL,
-            messages=[
-                {"role": "system", "content": (
-                    "You are a Dutch language teacher reviewing a student's translation.\n"
-                    "The student translated an English sentence to Dutch. "
-                    "Their answer differs from the expected answer but may still be correct "
-                    "(different word order, synonyms, valid alternative phrasing).\n\n"
-                    "Judge if the student's Dutch is a correct and natural translation of the English.\n"
-                    "Reply ONLY with valid JSON:\n"
-                    "{\"correct\": true/false, \"feedback\": \"...\"}\n\n"
-                    "- If correct: feedback should acknowledge the valid alternative briefly.\n"
-                    "- If incorrect: feedback should explain what's wrong and show the correction (1-2 sentences, in English)."
-                )},
-                {"role": "user", "content": (
-                    f"English: \"{english}\"\n"
-                    f"Expected Dutch: \"{expected_nl}\"\n"
-                    f"Student wrote: \"{user_text}\"\n\n"
-                    f"Is the student's translation correct?"
-                )},
-            ],
-            temperature=0.0,
-            response_format={"type": "json_object"},
-        )
-        raw = _strip_fences(response.choices[0].message.content.strip())
-        data = json.loads(raw)
-        return {
-            "correct": bool(data.get("correct", False)),
-            "feedback": data.get("feedback", ""),
-        }
-    except Exception as e:
-        return {"correct": False, "feedback": f"AI review failed: {e}"}
 
 
 def _generate_spell_feedback(correct: int, total: int, score: int) -> tuple[str, str]:

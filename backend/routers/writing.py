@@ -9,7 +9,7 @@ from sqlmodel import Session, select, col
 
 from backend.core.writing_ai import generate_writing_prompt, review_writing, generate_error_correction, grade_error_correction
 from backend.core.spell_scenes import SPELL_SCENES
-from backend.core.spell_ai import generate_spell_exercise, grade_spell_exercise, review_spell_sentence
+from backend.core.spell_ai import generate_spell_exercise, grade_spell_exercise, review_translation
 from backend.data.schrijven_exams import get_schrijven_exam, get_schrijven_exam_list, get_schrijven_task
 from backend.database import get_session
 from backend.models.writing import WritingSession, WritingErrorWeight
@@ -309,6 +309,7 @@ class SpellAnswer(BaseModel):
 class SpellSubmitRequest(BaseModel):
     prompt: dict
     answers: list[SpellAnswer]
+    hints_used: list[int] = []
     duration_seconds: int | None = None
 
 
@@ -321,6 +322,7 @@ def spell_submit(
     feedback = grade_spell_exercise(
         req.prompt,
         [a.model_dump() for a in req.answers],
+        hints_used=req.hints_used or None,
     )
 
     score_pct = feedback.get("score", 0)
@@ -346,20 +348,21 @@ def spell_submit(
     }
 
 
-class SpellReviewRequest(BaseModel):
+class TranslationReviewRequest(BaseModel):
     text_en: str
     text_nl: str
     user_text: str
+    hints_used: int = 0
 
 
-@router.post("/spell-review-sentence")
-def spell_review(
-    req: SpellReviewRequest,
+@router.post("/translation-review")
+def translation_review(
+    req: TranslationReviewRequest,
     _user: User = Depends(get_current_user),
 ):
-    """AI review a single sentence on demand."""
+    """AI review a single translation sentence with structured feedback."""
     try:
-        result = review_spell_sentence(req.text_en, req.text_nl, req.user_text)
+        result = review_translation(req.text_en, req.text_nl, req.user_text, req.hints_used)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     return result
