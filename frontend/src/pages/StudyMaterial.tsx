@@ -24,6 +24,10 @@ import {
   WritingHistoryItem,
   WritingHistoryPage,
   deleteSpeakingRecording,
+  deleteSpeakingSession,
+  deleteWritingSession,
+  deleteListeningSession,
+  deleteExamResult,
   getExamResults,
   getExamTrend,
   getFlashcardHistory,
@@ -79,6 +83,8 @@ export default function StudyMaterial() {
   const [writingDetail, setWritingDetail] = useState<WritingDetailItem | null>(null);
   const [writingDetailLoading, setWritingDetailLoading] = useState(false);
   const [writingExpandedId, setWritingExpandedId] = useState<number | null>(null);
+  type WrtFilter = "all" | "email" | "kort_verhaal" | "formulier" | "briefje" | "error_correction" | "spell_practice";
+  const [wrtFilter, setWrtFilter] = useState<WrtFilter>("all");
 
   // Reading + KNM state
   const [readingHistory, setReadingHistory] = useState<ReadingHistoryItem[]>([]);
@@ -128,6 +134,12 @@ export default function StudyMaterial() {
     getListeningTrend(modeParam).then(setLisTrend).catch(() => {});
   }, [lisFilter]);
 
+  // Re-fetch writing data when filter changes
+  useEffect(() => {
+    const typeParam = wrtFilter === "all" ? undefined : wrtFilter;
+    getWritingHistoryPaged(1, 50, typeParam).then((res) => setWritingItems(res.items)).catch(() => {});
+  }, [wrtFilter]);
+
   // Load speaking data when tab/filter/page changes
   useEffect(() => {
     if (tab !== "speaking") return;
@@ -168,6 +180,37 @@ export default function StudyMaterial() {
   function handleDeleteRecording(id: number) {
     deleteSpeakingRecording(id)
       .then(() => { setSpeakingItems((prev) => prev.filter((s) => s.id !== id)); })
+      .catch(() => {});
+  }
+
+  function handleDeleteSpeakingSession(id: number) {
+    if (!confirm("Delete this speaking session?")) return;
+    deleteSpeakingSession(id)
+      .then(() => { setSpeakingItems((prev) => prev.filter((s) => s.id !== id)); })
+      .catch(() => {});
+  }
+
+  function handleDeleteWritingSession(id: number) {
+    if (!confirm("Delete this writing session?")) return;
+    deleteWritingSession(id)
+      .then(() => {
+        setWritingItems((prev) => prev.filter((w) => w.id !== id));
+        if (writingExpandedId === id) { setWritingExpandedId(null); setWritingDetail(null); }
+      })
+      .catch(() => {});
+  }
+
+  function handleDeleteListeningSession(id: number) {
+    if (!confirm("Delete this listening session?")) return;
+    deleteListeningSession(id)
+      .then(() => { setListening((prev) => prev.filter((l) => l.id !== id)); })
+      .catch(() => {});
+  }
+
+  function handleDeleteExamResult(id: number) {
+    if (!confirm("Delete this exam result?")) return;
+    deleteExamResult(id)
+      .then(() => { setExams((prev) => prev.filter((e) => e.id !== id)); })
       .catch(() => {});
   }
 
@@ -421,6 +464,13 @@ export default function StudyMaterial() {
                   >
                     {l.score_pct}%
                   </span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeleteListeningSession(l.id); }}
+                    className="text-slate-300 hover:text-red-500 transition-colors p-0.5"
+                    title="Delete session"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  </button>
                   <svg className={`w-4 h-4 text-slate-400 transition-transform ${expandedId === l.id ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                 </div>
               </div>
@@ -723,6 +773,12 @@ export default function StudyMaterial() {
       {/* ── Writing tab ── */}
       {tab === "writing" && (
         <div className="space-y-3">
+          {/* Filter bar */}
+          <div className="flex flex-wrap gap-1.5">
+            {([["all", "All"], ["email", "Email"], ["kort_verhaal", "Kort verhaal"], ["formulier", "Formulier"], ["briefje", "Briefje"], ["error_correction", "Error Correction"], ["spell_practice", "Translation"]] as [WrtFilter, string][]).map(([val, label]) => (
+              <button key={val} onClick={() => setWrtFilter(val)} className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${wrtFilter === val ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>{label}</button>
+            ))}
+          </div>
           {writingItems.length === 0 && !loading && (
             <p className="text-slate-400 text-sm">No writing sessions yet.</p>
           )}
@@ -759,6 +815,13 @@ export default function StudyMaterial() {
                     <span className={`text-sm font-semibold ${(w.score_pct ?? 0) >= 60 ? "text-green-600" : "text-red-500"}`}>
                       {w.score_pct ?? "--"}%
                     </span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDeleteWritingSession(w.id); }}
+                      className="text-slate-300 hover:text-red-500 transition-colors p-0.5"
+                      title="Delete session"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
                     <svg className={`w-4 h-4 text-slate-400 transition-transform ${writingExpandedId === w.id ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                   </div>
                 </div>
@@ -1122,9 +1185,9 @@ export default function StudyMaterial() {
                         </button>
                       )}
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleDeleteRecording(s.id); }}
-                        className="text-red-400 hover:text-red-600"
-                        title="Delete recording"
+                        onClick={(e) => { e.stopPropagation(); handleDeleteSpeakingSession(s.id); }}
+                        className="text-slate-300 hover:text-red-500 transition-colors"
+                        title="Delete session"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                       </button>
@@ -1275,6 +1338,13 @@ export default function StudyMaterial() {
                       {e.passed ? "PASS" : "FAIL"}
                     </span>
                     <span className="text-sm font-semibold">{avgScore}%</span>
+                    <button
+                      onClick={(ev) => { ev.stopPropagation(); handleDeleteExamResult(e.id); }}
+                      className="text-slate-300 hover:text-red-500 transition-colors p-0.5"
+                      title="Delete result"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
                     <svg className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                   </div>
                 </div>

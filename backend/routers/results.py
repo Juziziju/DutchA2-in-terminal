@@ -132,6 +132,39 @@ def exam_results(
     ]
 
 
+# ── Delete endpoints ─────────────────────────────────────────────────────────
+
+
+@router.delete("/listening/{session_id}")
+def delete_listening_session(
+    session_id: int,
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Delete a listening session from history."""
+    session = db.get(ListeningSession, session_id)
+    if not session or session.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Session not found")
+    db.delete(session)
+    db.commit()
+    return {"ok": True}
+
+
+@router.delete("/exam/{result_id}")
+def delete_exam_result(
+    result_id: int,
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Delete an exam result from history."""
+    result = db.get(ExamResult, result_id)
+    if not result or result.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Result not found")
+    db.delete(result)
+    db.commit()
+    return {"ok": True}
+
+
 # ── Dashboard stats ──────────────────────────────────────────────────────────
 
 class DailyTrainingItem(BaseModel):

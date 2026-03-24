@@ -478,6 +478,14 @@ export function getExamResults() {
   return request<ExamHistoryItem[]>("GET", "/results/exam");
 }
 
+export function deleteListeningSession(sessionId: number) {
+  return request<{ ok: boolean }>("DELETE", `/results/listening/${sessionId}`);
+}
+
+export function deleteExamResult(resultId: number) {
+  return request<{ ok: boolean }>("DELETE", `/results/exam/${resultId}`);
+}
+
 // ── Trends ───────────────────────────────────────────────────────────────────
 
 export interface FlashcardTrendPoint { date: string; reviewed: number; correct_pct: number }
@@ -824,6 +832,10 @@ export function getSpeakingHistory() {
 
 export function deleteSpeakingRecording(sessionId: number) {
   return request<void>("DELETE", `/speaking/recordings/${sessionId}`);
+}
+
+export function deleteSpeakingSession(sessionId: number) {
+  return request<{ ok: boolean }>("DELETE", `/speaking/history/${sessionId}`);
 }
 
 // ── Speaking Notebook ────────────────────────────────────────────────────────
@@ -1618,6 +1630,10 @@ export interface WritingDetailItem {
 
 export function getWritingDetail(id: number) {
   return request<WritingDetailItem>("GET", `/writing/detail/${id}`);
+}
+
+export function deleteWritingSession(sessionId: number) {
+  return request<{ ok: boolean }>("DELETE", `/writing/history/${sessionId}`);
 }
 
 export interface WritingErrorCategoryItem {

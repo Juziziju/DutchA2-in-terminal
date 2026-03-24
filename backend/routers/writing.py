@@ -368,6 +368,24 @@ def translation_review(
     return result
 
 
+# ── Delete ───────────────────────────────────────────────────────────────────
+
+
+@router.delete("/history/{session_id}")
+def delete_writing_session(
+    session_id: int,
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Delete a writing session from history."""
+    session = db.get(WritingSession, session_id)
+    if not session or session.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Session not found")
+    db.delete(session)
+    db.commit()
+    return {"ok": True}
+
+
 # ── History ──────────────────────────────────────────────────────────────────
 
 

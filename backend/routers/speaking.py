@@ -870,6 +870,34 @@ def delete_recording(
     return Response(status_code=204)
 
 
+# ── Delete session ────────────────────────────────────────────────────────────
+
+
+@router.delete("/history/{session_id}")
+def delete_speaking_session(
+    session_id: int,
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Delete a speaking session entirely from history."""
+    session = db.get(SpeakingSession, session_id)
+    if not session or session.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Session not found")
+    # Also delete audio file if present
+    if session.audio_file:
+        from backend.core.storage import delete_file
+        try:
+            delete_file("speaking", session.audio_file)
+        except Exception:
+            pass
+        local_path = AUDIO_SPEAKING_DIR / session.audio_file
+        if local_path.exists():
+            local_path.unlink()
+    db.delete(session)
+    db.commit()
+    return {"ok": True}
+
+
 # ── Save scene vocab to notebook ──────────────────────────────────────────────
 
 
