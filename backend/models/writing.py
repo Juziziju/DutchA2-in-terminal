@@ -7,6 +7,7 @@ class WritingSession(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     task_type: str = Field(default="email")  # "email" | "kort_verhaal" | "formulier"
+    subtopic: Optional[str] = Field(default=None, index=True)
     topic: str = Field(default="")
     score_pct: Optional[int] = Field(default=None)
     date: datetime = Field(default_factory=datetime.utcnow)

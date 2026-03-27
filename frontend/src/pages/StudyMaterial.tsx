@@ -23,6 +23,8 @@ import {
   WritingDetailItem,
   WritingHistoryItem,
   WritingHistoryPage,
+  WritingTrendPoint,
+  SubtopicScore,
   deleteSpeakingRecording,
   deleteSpeakingSession,
   deleteWritingSession,
@@ -45,6 +47,8 @@ import {
   getSprekenExamDetail,
   getWritingHistoryPaged,
   getWritingDetail,
+  getWritingTrend,
+  getWritingSubtopicScores,
   listeningAudioUrl,
   speakingAudioUrl,
 } from "../api";
@@ -85,6 +89,8 @@ export default function StudyMaterial() {
   const [writingExpandedId, setWritingExpandedId] = useState<number | null>(null);
   type WrtFilter = "all" | "email" | "kort_verhaal" | "formulier" | "briefje" | "error_correction" | "spell_practice";
   const [wrtFilter, setWrtFilter] = useState<WrtFilter>("all");
+  const [writingTrend, setWritingTrend] = useState<WritingTrendPoint[]>([]);
+  const [subtopicScores, setSubtopicScores] = useState<SubtopicScore[]>([]);
 
   // Reading + KNM state
   const [readingHistory, setReadingHistory] = useState<ReadingHistoryItem[]>([]);
@@ -138,7 +144,13 @@ export default function StudyMaterial() {
   useEffect(() => {
     const typeParam = wrtFilter === "all" ? undefined : wrtFilter;
     getWritingHistoryPaged(1, 50, typeParam).then((res) => setWritingItems(res.items)).catch(() => {});
+    getWritingTrend(typeParam).then(setWritingTrend).catch(() => {});
   }, [wrtFilter]);
+
+  // Load subtopic scores once
+  useEffect(() => {
+    getWritingSubtopicScores().then(setSubtopicScores).catch(() => {});
+  }, []);
 
   // Load speaking data when tab/filter/page changes
   useEffect(() => {
@@ -779,6 +791,43 @@ export default function StudyMaterial() {
               <button key={val} onClick={() => setWrtFilter(val)} className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${wrtFilter === val ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>{label}</button>
             ))}
           </div>
+
+          {/* Writing trend chart */}
+          {writingTrend.length > 1 && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-4">
+              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Score Trend (30 days)</h4>
+              <ResponsiveContainer width="100%" height={140}>
+                <LineChart data={writingTrend}>
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(v: string) => v.slice(5)} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
+                  <Tooltip formatter={(v) => [`${v}%`, "Avg Score"]} labelFormatter={(l) => String(l)} />
+                  <Line type="monotone" dataKey="avg_score" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Subtopic scores summary (when a specific task_type is selected) */}
+          {wrtFilter !== "all" && wrtFilter !== "error_correction" && wrtFilter !== "spell_practice" && (() => {
+            const filtered = subtopicScores.filter(s => s.task_type === wrtFilter);
+            if (filtered.length === 0) return null;
+            return (
+              <div className="bg-white rounded-2xl border border-slate-200 p-4">
+                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Subtopic Scores</h4>
+                <div className="space-y-1.5">
+                  {filtered.sort((a, b) => a.avg_score - b.avg_score).map(s => (
+                    <div key={s.subtopic} className="flex items-center gap-2">
+                      <span className="text-xs text-slate-600 w-40 truncate">{s.subtopic.replace(/_/g, " ")}</span>
+                      <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                        <div className={`h-full rounded-full ${s.avg_score >= 80 ? "bg-green-500" : s.avg_score >= 60 ? "bg-yellow-500" : "bg-red-500"}`} style={{ width: `${Math.min(s.avg_score, 100)}%` }} />
+                      </div>
+                      <span className="text-xs font-semibold w-12 text-right">{s.avg_score}% <span className="text-slate-400 font-normal">({s.count})</span></span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
           {writingItems.length === 0 && !loading && (
             <p className="text-slate-400 text-sm">No writing sessions yet.</p>
           )}

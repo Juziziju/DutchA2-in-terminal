@@ -74,6 +74,21 @@ app.include_router(writing.router)
 def on_startup():
     create_db_and_tables()
 
+    # Idempotent: add subtopic column to writingsession
+    from sqlalchemy import text as sa_text
+    from backend.database import engine
+    with engine.connect() as conn:
+        try:
+            conn.execute(sa_text("ALTER TABLE writingsession ADD COLUMN subtopic VARCHAR"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+        try:
+            conn.execute(sa_text("CREATE INDEX ix_writingsession_subtopic ON writingsession(subtopic)"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
     # Cleanup speaking recordings older than 7 days
     from datetime import datetime, timedelta
     from sqlmodel import Session as DBSession, select

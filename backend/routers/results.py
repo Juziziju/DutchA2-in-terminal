@@ -18,6 +18,7 @@ from backend.core.metrics import (
     get_skill_snapshots,
     get_speaking_subscores,
     get_vocab_categories,
+    get_writing_stats_30d,
     build_progress_by_vid,
 )
 from backend.database import get_session
@@ -506,6 +507,12 @@ class VocabCategoryItem(BaseModel):
     total: int
 
 
+class WritingStatsItem(BaseModel):
+    total_sessions: int
+    avg_score: float | None
+    per_task_type: dict[str, float]
+
+
 class DashboardInsights(BaseModel):
     days_until_exam: int | None
     exam_date: str | None
@@ -519,6 +526,7 @@ class DashboardInsights(BaseModel):
     review_consistency_30d: int
     review_dates_30d: list[str]
     skill_snapshots: list[dict]
+    writing_stats: WritingStatsItem | None = None
 
 
 @router.get("/dashboard/insights", response_model=DashboardInsights)
@@ -562,6 +570,14 @@ def dashboard_insights(
     # Skill snapshots
     snapshots = get_skill_snapshots(user, db)
 
+    # Writing stats (30d)
+    ws = get_writing_stats_30d(user, db, today)
+    writing_stats = WritingStatsItem(
+        total_sessions=ws["total_sessions"],
+        avg_score=ws["avg_score"],
+        per_task_type=ws["per_task_type"],
+    ) if ws["total_sessions"] > 0 else None
+
     return DashboardInsights(
         days_until_exam=days_until,
         exam_date=exam_dt,
@@ -575,4 +591,5 @@ def dashboard_insights(
         review_consistency_30d=consistency_count,
         review_dates_30d=review_dates,
         skill_snapshots=snapshots,
+        writing_stats=writing_stats,
     )

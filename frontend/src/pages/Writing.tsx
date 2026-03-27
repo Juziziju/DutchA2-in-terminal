@@ -4,14 +4,18 @@ import {
   generateWritingPrompt,
   submitWriting,
   submitErrorCorrection,
+  getWritingSubtopicScores,
   WritingPrompt,
   WritingFeedback,
   WritingGrammarError,
   ErrorCorrectionFeedback,
   ErrorCorrectionResult,
   SpellPrompt,
+  SubtopicScore,
+  WritingSubtopic,
 } from "../api";
 import SpellPractice from "./SpellPractice";
+import { WRITING_SUBTOPICS_LOCAL } from "../data/writingSubtopics";
 
 type Phase = "home" | "loading" | "writing" | "submitting" | "review";
 type TaskType = "email" | "kort_verhaal" | "formulier" | "briefje" | "error_correction";
@@ -99,9 +103,27 @@ export default function Writing() {
   // Error correction: one answer per sentence
   const [sentenceAnswers, setSentenceAnswers] = useState<SentenceAnswer[]>([]);
 
+  // Subtopics
+  const [subtopicScores, setSubtopicScores] = useState<Record<string, SubtopicScore>>({});
+  const [expandedTask, setExpandedTask] = useState<TaskType | null>(null);
+  const [activeSubtopic, setActiveSubtopic] = useState<string | null>(null);
+
   // Replay: prompt injected from StudyMaterial "Practice Again"
   const [spellReplay, setSpellReplay] = useState<SpellPrompt | null>(null);
   const replayConsumed = useRef(false);
+
+  // Fetch subtopic scores on mount
+  useEffect(() => {
+    getWritingSubtopicScores()
+      .then((scores) => {
+        const map: Record<string, SubtopicScore> = {};
+        for (const s of scores) {
+          map[`${s.task_type}:${s.subtopic}`] = s;
+        }
+        setSubtopicScores(map);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const st = location.state as { replay?: WritingPrompt; replaySpell?: SpellPrompt } | null;
@@ -145,8 +167,9 @@ export default function Writing() {
   const formFieldCount = prompt?.fields?.length ?? 0;
   const formFilledCount = prompt?.fields?.filter(f => (formAnswers[f.label_nl] || "").trim()).length ?? 0;
 
-  async function handleStart(taskType: TaskType) {
+  async function handleStart(taskType: TaskType, subtopicKey?: string) {
     setCurrentTask(taskType);
+    setActiveSubtopic(subtopicKey ?? null);
     setPhase("loading");
     setError("");
     setShowEn(false);
@@ -156,7 +179,7 @@ export default function Writing() {
     setEcFeedback(null);
     setSentenceAnswers([]);
     try {
-      const data = await generateWritingPrompt(taskType, topics[taskType] || undefined);
+      const data = await generateWritingPrompt(taskType, topics[taskType] || undefined, subtopicKey);
       setPrompt(data);
       // Init sentence answers for error correction
       if (taskType === "error_correction" && data.sentences) {
@@ -197,6 +220,7 @@ export default function Writing() {
           prompt,
           response_text: responseText,
           duration_seconds: duration,
+          subtopic: activeSubtopic ?? prompt.subtopic ?? undefined,
         });
         setFeedback(res.feedback);
         setScorePct(res.score_pct);
@@ -244,7 +268,7 @@ export default function Writing() {
           <SpellPractice onBack={() => { setWritingMode("menu"); setSpellReplay(null); }} replayPrompt={spellReplay} />
         </div>
 
-        {/* Scene Practice mode — task cards + mock exams */}
+        {/* Scene Practice mode — task cards with subtopic lists */}
         {writingMode === "scene" && (
           <div className="max-w-2xl mx-auto space-y-6">
             <div className="flex items-center gap-3">
@@ -257,34 +281,80 @@ export default function Writing() {
             {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
 
             <div className="space-y-4">
-              {TASK_CARDS.map((card) => (
-                <div key={card.type} className="bg-white rounded-xl border p-5 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <span className="text-3xl">{card.icon}</span>
-                    <div>
-                      <h3 className="font-semibold text-lg">{card.title}</h3>
-                      <p className="text-slate-500 text-sm">{card.desc}</p>
-                    </div>
-                  </div>
-                  <p className="text-xs text-slate-400">{card.example}</p>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Optional topic..."
-                      className="flex-1 border rounded-lg px-3 py-2 text-sm"
-                      value={topics[card.type]}
-                      onChange={(e) => setTopics(prev => ({ ...prev, [card.type]: e.target.value }))}
-                      onKeyDown={(e) => e.key === "Enter" && handleStart(card.type)}
-                    />
+              {TASK_CARDS.map((card) => {
+                const isExpanded = expandedTask === card.type;
+                const subtopics = WRITING_SUBTOPICS_LOCAL[card.type] || [];
+                return (
+                  <div key={card.type} className="bg-white rounded-xl border overflow-hidden">
+                    {/* Task header — clickable to expand */}
                     <button
-                      onClick={() => handleStart(card.type)}
-                      className="bg-blue-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-blue-700 text-sm"
+                      onClick={() => setExpandedTask(isExpanded ? null : card.type)}
+                      className="w-full p-5 text-left hover:bg-slate-50 transition-colors"
                     >
-                      Start
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-3xl">{card.icon}</span>
+                          <div>
+                            <h3 className="font-semibold text-lg">{card.title}</h3>
+                            <p className="text-slate-500 text-sm">{card.desc}</p>
+                          </div>
+                        </div>
+                        <svg className={`w-5 h-5 text-slate-400 transition-transform ${isExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
                     </button>
+
+                    {/* Expanded subtopic list */}
+                    {isExpanded && (
+                      <div className="border-t">
+                        {subtopics.map((st) => {
+                          const scoreData = subtopicScores[`${card.type}:${st.key}`];
+                          const avg = scoreData?.avg_score;
+                          const badgeColor = avg == null ? "bg-slate-100 text-slate-400"
+                            : avg >= 80 ? "bg-green-100 text-green-700"
+                            : avg >= 60 ? "bg-yellow-100 text-yellow-700"
+                            : "bg-red-100 text-red-700";
+                          return (
+                            <button
+                              key={st.key}
+                              onClick={() => handleStart(card.type, st.key)}
+                              className="w-full flex items-center justify-between px-5 py-3 hover:bg-blue-50 transition-colors border-b last:border-b-0 text-left"
+                            >
+                              <div>
+                                <span className="text-sm font-medium">{st.label_nl}</span>
+                                <span className="text-xs text-slate-400 ml-2">({st.label_en})</span>
+                              </div>
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${badgeColor}`}>
+                                {avg != null ? `${avg}%` : "--"}
+                              </span>
+                            </button>
+                          );
+                        })}
+
+                        {/* Custom topic row */}
+                        <div className="flex items-center gap-2 px-5 py-3 border-b-0">
+                          <span className="text-sm text-slate-500">Custom:</span>
+                          <input
+                            type="text"
+                            placeholder="Your own topic..."
+                            className="flex-1 border rounded-lg px-3 py-1.5 text-sm"
+                            value={topics[card.type]}
+                            onChange={(e) => setTopics(prev => ({ ...prev, [card.type]: e.target.value }))}
+                            onKeyDown={(e) => e.key === "Enter" && handleStart(card.type)}
+                          />
+                          <button
+                            onClick={() => handleStart(card.type)}
+                            className="bg-blue-600 text-white px-4 py-1.5 rounded-lg font-medium hover:bg-blue-700 text-sm"
+                          >
+                            Start
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

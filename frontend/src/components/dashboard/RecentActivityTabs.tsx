@@ -1,11 +1,21 @@
 import { useState } from "react";
-import type { ListeningHistoryItem, ExamHistoryItem, SpeakingHistoryItem } from "../../api";
+import type { ListeningHistoryItem, ExamHistoryItem, SpeakingHistoryItem, WritingHistoryItem } from "../../api";
 
 interface Props {
   listening: ListeningHistoryItem[];
   speaking: SpeakingHistoryItem[];
   exams: ExamHistoryItem[];
+  writing?: WritingHistoryItem[];
 }
+
+const TASK_LABELS: Record<string, string> = {
+  email: "Email",
+  kort_verhaal: "Kort verhaal",
+  formulier: "Formulier",
+  briefje: "Briefje",
+  error_correction: "EC",
+  spell_practice: "Translation",
+};
 
 function fmtMinutes(mins: number): string {
   if (mins < 60) return `${mins}m`;
@@ -14,14 +24,15 @@ function fmtMinutes(mins: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
-type Tab = "listening" | "speaking" | "exams";
+type Tab = "listening" | "speaking" | "writing" | "exams";
 
-export default function RecentActivityTabs({ listening, speaking, exams }: Props) {
+export default function RecentActivityTabs({ listening, speaking, exams, writing = [] }: Props) {
   const [tab, setTab] = useState<Tab>("listening");
 
   const tabs: { key: Tab; label: string; count: number }[] = [
     { key: "listening", label: "Listening", count: listening.length },
     { key: "speaking", label: "Speaking", count: speaking.length },
+    { key: "writing", label: "Writing", count: writing.length },
     { key: "exams", label: "Exams", count: exams.length },
   ];
 
@@ -102,8 +113,26 @@ export default function RecentActivityTabs({ listening, speaking, exams }: Props
           </div>
         ))}
 
+        {tab === "writing" && writing.slice(0, 5).map(w => (
+          <div key={w.id} className="flex justify-between items-center py-2">
+            <div>
+              <p className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+                {w.topic || "Writing practice"}
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">
+                  {TASK_LABELS[w.task_type] || w.task_type}
+                </span>
+              </p>
+              <p className="text-xs text-slate-400">{w.date.split("T")[0]}</p>
+            </div>
+            <span className={`text-sm font-semibold ${(w.score_pct ?? 0) >= 60 ? "text-green-600" : "text-red-500"}`}>
+              {w.score_pct != null ? `${w.score_pct}%` : "--"}
+            </span>
+          </div>
+        ))}
+
         {tab === "listening" && listening.length === 0 && <p className="text-sm text-slate-400 text-center py-4">No listening sessions yet.</p>}
         {tab === "speaking" && speaking.length === 0 && <p className="text-sm text-slate-400 text-center py-4">No speaking sessions yet.</p>}
+        {tab === "writing" && writing.length === 0 && <p className="text-sm text-slate-400 text-center py-4">No writing sessions yet.</p>}
         {tab === "exams" && exams.length === 0 && <p className="text-sm text-slate-400 text-center py-4">No exams taken yet.</p>}
       </div>
     </div>

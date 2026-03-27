@@ -11,6 +11,7 @@ import {
   FlashcardStats,
   ListeningHistoryItem,
   SpeakingHistoryItem,
+  WritingHistoryItem,
   TrainingSummary,
   PlannerStatus,
   PlannerDailyPlan,
@@ -18,6 +19,7 @@ import {
   getFlashcardResults,
   getListeningResults,
   getSpeakingHistory,
+  getWritingHistoryPaged,
   getStreak,
   getDashboardTraining,
   getDashboardInsights,
@@ -32,6 +34,7 @@ import SpeakingSubScoresCard from "../components/dashboard/SpeakingSubScoresCard
 import PracticeBalanceCard from "../components/dashboard/PracticeBalanceCard";
 import SmartQuickActions from "../components/dashboard/SmartQuickActions";
 import RecentActivityTabs from "../components/dashboard/RecentActivityTabs";
+import WritingScoresCard from "../components/dashboard/WritingScoresCard";
 
 function fmtMinutes(mins: number): string {
   if (mins < 60) return `${mins}m`;
@@ -61,6 +64,7 @@ export default function Dashboard() {
   const [listening, setListening] = useState<ListeningHistoryItem[]>([]);
   const [speaking, setSpeaking] = useState<SpeakingHistoryItem[]>([]);
   const [exams, setExams] = useState<ExamHistoryItem[]>([]);
+  const [writingRecent, setWritingRecent] = useState<WritingHistoryItem[]>([]);
   const [training, setTraining] = useState<TrainingSummary | null>(null);
   const [insights, setInsights] = useState<DashboardInsights | null>(null);
   const [plannerStatus, setPlannerStatus] = useState<PlannerStatus | null>(null);
@@ -88,6 +92,7 @@ export default function Dashboard() {
     const core = Promise.all([getFlashcardResults(), getListeningResults(), getExamResults(), getSpeakingHistory()])
       .then(([fc, l, e, s]) => { setFcStats(fc); setListening(l); setExams(e); setSpeaking(s); })
       .catch(() => {});
+    const wr = getWritingHistoryPaged(1, 5).then(r => setWritingRecent(r.items)).catch(() => {});
     const tr = getDashboardTraining(30).then(setTraining).catch(() => {});
     const sk = getStreak().then(r => { setStreak(r.streak); setActiveDates(r.active_dates); }).catch(() => {});
     const ins = getDashboardInsights().then(setInsights).catch(() => {});
@@ -99,7 +104,7 @@ export default function Dashboard() {
         }
       })
       .catch(() => {});
-    Promise.all([core, tr, sk, ins, planner]).finally(() => setLoading(false));
+    Promise.all([core, tr, sk, ins, planner, wr]).finally(() => setLoading(false));
   }, []);
 
   // Aggregate daily chart data
@@ -306,6 +311,11 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Section 7b: Writing Scores Card */}
+      {!loading && insights?.writing_stats && (
+        <WritingScoresCard stats={insights.writing_stats} />
+      )}
+
       {/* Section 8: Smart Quick Actions */}
       {!loading && (
         <div data-tour="quick-actions">
@@ -324,6 +334,7 @@ export default function Dashboard() {
             listening={listening}
             speaking={speaking}
             exams={exams}
+            writing={writingRecent}
           />
         </div>
       )}

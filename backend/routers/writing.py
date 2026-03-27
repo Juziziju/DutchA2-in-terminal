@@ -11,6 +11,7 @@ from backend.core.writing_ai import generate_writing_prompt, review_writing, gen
 from backend.core.spell_scenes import SPELL_SCENES
 from backend.core.spell_ai import generate_spell_exercise, grade_spell_exercise, review_translation
 from backend.data.schrijven_exams import get_schrijven_exam, get_schrijven_exam_list, get_schrijven_task
+from backend.data.writing_subtopics import WRITING_SUBTOPICS, get_subtopic
 from backend.database import get_session
 from backend.models.writing import WritingSession, WritingErrorWeight
 from backend.models.user import User
@@ -28,6 +29,7 @@ VALID_TASK_TYPES = ("email", "kort_verhaal", "formulier", "briefje", "error_corr
 class GenerateRequest(BaseModel):
     task_type: str = "email"  # "email" | "kort_verhaal" | "formulier" | "error_correction"
     topic: str = ""
+    subtopic: str | None = None
 
 
 @router.post("/generate")
@@ -38,6 +40,14 @@ def generate(
 ):
     body = req or GenerateRequest()
     task_type = body.task_type if body.task_type in VALID_TASK_TYPES else "email"
+
+    # If subtopic given, use its description as topic hint
+    topic = body.topic
+    subtopic_key = body.subtopic
+    if subtopic_key and not topic:
+        st = get_subtopic(task_type, subtopic_key)
+        if st:
+            topic = st["description"]
 
     # Fetch user's top error categories to bias prompt generation
     weights = db.exec(
@@ -51,17 +61,21 @@ def generate(
     try:
         if task_type == "error_correction":
             data = generate_error_correction(
-                topic=body.topic,
+                topic=topic,
                 weak_categories=weak_categories or None,
             )
         else:
             data = generate_writing_prompt(
                 task_type=task_type,
-                topic=body.topic,
+                topic=topic,
                 weak_categories=weak_categories or None,
             )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+    # Attach subtopic key to response so frontend can pass it back on submit
+    if subtopic_key:
+        data["subtopic"] = subtopic_key
 
     return data
 
@@ -74,6 +88,7 @@ class SubmitRequest(BaseModel):
     prompt: dict  # the full prompt object from generate
     response_text: str  # user's writing (or JSON-serialized form answers for formulier)
     duration_seconds: int | None = None
+    subtopic: str | None = None
 
 
 class ContentChecklistItem(BaseModel):
@@ -152,10 +167,14 @@ def submit(
 
     score_pct = feedback.get("score", 0)
 
+    # Resolve subtopic: explicit param > prompt metadata
+    subtopic = req.subtopic or req.prompt.get("subtopic")
+
     # Save session
     session = WritingSession(
         user_id=user.id,
         task_type=task_type,
+        subtopic=subtopic,
         topic=req.prompt.get("topic", ""),
         score_pct=score_pct,
         duration_seconds=req.duration_seconds,
@@ -366,6 +385,100 @@ def translation_review(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     return result
+
+
+# ── Subtopics ────────────────────────────────────────────────────────────────
+
+
+@router.get("/subtopics")
+def list_subtopics(
+    _user: User = Depends(get_current_user),
+):
+    """Return the full subtopic catalogue."""
+    return WRITING_SUBTOPICS
+
+
+@router.get("/subtopic-scores")
+def subtopic_scores(
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Return average score per (task_type, subtopic) over last 7 attempts."""
+    from sqlmodel import func, col as sqcol
+
+    # Get all sessions with a subtopic for this user
+    rows = db.exec(
+        select(
+            WritingSession.task_type,
+            WritingSession.subtopic,
+            WritingSession.score_pct,
+            WritingSession.date,
+        )
+        .where(
+            WritingSession.user_id == user.id,
+            WritingSession.subtopic.is_not(None),  # type: ignore[union-attr]
+            WritingSession.score_pct.is_not(None),  # type: ignore[union-attr]
+        )
+        .order_by(col(WritingSession.date).desc())
+    ).all()
+
+    # Group by (task_type, subtopic), keep last 7
+    from collections import defaultdict
+    groups: dict[tuple[str, str], list[int]] = defaultdict(list)
+    for task_type, subtopic, score_pct, _date in rows:
+        key = (task_type, subtopic)
+        if len(groups[key]) < 7:
+            groups[key].append(score_pct)
+
+    return [
+        {
+            "task_type": tt,
+            "subtopic": st,
+            "avg_score": round(sum(scores) / len(scores)),
+            "count": len(scores),
+        }
+        for (tt, st), scores in groups.items()
+    ]
+
+
+@router.get("/trend")
+def writing_trend(
+    task_type: str | None = None,
+    subtopic: str | None = None,
+    days: int = Query(30, ge=1, le=365),
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Return daily score data points for writing trend charts."""
+    from datetime import timedelta
+    from collections import defaultdict
+
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    stmt = select(WritingSession).where(
+        WritingSession.user_id == user.id,
+        WritingSession.date >= cutoff,
+        WritingSession.score_pct.is_not(None),  # type: ignore[union-attr]
+    )
+    if task_type:
+        stmt = stmt.where(WritingSession.task_type == task_type)
+    if subtopic:
+        stmt = stmt.where(WritingSession.subtopic == subtopic)
+
+    rows = db.exec(stmt).all()
+
+    by_day: dict[str, list[int]] = defaultdict(list)
+    for r in rows:
+        day = r.date.strftime("%Y-%m-%d") if hasattr(r.date, "strftime") else str(r.date)[:10]
+        by_day[day].append(r.score_pct)
+
+    return [
+        {
+            "date": day,
+            "avg_score": round(sum(scores) / len(scores), 1),
+            "count": len(scores),
+        }
+        for day, scores in sorted(by_day.items())
+    ]
 
 
 # ── Delete ───────────────────────────────────────────────────────────────────

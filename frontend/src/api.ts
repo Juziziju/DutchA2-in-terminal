@@ -1418,6 +1418,12 @@ export interface SkillSnapshotItem {
   avg_score: number;
 }
 
+export interface WritingStats {
+  total_sessions: number;
+  avg_score: number | null;
+  per_task_type: Record<string, number>;
+}
+
 export interface DashboardInsights {
   days_until_exam: number | null;
   exam_date: string | null;
@@ -1431,6 +1437,7 @@ export interface DashboardInsights {
   review_consistency_30d: number;
   review_dates_30d: string[];
   skill_snapshots: SkillSnapshotItem[];
+  writing_stats: WritingStats | null;
 }
 
 export function getDashboardInsights() {
@@ -1499,13 +1506,52 @@ export interface WritingPrompt {
   sentences?: ErrorCorrectionSentence[];
   // shared
   model_answer?: string;
+  subtopic?: string;
 }
 
-export function generateWritingPrompt(taskType?: string, topic?: string) {
+export function generateWritingPrompt(taskType?: string, topic?: string, subtopic?: string) {
   return request<WritingPrompt>("POST", "/writing/generate", {
     task_type: taskType ?? "email",
     topic: topic ?? "",
+    ...(subtopic ? { subtopic } : {}),
   });
+}
+
+// Subtopics
+export interface WritingSubtopic {
+  key: string;
+  label_nl: string;
+  label_en: string;
+  description: string;
+}
+
+export interface SubtopicScore {
+  task_type: string;
+  subtopic: string;
+  avg_score: number;
+  count: number;
+}
+
+export interface WritingTrendPoint {
+  date: string;
+  avg_score: number;
+  count: number;
+}
+
+export function getWritingSubtopics() {
+  return request<Record<string, WritingSubtopic[]>>("GET", "/writing/subtopics");
+}
+
+export function getWritingSubtopicScores() {
+  return request<SubtopicScore[]>("GET", "/writing/subtopic-scores");
+}
+
+export function getWritingTrend(taskType?: string, subtopic?: string, days?: number) {
+  const params: Record<string, string> = {};
+  if (taskType) params.task_type = taskType;
+  if (subtopic) params.subtopic = subtopic;
+  if (days) params.days = String(days);
+  return request<WritingTrendPoint[]>("GET", "/writing/trend", undefined, params);
 }
 
 export interface ContentChecklistItem {
@@ -1551,6 +1597,7 @@ export function submitWriting(data: {
   prompt: WritingPrompt;
   response_text: string;
   duration_seconds?: number;
+  subtopic?: string;
 }) {
   return request<WritingSubmitResponse>("POST", "/writing/submit", data);
 }

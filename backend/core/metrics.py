@@ -18,6 +18,7 @@ from backend.models.speaking import SpeakingSession
 from backend.models.user import User
 from backend.models.user_profile import UserProfile
 from backend.models.vocab import Vocab
+from backend.models.writing import WritingSession
 
 
 def _date_str(dt) -> str:
@@ -62,6 +63,9 @@ def get_active_dates(user: User, db: Session) -> set[str]:
         active_dates.add(_date_str(r.date))
 
     for r in db.exec(select(ExamResult).where(ExamResult.user_id == user.id)).all():
+        active_dates.add(_date_str(r.date))
+
+    for r in db.exec(select(WritingSession).where(WritingSession.user_id == user.id)).all():
         active_dates.add(_date_str(r.date))
 
     return active_dates
@@ -264,3 +268,42 @@ def build_progress_by_vid(all_progress: list) -> dict[int, dict[str, FlashcardPr
     for p in all_progress:
         result[p.vocab_id][p.direction] = p
     return result
+
+
+def get_writing_stats_30d(user: User, db: Session, today: date | None = None) -> dict:
+    """30-day writing stats: total, avg, per task_type."""
+    if today is None:
+        today = date.today()
+    cutoff = today - timedelta(days=30)
+    rows = db.exec(
+        select(WritingSession).where(
+            WritingSession.user_id == user.id,
+            WritingSession.date >= cutoff.isoformat(),
+            WritingSession.score_pct.is_not(None),  # type: ignore[union-attr]
+        )
+    ).all()
+
+    if not rows:
+        return {
+            "total_sessions": 0,
+            "avg_score": None,
+            "per_task_type": {},
+        }
+
+    all_scores = [r.score_pct for r in rows]
+
+    # Group by task_type
+    by_type: dict[str, list[int]] = defaultdict(list)
+    for r in rows:
+        by_type[r.task_type].append(r.score_pct)
+
+    per_task_type = {
+        tt: round(sum(scores) / len(scores), 1)
+        for tt, scores in by_type.items()
+    }
+
+    return {
+        "total_sessions": len(rows),
+        "avg_score": round(sum(all_scores) / len(all_scores), 1),
+        "per_task_type": per_task_type,
+    }
