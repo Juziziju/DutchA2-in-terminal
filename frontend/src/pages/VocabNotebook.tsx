@@ -5,6 +5,7 @@ import {
   VocabLevel,
   VocabNoteItem,
   VocabNotebookOut,
+  addToLearn,
   deletePersonalVocab,
   getPersonalVocab,
   getPersonalVocabSession,
@@ -103,6 +104,21 @@ function CourseVocabTab() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  function handleAddToLearn(vocabId: number) {
+    addToLearn(vocabId).then(() => {
+      // Optimistically mark as queued in local state
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          items: prev.items.map((w) =>
+            w.vocab_id === vocabId ? { ...w, queued: true } : w
+          ),
+        };
+      });
+    }).catch(() => {});
+  }
 
   const filtered = useMemo(() => {
     if (!data) return [];
@@ -230,7 +246,7 @@ function CourseVocabTab() {
               {expandedCategories.has(cat) && (
                 <div className="space-y-1.5 mt-1.5 ml-2">
                   {words.map((w) => (
-                    <VocabRow key={w.vocab_id} word={w} showTranslation={showTranslation} />
+                    <VocabRow key={w.vocab_id} word={w} showTranslation={showTranslation} onAddToLearn={handleAddToLearn} />
                   ))}
                 </div>
               )}
@@ -243,7 +259,7 @@ function CourseVocabTab() {
       ) : (
         <div className="space-y-1.5">
           {filtered.map((w) => (
-            <VocabRow key={w.vocab_id} word={w} showTranslation={showTranslation} />
+            <VocabRow key={w.vocab_id} word={w} showTranslation={showTranslation} onAddToLearn={handleAddToLearn} />
           ))}
           {filtered.length === 0 && (
             <p className="text-center text-slate-400 py-8">No words match your filter.</p>
@@ -254,7 +270,15 @@ function CourseVocabTab() {
   );
 }
 
-function VocabRow({ word: w, showTranslation }: { word: VocabNoteItem; showTranslation: boolean }) {
+function VocabRow({
+  word: w,
+  showTranslation,
+  onAddToLearn,
+}: {
+  word: VocabNoteItem;
+  showTranslation: boolean;
+  onAddToLearn?: (vocabId: number) => void;
+}) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -273,6 +297,19 @@ function VocabRow({ word: w, showTranslation }: { word: VocabNoteItem; showTrans
             <p className="text-sm text-slate-500 truncate">{w.english}</p>
           )}
         </div>
+        {w.level === "new" && !w.queued && onAddToLearn && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onAddToLearn(w.vocab_id); }}
+            className="flex-shrink-0 text-xs px-2.5 py-1 rounded-lg font-medium bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 transition-colors"
+          >
+            + Learn
+          </button>
+        )}
+        {w.level === "new" && w.queued && (
+          <span className="flex-shrink-0 text-xs px-2.5 py-1 rounded-lg font-medium bg-green-50 text-green-600 border border-green-200">
+            Queued
+          </span>
+        )}
         <LevelBadge level={w.level} />
       </div>
 

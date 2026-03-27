@@ -63,7 +63,8 @@ def get_session_cards(
 
     due: list[tuple[Vocab, str, FlashcardProgress]] = []
     weak: list[tuple[Vocab, str, FlashcardProgress]] = []
-    new: list[tuple[Vocab, str]] = []
+    queued_new: list[tuple[Vocab, str]] = []   # explicitly added to learn (has progress, rep=0)
+    unqueued_new: list[tuple[Vocab, str]] = [] # never seen (no progress record)
 
     for vocab in all_vocab:
         for direction in dir_list:
@@ -78,29 +79,35 @@ def get_session_cards(
                     # Not yet due but not mastered — weak/learning cards
                     weak.append((vocab, direction, prog))
                 else:
-                    # repetitions == 0: created but never reviewed
-                    new.append((vocab, direction))
+                    # repetitions == 0: explicitly queued via "Add to Learn"
+                    queued_new.append((vocab, direction))
             else:
-                new.append((vocab, direction))
+                unqueued_new.append((vocab, direction))
 
     # Sort due cards by urgency: most overdue first
     due.sort(key=lambda x: x[2].next_review)
     # Sort weak cards: lowest ease_factor first (hardest), then fewest repetitions
     weak.sort(key=lambda x: (x[2].ease_factor, x[2].repetitions))
-    random.shuffle(new)
+    random.shuffle(unqueued_new)
 
-    # Build session: due first, then weak, then new — only as many as exist
+    # Build session: due first, then queued new, then random new
     MAX_SESSION = 30
     remaining = MAX_SESSION
 
     selected_due = due[:remaining]
     remaining -= len(selected_due)
 
-    selected_new = new[:min(MAX_NEW_CARDS, remaining)] if remaining > 0 else []
+    # Queued new cards (user explicitly added) come before random new
+    selected_queued = queued_new[:remaining] if remaining > 0 else []
+    remaining -= len(selected_queued)
+
+    selected_new = unqueued_new[:min(MAX_NEW_CARDS, remaining)] if remaining > 0 else []
     remaining -= len(selected_new)
 
+    new = selected_queued + selected_new
+
     due_count = len(selected_due)
-    new_count = len(selected_new)
+    new_count = len(new)
 
     cards: list[CardOut] = []
     for vocab, direction, prog in selected_due:
@@ -117,7 +124,7 @@ def get_session_cards(
             is_new=False,
         ))
 
-    for vocab, direction in selected_new:
+    for vocab, direction in new:
         cards.append(CardOut(
             progress_id=-1,  # no progress record yet
             vocab_id=vocab.id,
@@ -132,6 +139,48 @@ def get_session_cards(
         ))
 
     return SessionOut(cards=cards, due_count=due_count, new_count=new_count)
+
+
+class AddToLearnRequest(BaseModel):
+    vocab_id: int
+
+
+class AddToLearnOut(BaseModel):
+    added: bool
+    vocab_id: int
+
+
+@router.post("/add-to-learn", response_model=AddToLearnOut)
+def add_to_learn(
+    req: AddToLearnRequest,
+    db: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Create FlashcardProgress records for a vocab word so it enters the review queue."""
+    vocab = db.get(Vocab, req.vocab_id)
+    if not vocab:
+        raise HTTPException(status_code=404, detail="Vocab not found.")
+
+    added = False
+    for direction in ("nl_en", "en_nl"):
+        existing = db.exec(
+            select(FlashcardProgress).where(
+                FlashcardProgress.user_id == user.id,
+                FlashcardProgress.vocab_id == req.vocab_id,
+                FlashcardProgress.direction == direction,
+            )
+        ).first()
+        if not existing:
+            db.add(FlashcardProgress(
+                user_id=user.id,
+                vocab_id=req.vocab_id,
+                direction=direction,
+                next_review=date.today(),
+            ))
+            added = True
+
+    db.commit()
+    return AddToLearnOut(added=added, vocab_id=req.vocab_id)
 
 
 class ReviewRequest(BaseModel):
@@ -257,6 +306,7 @@ class VocabNoteItem(BaseModel):
     example_english: str
     audio_file: str
     level: str  # "new" | "learning" | "familiar" | "mastered"
+    queued: bool  # True if added to learn queue (has progress record)
     next_review: Optional[str]
     ease_factor: Optional[float]
     interval: Optional[int]
@@ -317,6 +367,7 @@ def get_vocab_notebook(
             if p and (best_prog is None or p.repetitions > best_prog.repetitions):
                 best_prog = p
 
+        has_progress = prog_nl is not None or prog_en is not None
         items.append(VocabNoteItem(
             vocab_id=v.id,
             dutch=v.dutch,
@@ -326,6 +377,7 @@ def get_vocab_notebook(
             example_english=v.example_english,
             audio_file=v.audio_file,
             level=level,
+            queued=has_progress,
             next_review=best_prog.next_review.isoformat() if best_prog and best_prog.repetitions > 0 else None,
             ease_factor=round(best_prog.ease_factor, 2) if best_prog else None,
             interval=best_prog.interval if best_prog else None,

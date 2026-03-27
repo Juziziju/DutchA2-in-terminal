@@ -1,0 +1,2354 @@
+[
+  {
+    "dutch": "huren",
+    "english": "to rent",
+    "category": "Housing & Furniture",
+    "example_dutch": "Wij huren een appartement in Amsterdam.",
+    "example_english": "We rent an apartment in Amsterdam."
+  },
+  {
+    "dutch": "de huur",
+    "english": "the rent",
+    "category": "Housing & Furniture",
+    "example_dutch": "De huur is zeshonderd euro per maand.",
+    "example_english": "The rent is six hundred euros per month."
+  },
+  {
+    "dutch": "de keuken",
+    "english": "the kitchen",
+    "category": "Housing & Furniture",
+    "example_dutch": "Ik kook in de keuken.",
+    "example_english": "I cook in the kitchen."
+  },
+  {
+    "dutch": "de badkamer",
+    "english": "the bathroom",
+    "category": "Housing & Furniture",
+    "example_dutch": "De badkamer is boven.",
+    "example_english": "The bathroom is upstairs."
+  },
+  {
+    "dutch": "de slaapkamer",
+    "english": "the bedroom",
+    "category": "Housing & Furniture",
+    "example_dutch": "Het huis heeft drie slaapkamers.",
+    "example_english": "The house has three bedrooms."
+  },
+  {
+    "dutch": "de woonkamer",
+    "english": "the living room",
+    "category": "Housing & Furniture",
+    "example_dutch": "We kijken tv in de woonkamer.",
+    "example_english": "We watch TV in the living room."
+  },
+  {
+    "dutch": "de bank",
+    "english": "the couch",
+    "category": "Housing & Furniture",
+    "example_dutch": "Ik zit op de bank.",
+    "example_english": "I'm sitting on the couch."
+  },
+  {
+    "dutch": "de tafel",
+    "english": "the table",
+    "category": "Housing & Furniture",
+    "example_dutch": "Het eten staat op de tafel.",
+    "example_english": "The food is on the table."
+  },
+  {
+    "dutch": "de stoel",
+    "english": "the chair",
+    "category": "Housing & Furniture",
+    "example_dutch": "Er zijn vier stoelen in de keuken.",
+    "example_english": "There are four chairs in the kitchen."
+  },
+  {
+    "dutch": "de kast",
+    "english": "the cupboard",
+    "category": "Housing & Furniture",
+    "example_dutch": "De borden staan in de kast.",
+    "example_english": "The plates are in the cupboard."
+  },
+  {
+    "dutch": "de tuin",
+    "english": "the garden",
+    "category": "Housing & Furniture",
+    "example_dutch": "De kinderen spelen in de tuin.",
+    "example_english": "The children play in the garden."
+  },
+  {
+    "dutch": "verhuizen",
+    "english": "to move (house)",
+    "category": "Housing & Furniture",
+    "example_dutch": "Wij verhuizen naar Utrecht.",
+    "example_english": "We are moving to Utrecht."
+  },
+  {
+    "dutch": "het bed",
+    "english": "the bed",
+    "category": "Housing & Furniture",
+    "example_dutch": "Het bed is groot en comfortabel.",
+    "example_english": "The bed is big and comfortable."
+  },
+  {
+    "dutch": "de lamp",
+    "english": "the lamp",
+    "category": "Housing & Furniture",
+    "example_dutch": "Doe de lamp aan, het is donker.",
+    "example_english": "Turn on the lamp, it's dark."
+  },
+  {
+    "dutch": "de deur",
+    "english": "the door",
+    "category": "Housing & Furniture",
+    "example_dutch": "Doe de deur dicht, alsjeblieft.",
+    "example_english": "Close the door, please."
+  },
+  {
+    "dutch": "het raam",
+    "english": "the window",
+    "category": "Housing & Furniture",
+    "example_dutch": "Doe het raam open, het is warm.",
+    "example_english": "Open the window, it's warm."
+  },
+  {
+    "dutch": "de trap",
+    "english": "the stairs",
+    "category": "Housing & Furniture",
+    "example_dutch": "De slaapkamer is boven de trap.",
+    "example_english": "The bedroom is up the stairs."
+  },
+  {
+    "dutch": "de vloer",
+    "english": "the floor",
+    "category": "Housing & Furniture",
+    "example_dutch": "De vloer is schoon.",
+    "example_english": "The floor is clean."
+  },
+  {
+    "dutch": "de muur",
+    "english": "the wall",
+    "category": "Housing & Furniture",
+    "example_dutch": "Er hangt een foto aan de muur.",
+    "example_english": "There is a photo hanging on the wall."
+  },
+  {
+    "dutch": "het balkon",
+    "english": "the balcony",
+    "category": "Housing & Furniture",
+    "example_dutch": "We zitten op het balkon.",
+    "example_english": "We sit on the balcony."
+  },
+  {
+    "dutch": "de douche",
+    "english": "the shower",
+    "category": "Housing & Furniture",
+    "example_dutch": "De douche is in de badkamer.",
+    "example_english": "The shower is in the bathroom."
+  },
+  {
+    "dutch": "de spiegel",
+    "english": "the mirror",
+    "category": "Housing & Furniture",
+    "example_dutch": "Er is een spiegel in de badkamer.",
+    "example_english": "There is a mirror in the bathroom."
+  },
+  {
+    "dutch": "de koelkast",
+    "english": "the fridge",
+    "category": "Housing & Furniture",
+    "example_dutch": "De melk staat in de koelkast.",
+    "example_english": "The milk is in the fridge."
+  },
+  {
+    "dutch": "de wasmachine",
+    "english": "the washing machine",
+    "category": "Housing & Furniture",
+    "example_dutch": "De wasmachine staat in de badkamer.",
+    "example_english": "The washing machine is in the bathroom."
+  },
+  {
+    "dutch": "de verdieping",
+    "english": "the floor (storey)",
+    "category": "Housing & Furniture",
+    "example_dutch": "Wij wonen op de tweede verdieping.",
+    "example_english": "We live on the second floor."
+  },
+  {
+    "dutch": "de buren",
+    "english": "the neighbours",
+    "category": "Housing & Furniture",
+    "example_dutch": "De buren zijn heel aardig.",
+    "example_english": "The neighbours are very nice."
+  },
+  {
+    "dutch": "de huurder",
+    "english": "the tenant",
+    "category": "Housing & Furniture",
+    "example_dutch": "De huurder betaalt elke maand.",
+    "example_english": "The tenant pays every month."
+  },
+  {
+    "dutch": "de huisbaas",
+    "english": "the landlord",
+    "category": "Housing & Furniture",
+    "example_dutch": "De huisbaas woont in Rotterdam.",
+    "example_english": "The landlord lives in Rotterdam."
+  },
+  {
+    "dutch": "het toilet",
+    "english": "the toilet",
+    "category": "Housing & Furniture",
+    "example_dutch": "Waar is het toilet?",
+    "example_english": "Where is the toilet?"
+  },
+  {
+    "dutch": "de gordijn",
+    "english": "the curtain",
+    "category": "Housing & Furniture",
+    "example_dutch": "Doe de gordijnen dicht.",
+    "example_english": "Close the curtains."
+  },
+  {
+    "dutch": "de les",
+    "english": "the lesson",
+    "category": "Work & School",
+    "example_dutch": "De les begint om negen uur.",
+    "example_english": "The lesson starts at nine o'clock."
+  },
+  {
+    "dutch": "de leraar",
+    "english": "the teacher (male)",
+    "category": "Work & School",
+    "example_dutch": "De leraar is aardig.",
+    "example_english": "The teacher is nice."
+  },
+  {
+    "dutch": "de lerares",
+    "english": "the teacher (female)",
+    "category": "Work & School",
+    "example_dutch": "De lerares geeft Nederlandse les.",
+    "example_english": "The teacher teaches Dutch lessons."
+  },
+  {
+    "dutch": "het huiswerk",
+    "english": "the homework",
+    "category": "Work & School",
+    "example_dutch": "Ik moet mijn huiswerk maken.",
+    "example_english": "I have to do my homework."
+  },
+  {
+    "dutch": "de cursus",
+    "english": "the course",
+    "category": "Work & School",
+    "example_dutch": "Ik volg een cursus Nederlands.",
+    "example_english": "I'm taking a Dutch course."
+  },
+  {
+    "dutch": "de baan",
+    "english": "the job",
+    "category": "Work & School",
+    "example_dutch": "Hij heeft een nieuwe baan.",
+    "example_english": "He has a new job."
+  },
+  {
+    "dutch": "het kantoor",
+    "english": "the office",
+    "category": "Work & School",
+    "example_dutch": "Ik werk op een kantoor.",
+    "example_english": "I work in an office."
+  },
+  {
+    "dutch": "de baas",
+    "english": "the boss",
+    "category": "Work & School",
+    "example_dutch": "Mijn baas is streng maar eerlijk.",
+    "example_english": "My boss is strict but fair."
+  },
+  {
+    "dutch": "de collega",
+    "english": "the colleague",
+    "category": "Work & School",
+    "example_dutch": "Mijn collega komt uit België.",
+    "example_english": "My colleague is from Belgium."
+  },
+  {
+    "dutch": "het examen",
+    "english": "the exam",
+    "category": "Work & School",
+    "example_dutch": "Het examen is volgende week.",
+    "example_english": "The exam is next week."
+  },
+  {
+    "dutch": "de opleiding",
+    "english": "the education / training",
+    "category": "Work & School",
+    "example_dutch": "Welke opleiding heb je gedaan?",
+    "example_english": "What education did you do?"
+  },
+  {
+    "dutch": "het werk",
+    "english": "the work",
+    "category": "Work & School",
+    "example_dutch": "Ik ga om acht uur naar het werk.",
+    "example_english": "I go to work at eight o'clock."
+  },
+  {
+    "dutch": "werken",
+    "english": "to work",
+    "category": "Work & School",
+    "example_dutch": "Ik werk in een ziekenhuis.",
+    "example_english": "I work in a hospital."
+  },
+  {
+    "dutch": "leren",
+    "english": "to learn",
+    "category": "Work & School",
+    "example_dutch": "Ik leer Nederlands.",
+    "example_english": "I'm learning Dutch."
+  },
+  {
+    "dutch": "de leerling",
+    "english": "the student (school)",
+    "category": "Work & School",
+    "example_dutch": "Er zijn twintig leerlingen in de klas.",
+    "example_english": "There are twenty students in the class."
+  },
+  {
+    "dutch": "de student",
+    "english": "the student (university)",
+    "category": "Work & School",
+    "example_dutch": "Zij is student aan de universiteit.",
+    "example_english": "She is a student at the university."
+  },
+  {
+    "dutch": "de klas",
+    "english": "the class / classroom",
+    "category": "Work & School",
+    "example_dutch": "De klas is groot.",
+    "example_english": "The classroom is big."
+  },
+  {
+    "dutch": "het beroep",
+    "english": "the profession",
+    "category": "Work & School",
+    "example_dutch": "Wat is je beroep?",
+    "example_english": "What is your profession?"
+  },
+  {
+    "dutch": "de vergadering",
+    "english": "the meeting",
+    "category": "Work & School",
+    "example_dutch": "De vergadering begint om twee uur.",
+    "example_english": "The meeting starts at two o'clock."
+  },
+  {
+    "dutch": "de vakantie",
+    "english": "the holiday / vacation",
+    "category": "Work & School",
+    "example_dutch": "In de vakantie ga ik naar Spanje.",
+    "example_english": "During the holiday I go to Spain."
+  },
+  {
+    "dutch": "solliciteren",
+    "english": "to apply for a job",
+    "category": "Work & School",
+    "example_dutch": "Ik wil solliciteren bij dat bedrijf.",
+    "example_english": "I want to apply at that company."
+  },
+  {
+    "dutch": "het salaris",
+    "english": "the salary",
+    "category": "Work & School",
+    "example_dutch": "Het salaris is goed.",
+    "example_english": "The salary is good."
+  },
+  {
+    "dutch": "de stage",
+    "english": "the internship",
+    "category": "Work & School",
+    "example_dutch": "Ik doe stage bij een bank.",
+    "example_english": "I'm doing an internship at a bank."
+  },
+  {
+    "dutch": "de opdracht",
+    "english": "the assignment",
+    "category": "Work & School",
+    "example_dutch": "De opdracht is voor morgen.",
+    "example_english": "The assignment is for tomorrow."
+  },
+  {
+    "dutch": "het bedrijf",
+    "english": "the company",
+    "category": "Work & School",
+    "example_dutch": "Het bedrijf is groot.",
+    "example_english": "The company is big."
+  },
+  {
+    "dutch": "de brief",
+    "english": "the letter",
+    "category": "Work & School",
+    "example_dutch": "Ik schrijf een brief.",
+    "example_english": "I'm writing a letter."
+  },
+  {
+    "dutch": "de computer",
+    "english": "the computer",
+    "category": "Work & School",
+    "example_dutch": "Ik werk op de computer.",
+    "example_english": "I work on the computer."
+  },
+  {
+    "dutch": "de pen",
+    "english": "the pen",
+    "category": "Work & School",
+    "example_dutch": "Mag ik jouw pen lenen?",
+    "example_english": "Can I borrow your pen?"
+  },
+  {
+    "dutch": "blij",
+    "english": "happy",
+    "category": "Emotions & Feelings",
+    "example_dutch": "Ik ben blij dat je er bent.",
+    "example_english": "I'm happy that you're here."
+  },
+  {
+    "dutch": "boos",
+    "english": "angry",
+    "category": "Emotions & Feelings",
+    "example_dutch": "Waarom ben je boos?",
+    "example_english": "Why are you angry?"
+  },
+  {
+    "dutch": "bang",
+    "english": "afraid / scared",
+    "category": "Emotions & Feelings",
+    "example_dutch": "Ik ben bang voor honden.",
+    "example_english": "I'm afraid of dogs."
+  },
+  {
+    "dutch": "verdrietig",
+    "english": "sad",
+    "category": "Emotions & Feelings",
+    "example_dutch": "Zij is verdrietig.",
+    "example_english": "She is sad."
+  },
+  {
+    "dutch": "moe",
+    "english": "tired",
+    "category": "Emotions & Feelings",
+    "example_dutch": "Ik ben moe na het werk.",
+    "example_english": "I'm tired after work."
+  },
+  {
+    "dutch": "zenuwachtig",
+    "english": "nervous",
+    "category": "Emotions & Feelings",
+    "example_dutch": "Ik ben zenuwachtig voor het examen.",
+    "example_english": "I'm nervous about the exam."
+  },
+  {
+    "dutch": "tevreden",
+    "english": "satisfied / content",
+    "category": "Emotions & Feelings",
+    "example_dutch": "Ik ben tevreden met mijn werk.",
+    "example_english": "I'm satisfied with my work."
+  },
+  {
+    "dutch": "verbaasd",
+    "english": "surprised",
+    "category": "Emotions & Feelings",
+    "example_dutch": "Ik was verbaasd over het cadeau.",
+    "example_english": "I was surprised about the present."
+  },
+  {
+    "dutch": "trots",
+    "english": "proud",
+    "category": "Emotions & Feelings",
+    "example_dutch": "Ik ben trots op mijn zoon.",
+    "example_english": "I'm proud of my son."
+  },
+  {
+    "dutch": "eenzaam",
+    "english": "lonely",
+    "category": "Emotions & Feelings",
+    "example_dutch": "Soms voel ik me eenzaam.",
+    "example_english": "Sometimes I feel lonely."
+  },
+  {
+    "dutch": "gelukkig",
+    "english": "fortunate / happy",
+    "category": "Emotions & Feelings",
+    "example_dutch": "Wij zijn heel gelukkig.",
+    "example_english": "We are very happy."
+  },
+  {
+    "dutch": "verliefd",
+    "english": "in love",
+    "category": "Emotions & Feelings",
+    "example_dutch": "Zij is verliefd.",
+    "example_english": "She is in love."
+  },
+  {
+    "dutch": "rusteloos",
+    "english": "restless",
+    "category": "Emotions & Feelings",
+    "example_dutch": "Hij is rusteloos vandaag.",
+    "example_english": "He is restless today."
+  },
+  {
+    "dutch": "teleurgesteld",
+    "english": "disappointed",
+    "category": "Emotions & Feelings",
+    "example_dutch": "Ik ben teleurgesteld.",
+    "example_english": "I'm disappointed."
+  },
+  {
+    "dutch": "opgewonden",
+    "english": "excited",
+    "category": "Emotions & Feelings",
+    "example_dutch": "De kinderen zijn opgewonden.",
+    "example_english": "The children are excited."
+  },
+  {
+    "dutch": "bezorgd",
+    "english": "worried",
+    "category": "Emotions & Feelings",
+    "example_dutch": "Mijn moeder is bezorgd.",
+    "example_english": "My mother is worried."
+  },
+  {
+    "dutch": "gestrest",
+    "english": "stressed",
+    "category": "Emotions & Feelings",
+    "example_dutch": "Ik ben gestrest door het werk.",
+    "example_english": "I'm stressed because of work."
+  },
+  {
+    "dutch": "vrolijk",
+    "english": "cheerful",
+    "category": "Emotions & Feelings",
+    "example_dutch": "Zij is altijd vrolijk.",
+    "example_english": "She is always cheerful."
+  },
+  {
+    "dutch": "benieuwd",
+    "english": "curious",
+    "category": "Emotions & Feelings",
+    "example_dutch": "Ik ben benieuwd naar je verhaal.",
+    "example_english": "I'm curious about your story."
+  },
+  {
+    "dutch": "de winkel",
+    "english": "the shop",
+    "category": "Shopping & Money",
+    "example_dutch": "De winkel is om zes uur gesloten.",
+    "example_english": "The shop closes at six o'clock."
+  },
+  {
+    "dutch": "de markt",
+    "english": "the market",
+    "category": "Shopping & Money",
+    "example_dutch": "Op zaterdag ga ik naar de markt.",
+    "example_english": "On Saturday I go to the market."
+  },
+  {
+    "dutch": "de korting",
+    "english": "the discount",
+    "category": "Shopping & Money",
+    "example_dutch": "Er is twintig procent korting.",
+    "example_english": "There is twenty percent discount."
+  },
+  {
+    "dutch": "de prijs",
+    "english": "the price",
+    "category": "Shopping & Money",
+    "example_dutch": "Wat is de prijs van deze jas?",
+    "example_english": "What is the price of this jacket?"
+  },
+  {
+    "dutch": "ruilen",
+    "english": "to exchange / return",
+    "category": "Shopping & Money",
+    "example_dutch": "Kan ik dit ruilen?",
+    "example_english": "Can I exchange this?"
+  },
+  {
+    "dutch": "de maat",
+    "english": "the size",
+    "category": "Shopping & Money",
+    "example_dutch": "Welke maat heb je nodig?",
+    "example_english": "What size do you need?"
+  },
+  {
+    "dutch": "passen",
+    "english": "to try on / to fit",
+    "category": "Shopping & Money",
+    "example_dutch": "Mag ik dit passen?",
+    "example_english": "May I try this on?"
+  },
+  {
+    "dutch": "de kassa",
+    "english": "the cash register / checkout",
+    "category": "Shopping & Money",
+    "example_dutch": "U kunt betalen bij de kassa.",
+    "example_english": "You can pay at the checkout."
+  },
+  {
+    "dutch": "het wisselgeld",
+    "english": "the change (money)",
+    "category": "Shopping & Money",
+    "example_dutch": "Hier is uw wisselgeld.",
+    "example_english": "Here is your change."
+  },
+  {
+    "dutch": "de bon",
+    "english": "the receipt",
+    "category": "Shopping & Money",
+    "example_dutch": "Wilt u de bon?",
+    "example_english": "Would you like the receipt?"
+  },
+  {
+    "dutch": "het warenhuis",
+    "english": "the department store",
+    "category": "Shopping & Money",
+    "example_dutch": "Het warenhuis heeft alles.",
+    "example_english": "The department store has everything."
+  },
+  {
+    "dutch": "de klant",
+    "english": "the customer",
+    "category": "Shopping & Money",
+    "example_dutch": "De klant wil een jas kopen.",
+    "example_english": "The customer wants to buy a jacket."
+  },
+  {
+    "dutch": "de aanbieding",
+    "english": "the special offer",
+    "category": "Shopping & Money",
+    "example_dutch": "De kaas is in de aanbieding.",
+    "example_english": "The cheese is on special offer."
+  },
+  {
+    "dutch": "het tasje",
+    "english": "the (plastic) bag",
+    "category": "Shopping & Money",
+    "example_dutch": "Wilt u een tasje?",
+    "example_english": "Would you like a bag?"
+  },
+  {
+    "dutch": "het winkelcentrum",
+    "english": "the shopping centre",
+    "category": "Shopping & Money",
+    "example_dutch": "Het winkelcentrum is in het centrum.",
+    "example_english": "The shopping centre is in the city centre."
+  },
+  {
+    "dutch": "de paskamer",
+    "english": "the fitting room",
+    "category": "Shopping & Money",
+    "example_dutch": "De paskamer is daar.",
+    "example_english": "The fitting room is over there."
+  },
+  {
+    "dutch": "pinnen",
+    "english": "to pay by debit card",
+    "category": "Shopping & Money",
+    "example_dutch": "Kan ik hier pinnen?",
+    "example_english": "Can I pay by card here?"
+  },
+  {
+    "dutch": "gratis",
+    "english": "free (no cost)",
+    "category": "Shopping & Money",
+    "example_dutch": "De koffie is gratis.",
+    "example_english": "The coffee is free."
+  },
+  {
+    "dutch": "warm",
+    "english": "warm",
+    "category": "Weather & Seasons",
+    "example_dutch": "Het is warm vandaag.",
+    "example_english": "It's warm today."
+  },
+  {
+    "dutch": "heet",
+    "english": "hot",
+    "category": "Weather & Seasons",
+    "example_dutch": "Het is te heet buiten.",
+    "example_english": "It's too hot outside."
+  },
+  {
+    "dutch": "koel",
+    "english": "cool (temperature)",
+    "category": "Weather & Seasons",
+    "example_dutch": "Het is koel in de avond.",
+    "example_english": "It's cool in the evening."
+  },
+  {
+    "dutch": "de zon",
+    "english": "the sun",
+    "category": "Weather & Seasons",
+    "example_dutch": "De zon schijnt.",
+    "example_english": "The sun is shining."
+  },
+  {
+    "dutch": "de regen",
+    "english": "the rain",
+    "category": "Weather & Seasons",
+    "example_dutch": "Neem een paraplu, er komt regen.",
+    "example_english": "Take an umbrella, rain is coming."
+  },
+  {
+    "dutch": "de sneeuw",
+    "english": "the snow",
+    "category": "Weather & Seasons",
+    "example_dutch": "Er ligt sneeuw buiten.",
+    "example_english": "There is snow outside."
+  },
+  {
+    "dutch": "bewolkt",
+    "english": "cloudy",
+    "category": "Weather & Seasons",
+    "example_dutch": "Het is bewolkt vandaag.",
+    "example_english": "It's cloudy today."
+  },
+  {
+    "dutch": "de wind",
+    "english": "the wind",
+    "category": "Weather & Seasons",
+    "example_dutch": "Er is veel wind.",
+    "example_english": "There is a lot of wind."
+  },
+  {
+    "dutch": "de temperatuur",
+    "english": "the temperature",
+    "category": "Weather & Seasons",
+    "example_dutch": "De temperatuur is twintig graden.",
+    "example_english": "The temperature is twenty degrees."
+  },
+  {
+    "dutch": "zonnig",
+    "english": "sunny",
+    "category": "Weather & Seasons",
+    "example_dutch": "Het wordt morgen zonnig.",
+    "example_english": "It will be sunny tomorrow."
+  },
+  {
+    "dutch": "de paraplu",
+    "english": "the umbrella",
+    "category": "Weather & Seasons",
+    "example_dutch": "Vergeet je paraplu niet!",
+    "example_english": "Don't forget your umbrella!"
+  },
+  {
+    "dutch": "sneeuwen",
+    "english": "to snow",
+    "category": "Weather & Seasons",
+    "example_dutch": "Het sneeuwt in december.",
+    "example_english": "It snows in December."
+  },
+  {
+    "dutch": "de mist",
+    "english": "the fog",
+    "category": "Weather & Seasons",
+    "example_dutch": "Er is veel mist op de weg.",
+    "example_english": "There is a lot of fog on the road."
+  },
+  {
+    "dutch": "het weer",
+    "english": "the weather",
+    "category": "Weather & Seasons",
+    "example_dutch": "Hoe is het weer vandaag?",
+    "example_english": "How is the weather today?"
+  },
+  {
+    "dutch": "de storm",
+    "english": "the storm",
+    "category": "Weather & Seasons",
+    "example_dutch": "Er komt een storm.",
+    "example_english": "A storm is coming."
+  },
+  {
+    "dutch": "schoonmaken",
+    "english": "to clean",
+    "category": "Daily Life",
+    "example_dutch": "Ik maak het huis schoon.",
+    "example_english": "I'm cleaning the house."
+  },
+  {
+    "dutch": "wassen",
+    "english": "to wash",
+    "category": "Daily Life",
+    "example_dutch": "Ik was mijn kleren.",
+    "example_english": "I wash my clothes."
+  },
+  {
+    "dutch": "strijken",
+    "english": "to iron",
+    "category": "Daily Life",
+    "example_dutch": "Ik strijk mijn overhemd.",
+    "example_english": "I iron my shirt."
+  },
+  {
+    "dutch": "bellen",
+    "english": "to call (phone)",
+    "category": "Daily Life",
+    "example_dutch": "Ik bel mijn moeder.",
+    "example_english": "I call my mother."
+  },
+  {
+    "dutch": "sturen",
+    "english": "to send",
+    "category": "Daily Life",
+    "example_dutch": "Ik stuur een bericht.",
+    "example_english": "I send a message."
+  },
+  {
+    "dutch": "de post",
+    "english": "the mail / post",
+    "category": "Daily Life",
+    "example_dutch": "Is er post voor mij?",
+    "example_english": "Is there mail for me?"
+  },
+  {
+    "dutch": "helpen",
+    "english": "to help",
+    "category": "Daily Life",
+    "example_dutch": "Kun je mij helpen?",
+    "example_english": "Can you help me?"
+  },
+  {
+    "dutch": "wachten",
+    "english": "to wait",
+    "category": "Daily Life",
+    "example_dutch": "Wacht even, alsjeblieft.",
+    "example_english": "Wait a moment, please."
+  },
+  {
+    "dutch": "beginnen",
+    "english": "to begin / start",
+    "category": "Daily Life",
+    "example_dutch": "De film begint om acht uur.",
+    "example_english": "The movie starts at eight o'clock."
+  },
+  {
+    "dutch": "schrijven",
+    "english": "to write",
+    "category": "Daily Life",
+    "example_dutch": "Ik schrijf een e-mail.",
+    "example_english": "I'm writing an email."
+  },
+  {
+    "dutch": "vergeten",
+    "english": "to forget",
+    "category": "Daily Life",
+    "example_dutch": "Ik vergeet altijd mijn sleutels.",
+    "example_english": "I always forget my keys."
+  },
+  {
+    "dutch": "proberen",
+    "english": "to try",
+    "category": "Daily Life",
+    "example_dutch": "Ik wil het proberen.",
+    "example_english": "I want to try it."
+  },
+  {
+    "dutch": "kiezen",
+    "english": "to choose",
+    "category": "Daily Life",
+    "example_dutch": "Welke wil je kiezen?",
+    "example_english": "Which one do you want to choose?"
+  },
+  {
+    "dutch": "gebruiken",
+    "english": "to use",
+    "category": "Daily Life",
+    "example_dutch": "Ik gebruik de computer.",
+    "example_english": "I use the computer."
+  },
+  {
+    "dutch": "opruimen",
+    "english": "to tidy up",
+    "category": "Daily Life",
+    "example_dutch": "Ik moet mijn kamer opruimen.",
+    "example_english": "I have to tidy up my room."
+  },
+  {
+    "dutch": "de krant",
+    "english": "the newspaper",
+    "category": "Daily Life",
+    "example_dutch": "Mijn vader leest de krant.",
+    "example_english": "My father reads the newspaper."
+  },
+  {
+    "dutch": "het bericht",
+    "english": "the message",
+    "category": "Daily Life",
+    "example_dutch": "Ik heb een bericht gekregen.",
+    "example_english": "I received a message."
+  },
+  {
+    "dutch": "de afspraak",
+    "english": "the appointment",
+    "category": "Daily Life",
+    "example_dutch": "Ik heb een afspraak bij de dokter.",
+    "example_english": "I have an appointment at the doctor."
+  },
+  {
+    "dutch": "thuis",
+    "english": "at home",
+    "category": "Daily Life",
+    "example_dutch": "Ik ben thuis.",
+    "example_english": "I'm at home."
+  },
+  {
+    "dutch": "buiten",
+    "english": "outside",
+    "category": "Daily Life",
+    "example_dutch": "De kinderen spelen buiten.",
+    "example_english": "The children play outside."
+  },
+  {
+    "dutch": "binnen",
+    "english": "inside",
+    "category": "Daily Life",
+    "example_dutch": "Kom binnen, het regent.",
+    "example_english": "Come inside, it's raining."
+  },
+  {
+    "dutch": "slapen",
+    "english": "to sleep",
+    "category": "Daily Life",
+    "example_dutch": "Ik slaap acht uur per nacht.",
+    "example_english": "I sleep eight hours per night."
+  },
+  {
+    "dutch": "maken",
+    "english": "to make",
+    "category": "Daily Life",
+    "example_dutch": "Ik maak het ontbijt.",
+    "example_english": "I'm making breakfast."
+  },
+  {
+    "dutch": "zoeken",
+    "english": "to look for / search",
+    "category": "Daily Life",
+    "example_dutch": "Ik zoek mijn sleutels.",
+    "example_english": "I'm looking for my keys."
+  },
+  {
+    "dutch": "vinden",
+    "english": "to find / to think",
+    "category": "Daily Life",
+    "example_dutch": "Ik vind Nederlands leuk.",
+    "example_english": "I think Dutch is fun."
+  },
+  {
+    "dutch": "nieuw",
+    "english": "new",
+    "category": "Describing Things",
+    "example_dutch": "Ik heb een nieuw boek.",
+    "example_english": "I have a new book."
+  },
+  {
+    "dutch": "oud",
+    "english": "old",
+    "category": "Describing Things",
+    "example_dutch": "Het huis is oud.",
+    "example_english": "The house is old."
+  },
+  {
+    "dutch": "klein",
+    "english": "small",
+    "category": "Describing Things",
+    "example_dutch": "De kamer is klein.",
+    "example_english": "The room is small."
+  },
+  {
+    "dutch": "dik",
+    "english": "thick / fat",
+    "category": "Describing Things",
+    "example_dutch": "Het boek is dik.",
+    "example_english": "The book is thick."
+  },
+  {
+    "dutch": "dun",
+    "english": "thin",
+    "category": "Describing Things",
+    "example_dutch": "De muren zijn dun.",
+    "example_english": "The walls are thin."
+  },
+  {
+    "dutch": "snel",
+    "english": "fast / quick",
+    "category": "Describing Things",
+    "example_dutch": "De trein is snel.",
+    "example_english": "The train is fast."
+  },
+  {
+    "dutch": "langzaam",
+    "english": "slow",
+    "category": "Describing Things",
+    "example_dutch": "De bus is langzaam.",
+    "example_english": "The bus is slow."
+  },
+  {
+    "dutch": "schoon",
+    "english": "clean",
+    "category": "Describing Things",
+    "example_dutch": "De keuken is schoon.",
+    "example_english": "The kitchen is clean."
+  },
+  {
+    "dutch": "vuil",
+    "english": "dirty",
+    "category": "Describing Things",
+    "example_dutch": "De straat is vuil.",
+    "example_english": "The street is dirty."
+  },
+  {
+    "dutch": "belangrijk",
+    "english": "important",
+    "category": "Describing Things",
+    "example_dutch": "Het examen is belangrijk.",
+    "example_english": "The exam is important."
+  },
+  {
+    "dutch": "leuk",
+    "english": "fun / nice",
+    "category": "Describing Things",
+    "example_dutch": "Het feest was leuk.",
+    "example_english": "The party was fun."
+  },
+  {
+    "dutch": "gevaarlijk",
+    "english": "dangerous",
+    "category": "Describing Things",
+    "example_dutch": "Die weg is gevaarlijk.",
+    "example_english": "That road is dangerous."
+  },
+  {
+    "dutch": "veilig",
+    "english": "safe",
+    "category": "Describing Things",
+    "example_dutch": "Nederland is een veilig land.",
+    "example_english": "The Netherlands is a safe country."
+  },
+  {
+    "dutch": "licht",
+    "english": "light (not heavy / bright)",
+    "category": "Describing Things",
+    "example_dutch": "De tas is licht.",
+    "example_english": "The bag is light."
+  },
+  {
+    "dutch": "zwaar",
+    "english": "heavy",
+    "category": "Describing Things",
+    "example_dutch": "De koffer is zwaar.",
+    "example_english": "The suitcase is heavy."
+  },
+  {
+    "dutch": "stil",
+    "english": "quiet / silent",
+    "category": "Describing Things",
+    "example_dutch": "Het is stil in de klas.",
+    "example_english": "It's quiet in the classroom."
+  },
+  {
+    "dutch": "luid",
+    "english": "loud",
+    "category": "Describing Things",
+    "example_dutch": "De muziek is te luid.",
+    "example_english": "The music is too loud."
+  },
+  {
+    "dutch": "dicht",
+    "english": "closed / near",
+    "category": "Describing Things",
+    "example_dutch": "De winkel is dicht.",
+    "example_english": "The shop is closed."
+  },
+  {
+    "dutch": "breed",
+    "english": "wide",
+    "category": "Describing Things",
+    "example_dutch": "De gracht is breed.",
+    "example_english": "The canal is wide."
+  },
+  {
+    "dutch": "smal",
+    "english": "narrow",
+    "category": "Describing Things",
+    "example_dutch": "De straat is smal.",
+    "example_english": "The street is narrow."
+  },
+  {
+    "dutch": "vers",
+    "english": "fresh",
+    "category": "Describing Things",
+    "example_dutch": "Het brood is vers.",
+    "example_english": "The bread is fresh."
+  },
+  {
+    "dutch": "droog (adj)",
+    "english": "dry (adjective)",
+    "category": "Describing Things",
+    "example_dutch": "De kleren zijn droog.",
+    "example_english": "The clothes are dry."
+  },
+  {
+    "dutch": "nat",
+    "english": "wet",
+    "category": "Describing Things",
+    "example_dutch": "De straat is nat.",
+    "example_english": "The street is wet."
+  },
+  {
+    "dutch": "aardig",
+    "english": "nice / kind",
+    "category": "Describing Things",
+    "example_dutch": "De leraar is aardig.",
+    "example_english": "The teacher is nice."
+  },
+  {
+    "dutch": "lelijk",
+    "english": "ugly",
+    "category": "Describing Things",
+    "example_dutch": "Het gebouw is lelijk.",
+    "example_english": "The building is ugly."
+  },
+  {
+    "dutch": "de school",
+    "english": "the school",
+    "category": "Places & Directions",
+    "example_dutch": "De kinderen gaan naar school.",
+    "example_english": "The children go to school."
+  },
+  {
+    "dutch": "het ziekenhuis",
+    "english": "the hospital",
+    "category": "Places & Directions",
+    "example_dutch": "Mijn moeder werkt in het ziekenhuis.",
+    "example_english": "My mother works in the hospital."
+  },
+  {
+    "dutch": "de bibliotheek",
+    "english": "the library",
+    "category": "Places & Directions",
+    "example_dutch": "Ik leen boeken in de bibliotheek.",
+    "example_english": "I borrow books at the library."
+  },
+  {
+    "dutch": "de kerk",
+    "english": "the church",
+    "category": "Places & Directions",
+    "example_dutch": "De kerk is in het centrum.",
+    "example_english": "The church is in the city centre."
+  },
+  {
+    "dutch": "naast",
+    "english": "next to",
+    "category": "Places & Directions",
+    "example_dutch": "De apotheek is naast de supermarkt.",
+    "example_english": "The pharmacy is next to the supermarket."
+  },
+  {
+    "dutch": "tegenover",
+    "english": "opposite / across from",
+    "category": "Places & Directions",
+    "example_dutch": "Het café is tegenover het station.",
+    "example_english": "The café is opposite the station."
+  },
+  {
+    "dutch": "tussen",
+    "english": "between",
+    "category": "Places & Directions",
+    "example_dutch": "De school is tussen de kerk en de bibliotheek.",
+    "example_english": "The school is between the church and the library."
+  },
+  {
+    "dutch": "achter",
+    "english": "behind",
+    "category": "Places & Directions",
+    "example_dutch": "De tuin is achter het huis.",
+    "example_english": "The garden is behind the house."
+  },
+  {
+    "dutch": "boven",
+    "english": "above / upstairs",
+    "category": "Places & Directions",
+    "example_dutch": "De slaapkamer is boven.",
+    "example_english": "The bedroom is upstairs."
+  },
+  {
+    "dutch": "beneden",
+    "english": "below / downstairs",
+    "category": "Places & Directions",
+    "example_dutch": "De keuken is beneden.",
+    "example_english": "The kitchen is downstairs."
+  },
+  {
+    "dutch": "het restaurant",
+    "english": "the restaurant",
+    "category": "Places & Directions",
+    "example_dutch": "We eten in het restaurant.",
+    "example_english": "We eat at the restaurant."
+  },
+  {
+    "dutch": "de brug",
+    "english": "the bridge",
+    "category": "Places & Directions",
+    "example_dutch": "Ga over de brug.",
+    "example_english": "Go over the bridge."
+  },
+  {
+    "dutch": "het park",
+    "english": "the park",
+    "category": "Places & Directions",
+    "example_dutch": "We wandelen in het park.",
+    "example_english": "We walk in the park."
+  },
+  {
+    "dutch": "de hoek",
+    "english": "the corner",
+    "category": "Places & Directions",
+    "example_dutch": "De winkel is om de hoek.",
+    "example_english": "The shop is around the corner."
+  },
+  {
+    "dutch": "het politiebureau",
+    "english": "the police station",
+    "category": "Places & Directions",
+    "example_dutch": "Het politiebureau is in het centrum.",
+    "example_english": "The police station is in the city centre."
+  },
+  {
+    "dutch": "de weg",
+    "english": "the road / way",
+    "category": "Places & Directions",
+    "example_dutch": "Welke weg moet ik nemen?",
+    "example_english": "Which road should I take?"
+  },
+  {
+    "dutch": "hier",
+    "english": "here",
+    "category": "Places & Directions",
+    "example_dutch": "De halte is hier.",
+    "example_english": "The stop is here."
+  },
+  {
+    "dutch": "daar",
+    "english": "there",
+    "category": "Places & Directions",
+    "example_dutch": "Het station is daar.",
+    "example_english": "The station is there."
+  },
+  {
+    "dutch": "ver",
+    "english": "far",
+    "category": "Places & Directions",
+    "example_dutch": "Is het ver?",
+    "example_english": "Is it far?"
+  },
+  {
+    "dutch": "dichtbij",
+    "english": "nearby / close",
+    "category": "Places & Directions",
+    "example_dutch": "De supermarkt is dichtbij.",
+    "example_english": "The supermarket is nearby."
+  },
+  {
+    "dutch": "de buurman",
+    "english": "the neighbour (male)",
+    "category": "Family & People",
+    "example_dutch": "De buurman is aardig.",
+    "example_english": "The neighbour is nice."
+  },
+  {
+    "dutch": "de buurvrouw",
+    "english": "the neighbour (female)",
+    "category": "Family & People",
+    "example_dutch": "De buurvrouw heeft een kat.",
+    "example_english": "The neighbour has a cat."
+  },
+  {
+    "dutch": "de vriend",
+    "english": "the friend (male) / boyfriend",
+    "category": "Family & People",
+    "example_dutch": "Mijn vriend heet Thomas.",
+    "example_english": "My friend's name is Thomas."
+  },
+  {
+    "dutch": "de vriendin",
+    "english": "the friend (female) / girlfriend",
+    "category": "Family & People",
+    "example_dutch": "Mijn vriendin woont in Den Haag.",
+    "example_english": "My girlfriend lives in The Hague."
+  },
+  {
+    "dutch": "het kind",
+    "english": "the child",
+    "category": "Family & People",
+    "example_dutch": "Het kind speelt buiten.",
+    "example_english": "The child plays outside."
+  },
+  {
+    "dutch": "de baby",
+    "english": "the baby",
+    "category": "Family & People",
+    "example_dutch": "De baby slaapt.",
+    "example_english": "The baby is sleeping."
+  },
+  {
+    "dutch": "de man",
+    "english": "the man / husband",
+    "category": "Family & People",
+    "example_dutch": "De man werkt in een kantoor.",
+    "example_english": "The man works in an office."
+  },
+  {
+    "dutch": "de vrouw",
+    "english": "the woman / wife",
+    "category": "Family & People",
+    "example_dutch": "De vrouw koopt groente.",
+    "example_english": "The woman buys vegetables."
+  },
+  {
+    "dutch": "de dokter",
+    "english": "the doctor",
+    "category": "Family & People",
+    "example_dutch": "Ik ga naar de dokter.",
+    "example_english": "I'm going to the doctor."
+  },
+  {
+    "dutch": "het meisje",
+    "english": "the girl",
+    "category": "Family & People",
+    "example_dutch": "Het meisje leest een boek.",
+    "example_english": "The girl reads a book."
+  },
+  {
+    "dutch": "de jongen",
+    "english": "the boy",
+    "category": "Family & People",
+    "example_dutch": "De jongen speelt voetbal.",
+    "example_english": "The boy plays football."
+  },
+  {
+    "dutch": "de oom",
+    "english": "the uncle",
+    "category": "Family & People",
+    "example_dutch": "Mijn oom woont in Groningen.",
+    "example_english": "My uncle lives in Groningen."
+  },
+  {
+    "dutch": "de tante",
+    "english": "the aunt",
+    "category": "Family & People",
+    "example_dutch": "Mijn tante is lerares.",
+    "example_english": "My aunt is a teacher."
+  },
+  {
+    "dutch": "de neef",
+    "english": "the cousin (male) / nephew",
+    "category": "Family & People",
+    "example_dutch": "Mijn neef studeert in Leiden.",
+    "example_english": "My cousin studies in Leiden."
+  },
+  {
+    "dutch": "de nicht",
+    "english": "the cousin (female) / niece",
+    "category": "Family & People",
+    "example_dutch": "Mijn nicht woont in Amsterdam.",
+    "example_english": "My cousin lives in Amsterdam."
+  },
+  {
+    "dutch": "de soep",
+    "english": "the soup",
+    "category": "Food & Drink",
+    "example_dutch": "De soep is warm.",
+    "example_english": "The soup is warm."
+  },
+  {
+    "dutch": "het water",
+    "english": "the water",
+    "category": "Food & Drink",
+    "example_dutch": "Mag ik een glas water?",
+    "example_english": "May I have a glass of water?"
+  },
+  {
+    "dutch": "de melk",
+    "english": "the milk",
+    "category": "Food & Drink",
+    "example_dutch": "De melk staat in de koelkast.",
+    "example_english": "The milk is in the fridge."
+  },
+  {
+    "dutch": "het ei",
+    "english": "the egg",
+    "category": "Food & Drink",
+    "example_dutch": "Ik eet een gekookt ei.",
+    "example_english": "I eat a boiled egg."
+  },
+  {
+    "dutch": "de rijst",
+    "english": "the rice",
+    "category": "Food & Drink",
+    "example_dutch": "Wij eten rijst met kip.",
+    "example_english": "We eat rice with chicken."
+  },
+  {
+    "dutch": "de saus",
+    "english": "the sauce",
+    "category": "Food & Drink",
+    "example_dutch": "Wil je saus bij de patat?",
+    "example_english": "Do you want sauce with the fries?"
+  },
+  {
+    "dutch": "vegetarisch",
+    "english": "vegetarian",
+    "category": "Food & Drink",
+    "example_dutch": "Heeft u een vegetarisch gerecht?",
+    "example_english": "Do you have a vegetarian dish?"
+  },
+  {
+    "dutch": "allergisch",
+    "english": "allergic",
+    "category": "Food & Drink",
+    "example_dutch": "Ik ben allergisch voor noten.",
+    "example_english": "I'm allergic to nuts."
+  },
+  {
+    "dutch": "het menu",
+    "english": "the menu",
+    "category": "Food & Drink",
+    "example_dutch": "Mag ik het menu?",
+    "example_english": "May I see the menu?"
+  },
+  {
+    "dutch": "de kip",
+    "english": "the chicken",
+    "category": "Food & Drink",
+    "example_dutch": "Ik bestel kip met rijst.",
+    "example_english": "I order chicken with rice."
+  },
+  {
+    "dutch": "het broodje gezond",
+    "english": "the healthy sandwich",
+    "category": "Food & Drink",
+    "example_dutch": "Ik neem een broodje gezond.",
+    "example_english": "I'll have a healthy sandwich."
+  },
+  {
+    "dutch": "de pannenkoek",
+    "english": "the pancake",
+    "category": "Food & Drink",
+    "example_dutch": "De kinderen eten pannenkoeken.",
+    "example_english": "The children eat pancakes."
+  },
+  {
+    "dutch": "de chocolade",
+    "english": "the chocolate",
+    "category": "Food & Drink",
+    "example_dutch": "Ik hou van chocolade.",
+    "example_english": "I love chocolate."
+  },
+  {
+    "dutch": "het sap",
+    "english": "the juice",
+    "category": "Food & Drink",
+    "example_dutch": "Wil je sinaasappelsap?",
+    "example_english": "Do you want orange juice?"
+  },
+  {
+    "dutch": "de suiker",
+    "english": "the sugar",
+    "category": "Food & Drink",
+    "example_dutch": "Wil je suiker in je thee?",
+    "example_english": "Do you want sugar in your tea?"
+  },
+  {
+    "dutch": "hardlopen",
+    "english": "to run (sport)",
+    "category": "Sports & Hobbies",
+    "example_dutch": "Ik ga elke ochtend hardlopen.",
+    "example_english": "I go running every morning."
+  },
+  {
+    "dutch": "de muziek",
+    "english": "the music",
+    "category": "Sports & Hobbies",
+    "example_dutch": "Ik luister naar muziek.",
+    "example_english": "I listen to music."
+  },
+  {
+    "dutch": "tekenen",
+    "english": "to draw",
+    "category": "Sports & Hobbies",
+    "example_dutch": "Mijn dochter tekent een bloem.",
+    "example_english": "My daughter draws a flower."
+  },
+  {
+    "dutch": "fietsen",
+    "english": "to cycle",
+    "category": "Sports & Hobbies",
+    "example_dutch": "Wij fietsen naar het werk.",
+    "example_english": "We cycle to work."
+  },
+  {
+    "dutch": "de gitaar",
+    "english": "the guitar",
+    "category": "Sports & Hobbies",
+    "example_dutch": "Hij speelt gitaar.",
+    "example_english": "He plays guitar."
+  },
+  {
+    "dutch": "zingen",
+    "english": "to sing",
+    "category": "Sports & Hobbies",
+    "example_dutch": "Zij zingt in een koor.",
+    "example_english": "She sings in a choir."
+  },
+  {
+    "dutch": "schilderen",
+    "english": "to paint",
+    "category": "Sports & Hobbies",
+    "example_dutch": "Ik schilder graag.",
+    "example_english": "I like to paint."
+  },
+  {
+    "dutch": "het theater",
+    "english": "the theatre",
+    "category": "Sports & Hobbies",
+    "example_dutch": "We gaan naar het theater.",
+    "example_english": "We go to the theatre."
+  },
+  {
+    "dutch": "het concert",
+    "english": "the concert",
+    "category": "Sports & Hobbies",
+    "example_dutch": "Het concert is vanavond.",
+    "example_english": "The concert is tonight."
+  },
+  {
+    "dutch": "kijken",
+    "english": "to watch / look",
+    "category": "Sports & Hobbies",
+    "example_dutch": "We kijken naar de wedstrijd.",
+    "example_english": "We watch the match."
+  },
+  {
+    "dutch": "luisteren",
+    "english": "to listen",
+    "category": "Sports & Hobbies",
+    "example_dutch": "Ik luister naar de radio.",
+    "example_english": "I listen to the radio."
+  },
+  {
+    "dutch": "spelen",
+    "english": "to play",
+    "category": "Sports & Hobbies",
+    "example_dutch": "De kinderen spelen in het park.",
+    "example_english": "The children play in the park."
+  },
+  {
+    "dutch": "fotograferen",
+    "english": "to take photos",
+    "category": "Sports & Hobbies",
+    "example_dutch": "Ik fotografeer graag.",
+    "example_english": "I like to take photos."
+  },
+  {
+    "dutch": "de hobby",
+    "english": "the hobby",
+    "category": "Sports & Hobbies",
+    "example_dutch": "Wat is je hobby?",
+    "example_english": "What is your hobby?"
+  },
+  {
+    "dutch": "de allergie",
+    "english": "the allergy",
+    "category": "Health & Body",
+    "example_dutch": "Ik heb een allergie voor pinda's.",
+    "example_english": "I have an allergy to peanuts."
+  },
+  {
+    "dutch": "het bloed",
+    "english": "the blood",
+    "category": "Health & Body",
+    "example_dutch": "Er is bloed op de vloer.",
+    "example_english": "There is blood on the floor."
+  },
+  {
+    "dutch": "de wond",
+    "english": "the wound",
+    "category": "Health & Body",
+    "example_dutch": "De wond is niet diep.",
+    "example_english": "The wound is not deep."
+  },
+  {
+    "dutch": "de pil",
+    "english": "the pill",
+    "category": "Health & Body",
+    "example_dutch": "Neem twee pillen per dag.",
+    "example_english": "Take two pills per day."
+  },
+  {
+    "dutch": "het verband",
+    "english": "the bandage",
+    "category": "Health & Body",
+    "example_dutch": "De dokter doet er een verband om.",
+    "example_english": "The doctor puts a bandage on it."
+  },
+  {
+    "dutch": "de EHBO",
+    "english": "the first aid",
+    "category": "Health & Body",
+    "example_dutch": "Waar is de EHBO?",
+    "example_english": "Where is the first aid?"
+  },
+  {
+    "dutch": "de tandarts",
+    "english": "the dentist",
+    "category": "Health & Body",
+    "example_dutch": "Ik ga twee keer per jaar naar de tandarts.",
+    "example_english": "I go to the dentist twice a year."
+  },
+  {
+    "dutch": "gezond",
+    "english": "healthy",
+    "category": "Health & Body",
+    "example_dutch": "Groente is gezond.",
+    "example_english": "Vegetables are healthy."
+  },
+  {
+    "dutch": "ongezond",
+    "english": "unhealthy",
+    "category": "Health & Body",
+    "example_dutch": "Te veel suiker is ongezond.",
+    "example_english": "Too much sugar is unhealthy."
+  },
+  {
+    "dutch": "het oog",
+    "english": "the eye",
+    "category": "Health & Body",
+    "example_dutch": "Zij heeft blauwe ogen.",
+    "example_english": "She has blue eyes."
+  },
+  {
+    "dutch": "het oor",
+    "english": "the ear",
+    "category": "Health & Body",
+    "example_dutch": "Mijn oor doet pijn.",
+    "example_english": "My ear hurts."
+  },
+  {
+    "dutch": "de vinger",
+    "english": "the finger",
+    "category": "Health & Body",
+    "example_dutch": "Ik heb mijn vinger gesneden.",
+    "example_english": "I cut my finger."
+  },
+  {
+    "dutch": "de knie",
+    "english": "the knee",
+    "category": "Health & Body",
+    "example_dutch": "Mijn knie doet pijn.",
+    "example_english": "My knee hurts."
+  },
+  {
+    "dutch": "het haar",
+    "english": "the hair",
+    "category": "Health & Body",
+    "example_dutch": "Zij heeft lang haar.",
+    "example_english": "She has long hair."
+  },
+  {
+    "dutch": "de hand",
+    "english": "the hand",
+    "category": "Health & Body",
+    "example_dutch": "Was je handen.",
+    "example_english": "Wash your hands."
+  },
+  {
+    "dutch": "de ov-chipkaart",
+    "english": "the public transport chip card",
+    "category": "Transport & Travel",
+    "example_dutch": "Vergeet je ov-chipkaart niet.",
+    "example_english": "Don't forget your public transport card."
+  },
+  {
+    "dutch": "de luchthaven",
+    "english": "the airport",
+    "category": "Transport & Travel",
+    "example_dutch": "De luchthaven is ver van de stad.",
+    "example_english": "The airport is far from the city."
+  },
+  {
+    "dutch": "de reis",
+    "english": "the trip / journey",
+    "category": "Transport & Travel",
+    "example_dutch": "De reis duurt twee uur.",
+    "example_english": "The trip takes two hours."
+  },
+  {
+    "dutch": "het retour",
+    "english": "the return (ticket)",
+    "category": "Transport & Travel",
+    "example_dutch": "Een retour naar Amsterdam, alstublieft.",
+    "example_english": "A return to Amsterdam, please."
+  },
+  {
+    "dutch": "de enkele reis",
+    "english": "the single (one-way) ticket",
+    "category": "Transport & Travel",
+    "example_dutch": "Ik wil een enkele reis naar Utrecht.",
+    "example_english": "I want a single ticket to Utrecht."
+  },
+  {
+    "dutch": "de fietspad",
+    "english": "the bike path",
+    "category": "Transport & Travel",
+    "example_dutch": "Nederland heeft veel fietspaden.",
+    "example_english": "The Netherlands has many bike paths."
+  },
+  {
+    "dutch": "de veerboot",
+    "english": "the ferry",
+    "category": "Transport & Travel",
+    "example_dutch": "We nemen de veerboot naar het eiland.",
+    "example_english": "We take the ferry to the island."
+  },
+  {
+    "dutch": "de snelweg",
+    "english": "the motorway",
+    "category": "Transport & Travel",
+    "example_dutch": "Er is een file op de snelweg.",
+    "example_english": "There is a traffic jam on the motorway."
+  },
+  {
+    "dutch": "overstappen",
+    "english": "to transfer / change (transport)",
+    "category": "Transport & Travel",
+    "example_dutch": "Je moet overstappen in Utrecht.",
+    "example_english": "You have to change in Utrecht."
+  },
+  {
+    "dutch": "de file",
+    "english": "the traffic jam",
+    "category": "Transport & Travel",
+    "example_dutch": "Er is veel file in de ochtend.",
+    "example_english": "There are many traffic jams in the morning."
+  },
+  {
+    "dutch": "reserveren",
+    "english": "to reserve / book",
+    "category": "Hotel & Accommodation",
+    "example_dutch": "Ik wil een kamer reserveren.",
+    "example_english": "I want to book a room."
+  },
+  {
+    "dutch": "de sleutel",
+    "english": "the key",
+    "category": "Hotel & Accommodation",
+    "example_dutch": "Hier is de sleutel van uw kamer.",
+    "example_english": "Here is the key to your room."
+  },
+  {
+    "dutch": "het ontbijt inbegrepen",
+    "english": "breakfast included",
+    "category": "Hotel & Accommodation",
+    "example_dutch": "Is het ontbijt inbegrepen?",
+    "example_english": "Is breakfast included?"
+  },
+  {
+    "dutch": "de wifi",
+    "english": "the WiFi",
+    "category": "Hotel & Accommodation",
+    "example_dutch": "Wat is het wifi-wachtwoord?",
+    "example_english": "What is the WiFi password?"
+  },
+  {
+    "dutch": "de handdoek",
+    "english": "the towel",
+    "category": "Hotel & Accommodation",
+    "example_dutch": "Er liggen handdoeken in de badkamer.",
+    "example_english": "There are towels in the bathroom."
+  },
+  {
+    "dutch": "de lift",
+    "english": "the elevator",
+    "category": "Hotel & Accommodation",
+    "example_dutch": "De lift is naast de receptie.",
+    "example_english": "The elevator is next to the reception."
+  },
+  {
+    "dutch": "de balie",
+    "english": "the front desk",
+    "category": "Hotel & Accommodation",
+    "example_dutch": "Vraag bij de balie.",
+    "example_english": "Ask at the front desk."
+  },
+  {
+    "dutch": "het uitzicht",
+    "english": "the view",
+    "category": "Hotel & Accommodation",
+    "example_dutch": "De kamer heeft een mooi uitzicht.",
+    "example_english": "The room has a nice view."
+  },
+  {
+    "dutch": "de klacht",
+    "english": "the complaint",
+    "category": "Hotel & Accommodation",
+    "example_dutch": "Ik heb een klacht over de kamer.",
+    "example_english": "I have a complaint about the room."
+  },
+  {
+    "dutch": "overnachten",
+    "english": "to stay overnight",
+    "category": "Hotel & Accommodation",
+    "example_dutch": "Wij overnachten in een hotel.",
+    "example_english": "We stay overnight in a hotel."
+  },
+  {
+    "dutch": "Kerstmis",
+    "english": "Christmas",
+    "category": "Celebrations",
+    "example_dutch": "Met Kerstmis eten we samen.",
+    "example_english": "At Christmas we eat together."
+  },
+  {
+    "dutch": "Sinterklaas",
+    "english": "Sinterklaas (Dutch St Nicholas)",
+    "category": "Celebrations",
+    "example_dutch": "Sinterklaas is op 5 december.",
+    "example_english": "Sinterklaas is on December 5th."
+  },
+  {
+    "dutch": "Nieuwjaar",
+    "english": "New Year",
+    "category": "Celebrations",
+    "example_dutch": "Gelukkig Nieuwjaar!",
+    "example_english": "Happy New Year!"
+  },
+  {
+    "dutch": "de bloemen",
+    "english": "the flowers",
+    "category": "Celebrations",
+    "example_dutch": "Ik geef bloemen aan mijn moeder.",
+    "example_english": "I give flowers to my mother."
+  },
+  {
+    "dutch": "feliciteren",
+    "english": "to congratulate",
+    "category": "Celebrations",
+    "example_dutch": "Ik wil je feliciteren!",
+    "example_english": "I want to congratulate you!"
+  },
+  {
+    "dutch": "het kado",
+    "english": "the gift / present",
+    "category": "Celebrations",
+    "example_dutch": "Dit kado is voor jou.",
+    "example_english": "This gift is for you."
+  },
+  {
+    "dutch": "Pasen",
+    "english": "Easter",
+    "category": "Celebrations",
+    "example_dutch": "Met Pasen zoeken we eieren.",
+    "example_english": "At Easter we search for eggs."
+  },
+  {
+    "dutch": "de bruiloft",
+    "english": "the wedding",
+    "category": "Celebrations",
+    "example_dutch": "De bruiloft is in juni.",
+    "example_english": "The wedding is in June."
+  },
+  {
+    "dutch": "Gelukkig Nieuwjaar!",
+    "english": "Happy New Year!",
+    "category": "Celebrations",
+    "example_dutch": "Gelukkig Nieuwjaar! Proost!",
+    "example_english": "Happy New Year! Cheers!"
+  },
+  {
+    "dutch": "proost",
+    "english": "cheers",
+    "category": "Celebrations",
+    "example_dutch": "Proost! Op een goed jaar!",
+    "example_english": "Cheers! To a good year!"
+  },
+  {
+    "dutch": "dertig",
+    "english": "thirty",
+    "category": "Numbers",
+    "example_dutch": "Ik ben dertig jaar oud.",
+    "example_english": "I'm thirty years old."
+  },
+  {
+    "dutch": "veertig",
+    "english": "forty",
+    "category": "Numbers",
+    "example_dutch": "Mijn vader is veertig jaar oud.",
+    "example_english": "My father is forty years old."
+  },
+  {
+    "dutch": "vijftig",
+    "english": "fifty",
+    "category": "Numbers",
+    "example_dutch": "Er zijn vijftig leerlingen.",
+    "example_english": "There are fifty students."
+  },
+  {
+    "dutch": "zestig",
+    "english": "sixty",
+    "category": "Numbers",
+    "example_dutch": "Mijn opa is zestig.",
+    "example_english": "My grandpa is sixty."
+  },
+  {
+    "dutch": "zeventig",
+    "english": "seventy",
+    "category": "Numbers",
+    "example_dutch": "De snelheid is zeventig kilometer per uur.",
+    "example_english": "The speed is seventy kilometres per hour."
+  },
+  {
+    "dutch": "tachtig",
+    "english": "eighty",
+    "category": "Numbers",
+    "example_dutch": "Mijn oma is tachtig jaar.",
+    "example_english": "My grandma is eighty years old."
+  },
+  {
+    "dutch": "negentig",
+    "english": "ninety",
+    "category": "Numbers",
+    "example_dutch": "Het kost negentig euro.",
+    "example_english": "It costs ninety euros."
+  },
+  {
+    "dutch": "duizend",
+    "english": "thousand",
+    "category": "Numbers",
+    "example_dutch": "De huur is duizend euro.",
+    "example_english": "The rent is a thousand euros."
+  },
+  {
+    "dutch": "eerste",
+    "english": "first",
+    "category": "Numbers",
+    "example_dutch": "Dit is de eerste keer.",
+    "example_english": "This is the first time."
+  },
+  {
+    "dutch": "tweede",
+    "english": "second",
+    "category": "Numbers",
+    "example_dutch": "Ik woon op de tweede verdieping.",
+    "example_english": "I live on the second floor."
+  },
+  {
+    "dutch": "derde",
+    "english": "third",
+    "category": "Numbers",
+    "example_dutch": "De derde straat links.",
+    "example_english": "The third street on the left."
+  },
+  {
+    "dutch": "Nederland",
+    "english": "the Netherlands",
+    "category": "Countries & Nationality",
+    "example_dutch": "Nederland is een klein land.",
+    "example_english": "The Netherlands is a small country."
+  },
+  {
+    "dutch": "Spanje",
+    "english": "Spain",
+    "category": "Countries & Nationality",
+    "example_dutch": "In de zomer ga ik naar Spanje.",
+    "example_english": "In summer I go to Spain."
+  },
+  {
+    "dutch": "Italië",
+    "english": "Italy",
+    "category": "Countries & Nationality",
+    "example_dutch": "Het eten in Italië is heerlijk.",
+    "example_english": "The food in Italy is delicious."
+  },
+  {
+    "dutch": "Marokko",
+    "english": "Morocco",
+    "category": "Countries & Nationality",
+    "example_dutch": "Zij komt uit Marokko.",
+    "example_english": "She is from Morocco."
+  },
+  {
+    "dutch": "Chinees",
+    "english": "Chinese",
+    "category": "Countries & Nationality",
+    "example_dutch": "Hij spreekt Chinees.",
+    "example_english": "He speaks Chinese."
+  },
+  {
+    "dutch": "Nederlands",
+    "english": "Dutch (language/adj)",
+    "category": "Countries & Nationality",
+    "example_dutch": "Ik leer Nederlands.",
+    "example_english": "I'm learning Dutch."
+  },
+  {
+    "dutch": "Spaans",
+    "english": "Spanish",
+    "category": "Countries & Nationality",
+    "example_dutch": "Zij spreekt Spaans.",
+    "example_english": "She speaks Spanish."
+  },
+  {
+    "dutch": "Duits",
+    "english": "German (adj)",
+    "category": "Countries & Nationality",
+    "example_dutch": "Hij spreekt Duits.",
+    "example_english": "He speaks German."
+  },
+  {
+    "dutch": "Pools",
+    "english": "Polish",
+    "category": "Countries & Nationality",
+    "example_dutch": "De buurman is Pools.",
+    "example_english": "The neighbour is Polish."
+  },
+  {
+    "dutch": "Arabisch",
+    "english": "Arabic",
+    "category": "Countries & Nationality",
+    "example_dutch": "Zij spreekt Arabisch.",
+    "example_english": "She speaks Arabic."
+  },
+  {
+    "dutch": "tot ziens",
+    "english": "goodbye",
+    "category": "Greetings & Phrases",
+    "example_dutch": "Tot ziens, tot morgen!",
+    "example_english": "Goodbye, see you tomorrow!"
+  },
+  {
+    "dutch": "tot morgen",
+    "english": "see you tomorrow",
+    "category": "Greetings & Phrases",
+    "example_dutch": "Tot morgen! Slaap lekker!",
+    "example_english": "See you tomorrow! Sleep well!"
+  },
+  {
+    "dutch": "welkom",
+    "english": "welcome",
+    "category": "Greetings & Phrases",
+    "example_dutch": "Welkom in Nederland!",
+    "example_english": "Welcome to the Netherlands!"
+  },
+  {
+    "dutch": "pardon",
+    "english": "pardon / excuse me",
+    "category": "Greetings & Phrases",
+    "example_dutch": "Pardon, waar is het station?",
+    "example_english": "Excuse me, where is the station?"
+  },
+  {
+    "dutch": "graag gedaan",
+    "english": "you're welcome",
+    "category": "Greetings & Phrases",
+    "example_dutch": "Dankjewel! - Graag gedaan!",
+    "example_english": "Thank you! - You're welcome!"
+  },
+  {
+    "dutch": "goedenacht",
+    "english": "good night",
+    "category": "Greetings & Phrases",
+    "example_dutch": "Goedenacht, slaap lekker!",
+    "example_english": "Good night, sleep well!"
+  },
+  {
+    "dutch": "doei",
+    "english": "bye (informal)",
+    "category": "Greetings & Phrases",
+    "example_dutch": "Doei! Tot later!",
+    "example_english": "Bye! See you later!"
+  },
+  {
+    "dutch": "dag",
+    "english": "hello / goodbye (informal)",
+    "category": "Greetings & Phrases",
+    "example_dutch": "Dag mevrouw!",
+    "example_english": "Hello ma'am!"
+  },
+  {
+    "dutch": "tot straks",
+    "english": "see you later",
+    "category": "Greetings & Phrases",
+    "example_dutch": "Ik ga nu. Tot straks!",
+    "example_english": "I'm going now. See you later!"
+  },
+  {
+    "dutch": "alstublieft",
+    "english": "please (formal)",
+    "category": "Greetings & Phrases",
+    "example_dutch": "Een koffie, alstublieft.",
+    "example_english": "A coffee, please."
+  },
+  {
+    "dutch": "maandag",
+    "english": "Monday",
+    "category": "Time & Calendar",
+    "example_dutch": "Op maandag werk ik.",
+    "example_english": "On Monday I work."
+  },
+  {
+    "dutch": "dinsdag",
+    "english": "Tuesday",
+    "category": "Time & Calendar",
+    "example_dutch": "Dinsdag heb ik les.",
+    "example_english": "On Tuesday I have class."
+  },
+  {
+    "dutch": "woensdag",
+    "english": "Wednesday",
+    "category": "Time & Calendar",
+    "example_dutch": "Woensdag is mijn vrije dag.",
+    "example_english": "Wednesday is my day off."
+  },
+  {
+    "dutch": "donderdag",
+    "english": "Thursday",
+    "category": "Time & Calendar",
+    "example_dutch": "Op donderdag ga ik sporten.",
+    "example_english": "On Thursday I go exercise."
+  },
+  {
+    "dutch": "zaterdag",
+    "english": "Saturday",
+    "category": "Time & Calendar",
+    "example_dutch": "Op zaterdag ga ik naar de markt.",
+    "example_english": "On Saturday I go to the market."
+  },
+  {
+    "dutch": "zondag",
+    "english": "Sunday",
+    "category": "Time & Calendar",
+    "example_dutch": "Op zondag rust ik uit.",
+    "example_english": "On Sunday I rest."
+  },
+  {
+    "dutch": "april",
+    "english": "April",
+    "category": "Time & Calendar",
+    "example_dutch": "Koningsdag is in april.",
+    "example_english": "King's Day is in April."
+  },
+  {
+    "dutch": "mei",
+    "english": "May",
+    "category": "Time & Calendar",
+    "example_dutch": "In mei is het mooi weer.",
+    "example_english": "In May the weather is nice."
+  },
+  {
+    "dutch": "december",
+    "english": "December",
+    "category": "Time & Calendar",
+    "example_dutch": "In december vieren we Kerstmis.",
+    "example_english": "In December we celebrate Christmas."
+  },
+  {
+    "dutch": "'s ochtends",
+    "english": "in the morning",
+    "category": "Time & Calendar",
+    "example_dutch": "'s Ochtends drink ik koffie.",
+    "example_english": "In the morning I drink coffee."
+  },
+  {
+    "dutch": "roze",
+    "english": "pink",
+    "category": "Colors",
+    "example_dutch": "Zij draagt een roze jurk.",
+    "example_english": "She wears a pink dress."
+  },
+  {
+    "dutch": "paars",
+    "english": "purple",
+    "category": "Colors",
+    "example_dutch": "De bloemen zijn paars.",
+    "example_english": "The flowers are purple."
+  },
+  {
+    "dutch": "lichtblauw",
+    "english": "light blue",
+    "category": "Colors",
+    "example_dutch": "De lucht is lichtblauw.",
+    "example_english": "The sky is light blue."
+  },
+  {
+    "dutch": "donkerblauw",
+    "english": "dark blue",
+    "category": "Colors",
+    "example_dutch": "Zijn jas is donkerblauw.",
+    "example_english": "His jacket is dark blue."
+  },
+  {
+    "dutch": "goud",
+    "english": "gold",
+    "category": "Colors",
+    "example_dutch": "De ring is goud.",
+    "example_english": "The ring is gold."
+  },
+  {
+    "dutch": "kunnen",
+    "english": "can / to be able to",
+    "category": "Language & Communication",
+    "example_dutch": "Kun je Nederlands spreken?",
+    "example_english": "Can you speak Dutch?"
+  },
+  {
+    "dutch": "moeten",
+    "english": "must / to have to",
+    "category": "Language & Communication",
+    "example_dutch": "Ik moet naar school.",
+    "example_english": "I have to go to school."
+  },
+  {
+    "dutch": "mogen",
+    "english": "may / to be allowed to",
+    "category": "Language & Communication",
+    "example_dutch": "Mag ik hier zitten?",
+    "example_english": "May I sit here?"
+  },
+  {
+    "dutch": "willen",
+    "english": "to want",
+    "category": "Language & Communication",
+    "example_dutch": "Ik wil een kopje koffie.",
+    "example_english": "I want a cup of coffee."
+  },
+  {
+    "dutch": "gaan",
+    "english": "to go",
+    "category": "Language & Communication",
+    "example_dutch": "Ik ga naar huis.",
+    "example_english": "I go home."
+  },
+  {
+    "dutch": "komen",
+    "english": "to come",
+    "category": "Language & Communication",
+    "example_dutch": "Kom je morgen?",
+    "example_english": "Are you coming tomorrow?"
+  },
+  {
+    "dutch": "hebben",
+    "english": "to have",
+    "category": "Language & Communication",
+    "example_dutch": "Ik heb twee kinderen.",
+    "example_english": "I have two children."
+  },
+  {
+    "dutch": "geven",
+    "english": "to give",
+    "category": "Language & Communication",
+    "example_dutch": "Ik geef je een cadeau.",
+    "example_english": "I give you a present."
+  },
+  {
+    "dutch": "zeggen",
+    "english": "to say",
+    "category": "Language & Communication",
+    "example_dutch": "Wat zeg je?",
+    "example_english": "What do you say?"
+  },
+  {
+    "dutch": "denken",
+    "english": "to think",
+    "category": "Language & Communication",
+    "example_dutch": "Ik denk dat het goed is.",
+    "example_english": "I think it's good."
+  },
+  {
+    "dutch": "weten",
+    "english": "to know",
+    "category": "Language & Communication",
+    "example_dutch": "Ik weet het niet.",
+    "example_english": "I don't know."
+  },
+  {
+    "dutch": "begrijpen",
+    "english": "to understand",
+    "category": "Language & Communication",
+    "example_dutch": "Begrijp je mij?",
+    "example_english": "Do you understand me?"
+  },
+  {
+    "dutch": "uitleggen",
+    "english": "to explain",
+    "category": "Language & Communication",
+    "example_dutch": "Kun je dat uitleggen?",
+    "example_english": "Can you explain that?"
+  },
+  {
+    "dutch": "herhalen",
+    "english": "to repeat",
+    "category": "Language & Communication",
+    "example_dutch": "Kun je dat herhalen?",
+    "example_english": "Can you repeat that?"
+  },
+  {
+    "dutch": "betekenen",
+    "english": "to mean",
+    "category": "Language & Communication",
+    "example_dutch": "Wat betekent dit woord?",
+    "example_english": "What does this word mean?"
+  },
+  {
+    "dutch": "de kleding",
+    "english": "the clothing",
+    "category": "Shopping & Money",
+    "example_dutch": "Ik koop nieuwe kleding.",
+    "example_english": "I'm buying new clothing."
+  },
+  {
+    "dutch": "de jas",
+    "english": "the jacket / coat",
+    "category": "Shopping & Money",
+    "example_dutch": "Ik heb een warme jas nodig.",
+    "example_english": "I need a warm jacket."
+  },
+  {
+    "dutch": "de schoenen",
+    "english": "the shoes",
+    "category": "Shopping & Money",
+    "example_dutch": "Deze schoenen zijn te klein.",
+    "example_english": "These shoes are too small."
+  },
+  {
+    "dutch": "het T-shirt",
+    "english": "the T-shirt",
+    "category": "Shopping & Money",
+    "example_dutch": "Ik koop een nieuw T-shirt.",
+    "example_english": "I'm buying a new T-shirt."
+  },
+  {
+    "dutch": "de broek",
+    "english": "the trousers",
+    "category": "Shopping & Money",
+    "example_dutch": "De broek past niet.",
+    "example_english": "The trousers don't fit."
+  },
+  {
+    "dutch": "de jurk",
+    "english": "the dress",
+    "category": "Shopping & Money",
+    "example_dutch": "De jurk is mooi.",
+    "example_english": "The dress is beautiful."
+  }
+]

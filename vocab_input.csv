@@ -184,3 +184,339 @@ Zij zijn Nederlands.,They are Dutch.,General,,
 zijn dochter,his daughter,General,Zijn dochter werkt in een kantoor.,His daughter works in an office.
 zwart,black,General,Ik vind jouw zwarte tas mooi!,Your black bag is very pretty!
 één,one,General,Jij bent nummer één!,You are number one!
+huren,to rent,Housing & Furniture,Wij huren een appartement in Amsterdam.,We rent an apartment in Amsterdam.
+de huur,the rent,Housing & Furniture,De huur is zeshonderd euro per maand.,The rent is six hundred euros per month.
+de keuken,the kitchen,Housing & Furniture,Ik kook in de keuken.,I cook in the kitchen.
+de badkamer,the bathroom,Housing & Furniture,De badkamer is boven.,The bathroom is upstairs.
+de slaapkamer,the bedroom,Housing & Furniture,Het huis heeft drie slaapkamers.,The house has three bedrooms.
+de woonkamer,the living room,Housing & Furniture,We kijken tv in de woonkamer.,We watch TV in the living room.
+de bank,the couch,Housing & Furniture,Ik zit op de bank.,I'm sitting on the couch.
+de tafel,the table,Housing & Furniture,Het eten staat op de tafel.,The food is on the table.
+de stoel,the chair,Housing & Furniture,Er zijn vier stoelen in de keuken.,There are four chairs in the kitchen.
+de kast,the cupboard,Housing & Furniture,De borden staan in de kast.,The plates are in the cupboard.
+de tuin,the garden,Housing & Furniture,De kinderen spelen in de tuin.,The children play in the garden.
+verhuizen,to move (house),Housing & Furniture,Wij verhuizen naar Utrecht.,We are moving to Utrecht.
+het bed,the bed,Housing & Furniture,Het bed is groot en comfortabel.,The bed is big and comfortable.
+de lamp,the lamp,Housing & Furniture,"Doe de lamp aan, het is donker.","Turn on the lamp, it's dark."
+de deur,the door,Housing & Furniture,"Doe de deur dicht, alsjeblieft.","Close the door, please."
+het raam,the window,Housing & Furniture,"Doe het raam open, het is warm.","Open the window, it's warm."
+de trap,the stairs,Housing & Furniture,De slaapkamer is boven de trap.,The bedroom is up the stairs.
+de vloer,the floor,Housing & Furniture,De vloer is schoon.,The floor is clean.
+de muur,the wall,Housing & Furniture,Er hangt een foto aan de muur.,There is a photo hanging on the wall.
+het balkon,the balcony,Housing & Furniture,We zitten op het balkon.,We sit on the balcony.
+de douche,the shower,Housing & Furniture,De douche is in de badkamer.,The shower is in the bathroom.
+de spiegel,the mirror,Housing & Furniture,Er is een spiegel in de badkamer.,There is a mirror in the bathroom.
+de koelkast,the fridge,Housing & Furniture,De melk staat in de koelkast.,The milk is in the fridge.
+de wasmachine,the washing machine,Housing & Furniture,De wasmachine staat in de badkamer.,The washing machine is in the bathroom.
+de verdieping,the floor (storey),Housing & Furniture,Wij wonen op de tweede verdieping.,We live on the second floor.
+de buren,the neighbours,Housing & Furniture,De buren zijn heel aardig.,The neighbours are very nice.
+de huurder,the tenant,Housing & Furniture,De huurder betaalt elke maand.,The tenant pays every month.
+de huisbaas,the landlord,Housing & Furniture,De huisbaas woont in Rotterdam.,The landlord lives in Rotterdam.
+het toilet,the toilet,Housing & Furniture,Waar is het toilet?,Where is the toilet?
+de gordijn,the curtain,Housing & Furniture,Doe de gordijnen dicht.,Close the curtains.
+de les,the lesson,Work & School,De les begint om negen uur.,The lesson starts at nine o'clock.
+de leraar,the teacher (male),Work & School,De leraar is aardig.,The teacher is nice.
+de lerares,the teacher (female),Work & School,De lerares geeft Nederlandse les.,The teacher teaches Dutch lessons.
+het huiswerk,the homework,Work & School,Ik moet mijn huiswerk maken.,I have to do my homework.
+de cursus,the course,Work & School,Ik volg een cursus Nederlands.,I'm taking a Dutch course.
+de baan,the job,Work & School,Hij heeft een nieuwe baan.,He has a new job.
+het kantoor,the office,Work & School,Ik werk op een kantoor.,I work in an office.
+de baas,the boss,Work & School,Mijn baas is streng maar eerlijk.,My boss is strict but fair.
+de collega,the colleague,Work & School,Mijn collega komt uit België.,My colleague is from Belgium.
+het examen,the exam,Work & School,Het examen is volgende week.,The exam is next week.
+de opleiding,the education / training,Work & School,Welke opleiding heb je gedaan?,What education did you do?
+het werk,the work,Work & School,Ik ga om acht uur naar het werk.,I go to work at eight o'clock.
+werken,to work,Work & School,Ik werk in een ziekenhuis.,I work in a hospital.
+leren,to learn,Work & School,Ik leer Nederlands.,I'm learning Dutch.
+de leerling,the student (school),Work & School,Er zijn twintig leerlingen in de klas.,There are twenty students in the class.
+de student,the student (university),Work & School,Zij is student aan de universiteit.,She is a student at the university.
+de klas,the class / classroom,Work & School,De klas is groot.,The classroom is big.
+het beroep,the profession,Work & School,Wat is je beroep?,What is your profession?
+de vergadering,the meeting,Work & School,De vergadering begint om twee uur.,The meeting starts at two o'clock.
+de vakantie,the holiday / vacation,Work & School,In de vakantie ga ik naar Spanje.,During the holiday I go to Spain.
+solliciteren,to apply for a job,Work & School,Ik wil solliciteren bij dat bedrijf.,I want to apply at that company.
+het salaris,the salary,Work & School,Het salaris is goed.,The salary is good.
+de stage,the internship,Work & School,Ik doe stage bij een bank.,I'm doing an internship at a bank.
+de opdracht,the assignment,Work & School,De opdracht is voor morgen.,The assignment is for tomorrow.
+het bedrijf,the company,Work & School,Het bedrijf is groot.,The company is big.
+de brief,the letter,Work & School,Ik schrijf een brief.,I'm writing a letter.
+de computer,the computer,Work & School,Ik werk op de computer.,I work on the computer.
+de pen,the pen,Work & School,Mag ik jouw pen lenen?,Can I borrow your pen?
+blij,happy,Emotions & Feelings,Ik ben blij dat je er bent.,I'm happy that you're here.
+boos,angry,Emotions & Feelings,Waarom ben je boos?,Why are you angry?
+bang,afraid / scared,Emotions & Feelings,Ik ben bang voor honden.,I'm afraid of dogs.
+verdrietig,sad,Emotions & Feelings,Zij is verdrietig.,She is sad.
+moe,tired,Emotions & Feelings,Ik ben moe na het werk.,I'm tired after work.
+zenuwachtig,nervous,Emotions & Feelings,Ik ben zenuwachtig voor het examen.,I'm nervous about the exam.
+tevreden,satisfied / content,Emotions & Feelings,Ik ben tevreden met mijn werk.,I'm satisfied with my work.
+verbaasd,surprised,Emotions & Feelings,Ik was verbaasd over het cadeau.,I was surprised about the present.
+trots,proud,Emotions & Feelings,Ik ben trots op mijn zoon.,I'm proud of my son.
+eenzaam,lonely,Emotions & Feelings,Soms voel ik me eenzaam.,Sometimes I feel lonely.
+gelukkig,fortunate / happy,Emotions & Feelings,Wij zijn heel gelukkig.,We are very happy.
+verliefd,in love,Emotions & Feelings,Zij is verliefd.,She is in love.
+rusteloos,restless,Emotions & Feelings,Hij is rusteloos vandaag.,He is restless today.
+teleurgesteld,disappointed,Emotions & Feelings,Ik ben teleurgesteld.,I'm disappointed.
+opgewonden,excited,Emotions & Feelings,De kinderen zijn opgewonden.,The children are excited.
+bezorgd,worried,Emotions & Feelings,Mijn moeder is bezorgd.,My mother is worried.
+gestrest,stressed,Emotions & Feelings,Ik ben gestrest door het werk.,I'm stressed because of work.
+vrolijk,cheerful,Emotions & Feelings,Zij is altijd vrolijk.,She is always cheerful.
+benieuwd,curious,Emotions & Feelings,Ik ben benieuwd naar je verhaal.,I'm curious about your story.
+de winkel,the shop,Shopping & Money,De winkel is om zes uur gesloten.,The shop closes at six o'clock.
+de markt,the market,Shopping & Money,Op zaterdag ga ik naar de markt.,On Saturday I go to the market.
+de korting,the discount,Shopping & Money,Er is twintig procent korting.,There is twenty percent discount.
+de prijs,the price,Shopping & Money,Wat is de prijs van deze jas?,What is the price of this jacket?
+ruilen,to exchange / return,Shopping & Money,Kan ik dit ruilen?,Can I exchange this?
+de maat,the size,Shopping & Money,Welke maat heb je nodig?,What size do you need?
+passen,to try on / to fit,Shopping & Money,Mag ik dit passen?,May I try this on?
+de kassa,the cash register / checkout,Shopping & Money,U kunt betalen bij de kassa.,You can pay at the checkout.
+het wisselgeld,the change (money),Shopping & Money,Hier is uw wisselgeld.,Here is your change.
+de bon,the receipt,Shopping & Money,Wilt u de bon?,Would you like the receipt?
+het warenhuis,the department store,Shopping & Money,Het warenhuis heeft alles.,The department store has everything.
+de klant,the customer,Shopping & Money,De klant wil een jas kopen.,The customer wants to buy a jacket.
+de aanbieding,the special offer,Shopping & Money,De kaas is in de aanbieding.,The cheese is on special offer.
+het tasje,the (plastic) bag,Shopping & Money,Wilt u een tasje?,Would you like a bag?
+het winkelcentrum,the shopping centre,Shopping & Money,Het winkelcentrum is in het centrum.,The shopping centre is in the city centre.
+de paskamer,the fitting room,Shopping & Money,De paskamer is daar.,The fitting room is over there.
+pinnen,to pay by debit card,Shopping & Money,Kan ik hier pinnen?,Can I pay by card here?
+gratis,free (no cost),Shopping & Money,De koffie is gratis.,The coffee is free.
+warm,warm,Weather & Seasons,Het is warm vandaag.,It's warm today.
+heet,hot,Weather & Seasons,Het is te heet buiten.,It's too hot outside.
+koel,cool (temperature),Weather & Seasons,Het is koel in de avond.,It's cool in the evening.
+de zon,the sun,Weather & Seasons,De zon schijnt.,The sun is shining.
+de regen,the rain,Weather & Seasons,"Neem een paraplu, er komt regen.","Take an umbrella, rain is coming."
+de sneeuw,the snow,Weather & Seasons,Er ligt sneeuw buiten.,There is snow outside.
+bewolkt,cloudy,Weather & Seasons,Het is bewolkt vandaag.,It's cloudy today.
+de wind,the wind,Weather & Seasons,Er is veel wind.,There is a lot of wind.
+de temperatuur,the temperature,Weather & Seasons,De temperatuur is twintig graden.,The temperature is twenty degrees.
+zonnig,sunny,Weather & Seasons,Het wordt morgen zonnig.,It will be sunny tomorrow.
+de paraplu,the umbrella,Weather & Seasons,Vergeet je paraplu niet!,Don't forget your umbrella!
+sneeuwen,to snow,Weather & Seasons,Het sneeuwt in december.,It snows in December.
+de mist,the fog,Weather & Seasons,Er is veel mist op de weg.,There is a lot of fog on the road.
+het weer,the weather,Weather & Seasons,Hoe is het weer vandaag?,How is the weather today?
+de storm,the storm,Weather & Seasons,Er komt een storm.,A storm is coming.
+schoonmaken,to clean,Daily Life,Ik maak het huis schoon.,I'm cleaning the house.
+wassen,to wash,Daily Life,Ik was mijn kleren.,I wash my clothes.
+strijken,to iron,Daily Life,Ik strijk mijn overhemd.,I iron my shirt.
+bellen,to call (phone),Daily Life,Ik bel mijn moeder.,I call my mother.
+sturen,to send,Daily Life,Ik stuur een bericht.,I send a message.
+de post,the mail / post,Daily Life,Is er post voor mij?,Is there mail for me?
+helpen,to help,Daily Life,Kun je mij helpen?,Can you help me?
+wachten,to wait,Daily Life,"Wacht even, alsjeblieft.","Wait a moment, please."
+beginnen,to begin / start,Daily Life,De film begint om acht uur.,The movie starts at eight o'clock.
+schrijven,to write,Daily Life,Ik schrijf een e-mail.,I'm writing an email.
+vergeten,to forget,Daily Life,Ik vergeet altijd mijn sleutels.,I always forget my keys.
+proberen,to try,Daily Life,Ik wil het proberen.,I want to try it.
+kiezen,to choose,Daily Life,Welke wil je kiezen?,Which one do you want to choose?
+gebruiken,to use,Daily Life,Ik gebruik de computer.,I use the computer.
+opruimen,to tidy up,Daily Life,Ik moet mijn kamer opruimen.,I have to tidy up my room.
+de krant,the newspaper,Daily Life,Mijn vader leest de krant.,My father reads the newspaper.
+het bericht,the message,Daily Life,Ik heb een bericht gekregen.,I received a message.
+de afspraak,the appointment,Daily Life,Ik heb een afspraak bij de dokter.,I have an appointment at the doctor.
+thuis,at home,Daily Life,Ik ben thuis.,I'm at home.
+buiten,outside,Daily Life,De kinderen spelen buiten.,The children play outside.
+binnen,inside,Daily Life,"Kom binnen, het regent.","Come inside, it's raining."
+slapen,to sleep,Daily Life,Ik slaap acht uur per nacht.,I sleep eight hours per night.
+maken,to make,Daily Life,Ik maak het ontbijt.,I'm making breakfast.
+zoeken,to look for / search,Daily Life,Ik zoek mijn sleutels.,I'm looking for my keys.
+vinden,to find / to think,Daily Life,Ik vind Nederlands leuk.,I think Dutch is fun.
+nieuw,new,Describing Things,Ik heb een nieuw boek.,I have a new book.
+oud,old,Describing Things,Het huis is oud.,The house is old.
+klein,small,Describing Things,De kamer is klein.,The room is small.
+dik,thick / fat,Describing Things,Het boek is dik.,The book is thick.
+dun,thin,Describing Things,De muren zijn dun.,The walls are thin.
+snel,fast / quick,Describing Things,De trein is snel.,The train is fast.
+langzaam,slow,Describing Things,De bus is langzaam.,The bus is slow.
+schoon,clean,Describing Things,De keuken is schoon.,The kitchen is clean.
+vuil,dirty,Describing Things,De straat is vuil.,The street is dirty.
+belangrijk,important,Describing Things,Het examen is belangrijk.,The exam is important.
+leuk,fun / nice,Describing Things,Het feest was leuk.,The party was fun.
+gevaarlijk,dangerous,Describing Things,Die weg is gevaarlijk.,That road is dangerous.
+veilig,safe,Describing Things,Nederland is een veilig land.,The Netherlands is a safe country.
+licht,light (not heavy / bright),Describing Things,De tas is licht.,The bag is light.
+zwaar,heavy,Describing Things,De koffer is zwaar.,The suitcase is heavy.
+stil,quiet / silent,Describing Things,Het is stil in de klas.,It's quiet in the classroom.
+luid,loud,Describing Things,De muziek is te luid.,The music is too loud.
+dicht,closed / near,Describing Things,De winkel is dicht.,The shop is closed.
+breed,wide,Describing Things,De gracht is breed.,The canal is wide.
+smal,narrow,Describing Things,De straat is smal.,The street is narrow.
+vers,fresh,Describing Things,Het brood is vers.,The bread is fresh.
+droog (adj),dry (adjective),Describing Things,De kleren zijn droog.,The clothes are dry.
+nat,wet,Describing Things,De straat is nat.,The street is wet.
+aardig,nice / kind,Describing Things,De leraar is aardig.,The teacher is nice.
+lelijk,ugly,Describing Things,Het gebouw is lelijk.,The building is ugly.
+de school,the school,Places & Directions,De kinderen gaan naar school.,The children go to school.
+het ziekenhuis,the hospital,Places & Directions,Mijn moeder werkt in het ziekenhuis.,My mother works in the hospital.
+de bibliotheek,the library,Places & Directions,Ik leen boeken in de bibliotheek.,I borrow books at the library.
+de kerk,the church,Places & Directions,De kerk is in het centrum.,The church is in the city centre.
+naast,next to,Places & Directions,De apotheek is naast de supermarkt.,The pharmacy is next to the supermarket.
+tegenover,opposite / across from,Places & Directions,Het café is tegenover het station.,The café is opposite the station.
+tussen,between,Places & Directions,De school is tussen de kerk en de bibliotheek.,The school is between the church and the library.
+achter,behind,Places & Directions,De tuin is achter het huis.,The garden is behind the house.
+boven,above / upstairs,Places & Directions,De slaapkamer is boven.,The bedroom is upstairs.
+beneden,below / downstairs,Places & Directions,De keuken is beneden.,The kitchen is downstairs.
+het restaurant,the restaurant,Places & Directions,We eten in het restaurant.,We eat at the restaurant.
+de brug,the bridge,Places & Directions,Ga over de brug.,Go over the bridge.
+het park,the park,Places & Directions,We wandelen in het park.,We walk in the park.
+de hoek,the corner,Places & Directions,De winkel is om de hoek.,The shop is around the corner.
+het politiebureau,the police station,Places & Directions,Het politiebureau is in het centrum.,The police station is in the city centre.
+de weg,the road / way,Places & Directions,Welke weg moet ik nemen?,Which road should I take?
+hier,here,Places & Directions,De halte is hier.,The stop is here.
+daar,there,Places & Directions,Het station is daar.,The station is there.
+ver,far,Places & Directions,Is het ver?,Is it far?
+dichtbij,nearby / close,Places & Directions,De supermarkt is dichtbij.,The supermarket is nearby.
+de buurman,the neighbour (male),Family & People,De buurman is aardig.,The neighbour is nice.
+de buurvrouw,the neighbour (female),Family & People,De buurvrouw heeft een kat.,The neighbour has a cat.
+de vriend,the friend (male) / boyfriend,Family & People,Mijn vriend heet Thomas.,My friend's name is Thomas.
+de vriendin,the friend (female) / girlfriend,Family & People,Mijn vriendin woont in Den Haag.,My girlfriend lives in The Hague.
+het kind,the child,Family & People,Het kind speelt buiten.,The child plays outside.
+de baby,the baby,Family & People,De baby slaapt.,The baby is sleeping.
+de man,the man / husband,Family & People,De man werkt in een kantoor.,The man works in an office.
+de vrouw,the woman / wife,Family & People,De vrouw koopt groente.,The woman buys vegetables.
+de dokter,the doctor,Family & People,Ik ga naar de dokter.,I'm going to the doctor.
+het meisje,the girl,Family & People,Het meisje leest een boek.,The girl reads a book.
+de jongen,the boy,Family & People,De jongen speelt voetbal.,The boy plays football.
+de oom,the uncle,Family & People,Mijn oom woont in Groningen.,My uncle lives in Groningen.
+de tante,the aunt,Family & People,Mijn tante is lerares.,My aunt is a teacher.
+de neef,the cousin (male) / nephew,Family & People,Mijn neef studeert in Leiden.,My cousin studies in Leiden.
+de nicht,the cousin (female) / niece,Family & People,Mijn nicht woont in Amsterdam.,My cousin lives in Amsterdam.
+de soep,the soup,Food & Drink,De soep is warm.,The soup is warm.
+het water,the water,Food & Drink,Mag ik een glas water?,May I have a glass of water?
+de melk,the milk,Food & Drink,De melk staat in de koelkast.,The milk is in the fridge.
+het ei,the egg,Food & Drink,Ik eet een gekookt ei.,I eat a boiled egg.
+de rijst,the rice,Food & Drink,Wij eten rijst met kip.,We eat rice with chicken.
+de saus,the sauce,Food & Drink,Wil je saus bij de patat?,Do you want sauce with the fries?
+vegetarisch,vegetarian,Food & Drink,Heeft u een vegetarisch gerecht?,Do you have a vegetarian dish?
+allergisch,allergic,Food & Drink,Ik ben allergisch voor noten.,I'm allergic to nuts.
+het menu,the menu,Food & Drink,Mag ik het menu?,May I see the menu?
+de kip,the chicken,Food & Drink,Ik bestel kip met rijst.,I order chicken with rice.
+het broodje gezond,the healthy sandwich,Food & Drink,Ik neem een broodje gezond.,I'll have a healthy sandwich.
+de pannenkoek,the pancake,Food & Drink,De kinderen eten pannenkoeken.,The children eat pancakes.
+de chocolade,the chocolate,Food & Drink,Ik hou van chocolade.,I love chocolate.
+het sap,the juice,Food & Drink,Wil je sinaasappelsap?,Do you want orange juice?
+de suiker,the sugar,Food & Drink,Wil je suiker in je thee?,Do you want sugar in your tea?
+hardlopen,to run (sport),Sports & Hobbies,Ik ga elke ochtend hardlopen.,I go running every morning.
+de muziek,the music,Sports & Hobbies,Ik luister naar muziek.,I listen to music.
+tekenen,to draw,Sports & Hobbies,Mijn dochter tekent een bloem.,My daughter draws a flower.
+fietsen,to cycle,Sports & Hobbies,Wij fietsen naar het werk.,We cycle to work.
+de gitaar,the guitar,Sports & Hobbies,Hij speelt gitaar.,He plays guitar.
+zingen,to sing,Sports & Hobbies,Zij zingt in een koor.,She sings in a choir.
+schilderen,to paint,Sports & Hobbies,Ik schilder graag.,I like to paint.
+het theater,the theatre,Sports & Hobbies,We gaan naar het theater.,We go to the theatre.
+het concert,the concert,Sports & Hobbies,Het concert is vanavond.,The concert is tonight.
+kijken,to watch / look,Sports & Hobbies,We kijken naar de wedstrijd.,We watch the match.
+luisteren,to listen,Sports & Hobbies,Ik luister naar de radio.,I listen to the radio.
+spelen,to play,Sports & Hobbies,De kinderen spelen in het park.,The children play in the park.
+fotograferen,to take photos,Sports & Hobbies,Ik fotografeer graag.,I like to take photos.
+de hobby,the hobby,Sports & Hobbies,Wat is je hobby?,What is your hobby?
+de allergie,the allergy,Health & Body,Ik heb een allergie voor pinda's.,I have an allergy to peanuts.
+het bloed,the blood,Health & Body,Er is bloed op de vloer.,There is blood on the floor.
+de wond,the wound,Health & Body,De wond is niet diep.,The wound is not deep.
+de pil,the pill,Health & Body,Neem twee pillen per dag.,Take two pills per day.
+het verband,the bandage,Health & Body,De dokter doet er een verband om.,The doctor puts a bandage on it.
+de EHBO,the first aid,Health & Body,Waar is de EHBO?,Where is the first aid?
+de tandarts,the dentist,Health & Body,Ik ga twee keer per jaar naar de tandarts.,I go to the dentist twice a year.
+gezond,healthy,Health & Body,Groente is gezond.,Vegetables are healthy.
+ongezond,unhealthy,Health & Body,Te veel suiker is ongezond.,Too much sugar is unhealthy.
+het oog,the eye,Health & Body,Zij heeft blauwe ogen.,She has blue eyes.
+het oor,the ear,Health & Body,Mijn oor doet pijn.,My ear hurts.
+de vinger,the finger,Health & Body,Ik heb mijn vinger gesneden.,I cut my finger.
+de knie,the knee,Health & Body,Mijn knie doet pijn.,My knee hurts.
+het haar,the hair,Health & Body,Zij heeft lang haar.,She has long hair.
+de hand,the hand,Health & Body,Was je handen.,Wash your hands.
+de ov-chipkaart,the public transport chip card,Transport & Travel,Vergeet je ov-chipkaart niet.,Don't forget your public transport card.
+de luchthaven,the airport,Transport & Travel,De luchthaven is ver van de stad.,The airport is far from the city.
+de reis,the trip / journey,Transport & Travel,De reis duurt twee uur.,The trip takes two hours.
+het retour,the return (ticket),Transport & Travel,"Een retour naar Amsterdam, alstublieft.","A return to Amsterdam, please."
+de enkele reis,the single (one-way) ticket,Transport & Travel,Ik wil een enkele reis naar Utrecht.,I want a single ticket to Utrecht.
+de fietspad,the bike path,Transport & Travel,Nederland heeft veel fietspaden.,The Netherlands has many bike paths.
+de veerboot,the ferry,Transport & Travel,We nemen de veerboot naar het eiland.,We take the ferry to the island.
+de snelweg,the motorway,Transport & Travel,Er is een file op de snelweg.,There is a traffic jam on the motorway.
+overstappen,to transfer / change (transport),Transport & Travel,Je moet overstappen in Utrecht.,You have to change in Utrecht.
+de file,the traffic jam,Transport & Travel,Er is veel file in de ochtend.,There are many traffic jams in the morning.
+reserveren,to reserve / book,Hotel & Accommodation,Ik wil een kamer reserveren.,I want to book a room.
+de sleutel,the key,Hotel & Accommodation,Hier is de sleutel van uw kamer.,Here is the key to your room.
+het ontbijt inbegrepen,breakfast included,Hotel & Accommodation,Is het ontbijt inbegrepen?,Is breakfast included?
+de wifi,the WiFi,Hotel & Accommodation,Wat is het wifi-wachtwoord?,What is the WiFi password?
+de handdoek,the towel,Hotel & Accommodation,Er liggen handdoeken in de badkamer.,There are towels in the bathroom.
+de lift,the elevator,Hotel & Accommodation,De lift is naast de receptie.,The elevator is next to the reception.
+de balie,the front desk,Hotel & Accommodation,Vraag bij de balie.,Ask at the front desk.
+het uitzicht,the view,Hotel & Accommodation,De kamer heeft een mooi uitzicht.,The room has a nice view.
+de klacht,the complaint,Hotel & Accommodation,Ik heb een klacht over de kamer.,I have a complaint about the room.
+overnachten,to stay overnight,Hotel & Accommodation,Wij overnachten in een hotel.,We stay overnight in a hotel.
+Kerstmis,Christmas,Celebrations,Met Kerstmis eten we samen.,At Christmas we eat together.
+Sinterklaas,Sinterklaas (Dutch St Nicholas),Celebrations,Sinterklaas is op 5 december.,Sinterklaas is on December 5th.
+Nieuwjaar,New Year,Celebrations,Gelukkig Nieuwjaar!,Happy New Year!
+de bloemen,the flowers,Celebrations,Ik geef bloemen aan mijn moeder.,I give flowers to my mother.
+feliciteren,to congratulate,Celebrations,Ik wil je feliciteren!,I want to congratulate you!
+het kado,the gift / present,Celebrations,Dit kado is voor jou.,This gift is for you.
+Pasen,Easter,Celebrations,Met Pasen zoeken we eieren.,At Easter we search for eggs.
+de bruiloft,the wedding,Celebrations,De bruiloft is in juni.,The wedding is in June.
+Gelukkig Nieuwjaar!,Happy New Year!,Celebrations,Gelukkig Nieuwjaar! Proost!,Happy New Year! Cheers!
+proost,cheers,Celebrations,Proost! Op een goed jaar!,Cheers! To a good year!
+dertig,thirty,Numbers,Ik ben dertig jaar oud.,I'm thirty years old.
+veertig,forty,Numbers,Mijn vader is veertig jaar oud.,My father is forty years old.
+vijftig,fifty,Numbers,Er zijn vijftig leerlingen.,There are fifty students.
+zestig,sixty,Numbers,Mijn opa is zestig.,My grandpa is sixty.
+zeventig,seventy,Numbers,De snelheid is zeventig kilometer per uur.,The speed is seventy kilometres per hour.
+tachtig,eighty,Numbers,Mijn oma is tachtig jaar.,My grandma is eighty years old.
+negentig,ninety,Numbers,Het kost negentig euro.,It costs ninety euros.
+duizend,thousand,Numbers,De huur is duizend euro.,The rent is a thousand euros.
+eerste,first,Numbers,Dit is de eerste keer.,This is the first time.
+tweede,second,Numbers,Ik woon op de tweede verdieping.,I live on the second floor.
+derde,third,Numbers,De derde straat links.,The third street on the left.
+Nederland,the Netherlands,Countries & Nationality,Nederland is een klein land.,The Netherlands is a small country.
+Spanje,Spain,Countries & Nationality,In de zomer ga ik naar Spanje.,In summer I go to Spain.
+Italië,Italy,Countries & Nationality,Het eten in Italië is heerlijk.,The food in Italy is delicious.
+Marokko,Morocco,Countries & Nationality,Zij komt uit Marokko.,She is from Morocco.
+Chinees,Chinese,Countries & Nationality,Hij spreekt Chinees.,He speaks Chinese.
+Nederlands,Dutch (language/adj),Countries & Nationality,Ik leer Nederlands.,I'm learning Dutch.
+Spaans,Spanish,Countries & Nationality,Zij spreekt Spaans.,She speaks Spanish.
+Duits,German (adj),Countries & Nationality,Hij spreekt Duits.,He speaks German.
+Pools,Polish,Countries & Nationality,De buurman is Pools.,The neighbour is Polish.
+Arabisch,Arabic,Countries & Nationality,Zij spreekt Arabisch.,She speaks Arabic.
+tot ziens,goodbye,Greetings & Phrases,"Tot ziens, tot morgen!","Goodbye, see you tomorrow!"
+tot morgen,see you tomorrow,Greetings & Phrases,Tot morgen! Slaap lekker!,See you tomorrow! Sleep well!
+welkom,welcome,Greetings & Phrases,Welkom in Nederland!,Welcome to the Netherlands!
+pardon,pardon / excuse me,Greetings & Phrases,"Pardon, waar is het station?","Excuse me, where is the station?"
+graag gedaan,you're welcome,Greetings & Phrases,Dankjewel! - Graag gedaan!,Thank you! - You're welcome!
+goedenacht,good night,Greetings & Phrases,"Goedenacht, slaap lekker!","Good night, sleep well!"
+doei,bye (informal),Greetings & Phrases,Doei! Tot later!,Bye! See you later!
+dag,hello / goodbye (informal),Greetings & Phrases,Dag mevrouw!,Hello ma'am!
+tot straks,see you later,Greetings & Phrases,Ik ga nu. Tot straks!,I'm going now. See you later!
+alstublieft,please (formal),Greetings & Phrases,"Een koffie, alstublieft.","A coffee, please."
+maandag,Monday,Time & Calendar,Op maandag werk ik.,On Monday I work.
+dinsdag,Tuesday,Time & Calendar,Dinsdag heb ik les.,On Tuesday I have class.
+woensdag,Wednesday,Time & Calendar,Woensdag is mijn vrije dag.,Wednesday is my day off.
+donderdag,Thursday,Time & Calendar,Op donderdag ga ik sporten.,On Thursday I go exercise.
+zaterdag,Saturday,Time & Calendar,Op zaterdag ga ik naar de markt.,On Saturday I go to the market.
+zondag,Sunday,Time & Calendar,Op zondag rust ik uit.,On Sunday I rest.
+april,April,Time & Calendar,Koningsdag is in april.,King's Day is in April.
+mei,May,Time & Calendar,In mei is het mooi weer.,In May the weather is nice.
+december,December,Time & Calendar,In december vieren we Kerstmis.,In December we celebrate Christmas.
+'s ochtends,in the morning,Time & Calendar,'s Ochtends drink ik koffie.,In the morning I drink coffee.
+roze,pink,Colors,Zij draagt een roze jurk.,She wears a pink dress.
+paars,purple,Colors,De bloemen zijn paars.,The flowers are purple.
+lichtblauw,light blue,Colors,De lucht is lichtblauw.,The sky is light blue.
+donkerblauw,dark blue,Colors,Zijn jas is donkerblauw.,His jacket is dark blue.
+goud,gold,Colors,De ring is goud.,The ring is gold.
+kunnen,can / to be able to,Language & Communication,Kun je Nederlands spreken?,Can you speak Dutch?
+moeten,must / to have to,Language & Communication,Ik moet naar school.,I have to go to school.
+mogen,may / to be allowed to,Language & Communication,Mag ik hier zitten?,May I sit here?
+willen,to want,Language & Communication,Ik wil een kopje koffie.,I want a cup of coffee.
+gaan,to go,Language & Communication,Ik ga naar huis.,I go home.
+komen,to come,Language & Communication,Kom je morgen?,Are you coming tomorrow?
+hebben,to have,Language & Communication,Ik heb twee kinderen.,I have two children.
+geven,to give,Language & Communication,Ik geef je een cadeau.,I give you a present.
+zeggen,to say,Language & Communication,Wat zeg je?,What do you say?
+denken,to think,Language & Communication,Ik denk dat het goed is.,I think it's good.
+weten,to know,Language & Communication,Ik weet het niet.,I don't know.
+begrijpen,to understand,Language & Communication,Begrijp je mij?,Do you understand me?
+uitleggen,to explain,Language & Communication,Kun je dat uitleggen?,Can you explain that?
+herhalen,to repeat,Language & Communication,Kun je dat herhalen?,Can you repeat that?
+betekenen,to mean,Language & Communication,Wat betekent dit woord?,What does this word mean?
+de kleding,the clothing,Shopping & Money,Ik koop nieuwe kleding.,I'm buying new clothing.
+de jas,the jacket / coat,Shopping & Money,Ik heb een warme jas nodig.,I need a warm jacket.
+de schoenen,the shoes,Shopping & Money,Deze schoenen zijn te klein.,These shoes are too small.
+het T-shirt,the T-shirt,Shopping & Money,Ik koop een nieuw T-shirt.,I'm buying a new T-shirt.
+de broek,the trousers,Shopping & Money,De broek past niet.,The trousers don't fit.
+de jurk,the dress,Shopping & Money,De jurk is mooi.,The dress is beautiful.

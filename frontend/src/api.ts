@@ -217,6 +217,7 @@ export interface VocabNoteItem {
   example_english: string;
   audio_file: string;
   level: VocabLevel;
+  queued: boolean;
   next_review: string | null;
   ease_factor: number | null;
   interval: number | null;
@@ -229,6 +230,10 @@ export interface VocabNotebookOut {
 
 export function getVocabNotebook() {
   return request<VocabNotebookOut>("GET", "/flashcards/notebook");
+}
+
+export function addToLearn(vocabId: number) {
+  return request<{ added: boolean; vocab_id: number }>("POST", "/flashcards/add-to-learn", { vocab_id: vocabId });
 }
 
 // ── Listening ─────────────────────────────────────────────────────────────────
