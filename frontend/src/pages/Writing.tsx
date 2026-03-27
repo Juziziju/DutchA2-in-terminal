@@ -775,8 +775,8 @@ export default function Writing() {
 
         <div className="grid grid-cols-2 gap-3">
           {[
-            { label: "Content", score: feedback.content_score ?? 0, max: 3 },
-            { label: "Language", score: feedback.language_score ?? 0, max: 3 },
+            { label: "Content", score: feedback.content_score ?? 0, max: 5 },
+            { label: "Language", score: feedback.language_score ?? 0, max: 5 },
           ].map((s) => (
             <div key={s.label} className="bg-white rounded-lg border p-3 text-center">
               <p className={`text-2xl font-bold ${scoreColor(Math.round(s.score / s.max * 100))}`}>{s.score}/{s.max}</p>

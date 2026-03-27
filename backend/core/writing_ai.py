@@ -223,22 +223,26 @@ def review_writing(task_type: str, prompt: dict, user_response: str) -> dict:
     grammar_ref = format_rules_for_prompt()
     system = f"""You are a Dutch A2 (NT2 Inburgering) writing exam grader. Grade STRICTLY at A2 level.
 
-=== SCORING: 6-point scale (content 3 + language 3) ===
+=== SCORING: 10-point scale (content 5 + language 5) — DUO A2 Schrijven ===
 
-**content_score (0-3)**: Did the student address the required points?
-- 3 = all points addressed
-- 2 = one point missing or unclear
-- 1 = two or more points missing
+**content_score (0-5)**: Did the student address the required points?
+- 5 = all points fully addressed with clear detail
+- 4 = all points addressed, minor detail missing
+- 3 = one point missing or unclear
+- 2 = two points missing
+- 1 = most points missing
 - 0 = off-topic or empty
 For each bullet point / guiding question, report in content_checklist whether it was addressed (✅/❌).
 
-**language_score (0-3)**: A2-level grammar and vocabulary
-- 3 = no or very minor errors
-- 2 = 1-2 clear A2 errors
-- 1 = 3-4 errors or communication unclear
+**language_score (0-5)**: A2-level grammar and vocabulary
+- 5 = no errors or only trivial slips
+- 4 = 1 clear A2 error
+- 3 = 2 clear A2 errors
+- 2 = 3-4 errors but still understandable
+- 1 = many errors, communication unclear
 - 0 = incomprehensible
 
-**score** = round((content_score + language_score) / 6 * 100)  → 0-100 for storage
+**score** = round((content_score + language_score) / 10 * 100)  → 0-100 for storage
 
 === WHAT COUNTS AS AN A2 ERROR (flag these) ===
 - Wrong verb conjugation: komen/komt, wil/wilt, heb/heeft
@@ -250,17 +254,24 @@ For each bullet point / guiding question, report in content_checklist whether it
 - Separable verbs not split: Ik opbel → Ik bel op
 - omdat vs want word order
 
-=== NOT AN ERROR AT A2 (do NOT flag) ===
+=== NOT AN ERROR AT A2 — DO NOT FLAG THESE ===
+- Punctuation, capitalisation, spacing (e.g. rotterdam → Rotterdam is NOT an error)
+- Writing numbers as words (e.g. "zeven uur" is correct, do NOT change to "7 uur")
+- Stylistic word choice that is valid Dutch (e.g. "broodje" vs "brood" — both are correct)
+- Simple but correct sentences (short ≠ wrong)
+- Informal vocabulary (this is A2, not formal business Dutch)
 - Missing conditional (zou) — B1+
+- Missing relative clauses — B1+
 - Missing formal phrases — B1+
-- Punctuation, capitalisation
-- Simple but correct sentences
-- Informal vocabulary
 
 {grammar_ref}
 
 === GRAMMAR ERRORS ===
-- Report at most 4 errors
+- Report at most 4 errors. Fewer is fine — do NOT search for problems.
+- ONLY flag errors that make the sentence grammatically WRONG in Dutch.
+- Do NOT flag style preferences, word choice variations, or alternative phrasings.
+- Do NOT flag capitalisation or punctuation.
+- If the student's sentence is understandable and grammatically acceptable, it is NOT an error.
 - Each error: original sentence → corrected sentence → Dutch grammar rule → 中文解释
 - Do NOT invent rules. Do NOT suggest B1+ improvements.
 
@@ -285,7 +296,7 @@ Model answer (A2 level reference):
 Student's response:
 {user_response}
 
-Remember: simple correct sentences = good A2 writing. Return only valid JSON."""
+Remember: simple correct sentences = good A2 writing. Only flag REAL grammar mistakes. Do NOT flag capitalisation, punctuation, or valid word choices. Return only valid JSON."""
 
     client = _get_client()
 
@@ -303,20 +314,20 @@ Remember: simple correct sentences = good A2 writing. Return only valid JSON."""
             )
             raw = _strip_fences(response.choices[0].message.content.strip())
             data = json.loads(raw)
-            # Ensure required fields (new 6-point schema)
+            # Ensure required fields (10-point schema)
             data.setdefault("content_score", 0)
             data.setdefault("language_score", 0)
             data.setdefault("content_checklist", [])
             data.setdefault("grammar_errors", [])
             data.setdefault("feedback_nl", "")
             data.setdefault("improved_answer", "")
-            # Compute score (0-100) from 6-point scale if not already set
+            # Compute score (0-100) from 10-point scale if not already set
             cs = data["content_score"]
             ls = data["language_score"]
-            data["score"] = data.get("score") or round((cs + ls) / 6 * 100)
+            data["score"] = data.get("score") or round((cs + ls) / 10 * 100)
             # Backward compat: populate old fields
-            data["grammar_score"] = round(ls / 3 * 100)
-            data["completeness_score"] = round(cs / 3 * 100)
+            data["grammar_score"] = round(ls / 5 * 100)
+            data["completeness_score"] = round(cs / 5 * 100)
             data.setdefault("feedback_en", data.get("feedback_nl", ""))
             # Cap grammar errors at 4
             data["grammar_errors"] = data["grammar_errors"][:4]
