@@ -505,8 +505,10 @@ function DictationView({ iv, setIntensive, resetIntensive, onSubmit }: {
   const totalLines = data.lines.length;
   const isLast = iv.currentLine === totalLines - 1;
 
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+
   // Play current line audio
-  const playAudio = useCallback(() => {
+  const playAudio = useCallback((isAutoplay = false) => {
     if (!line.audio_file) return;
     if (audioRef.current) {
       audioRef.current.pause();
@@ -516,7 +518,13 @@ function DictationView({ iv, setIntensive, resetIntensive, onSubmit }: {
     audioRef.current = a;
     setPlaying(true);
     a.onended = () => setPlaying(false);
-    a.play().catch(() => setPlaying(false));
+    a.play().catch((err) => {
+      setPlaying(false);
+      if (isAutoplay && err.name === "NotAllowedError") {
+        setAutoplayBlocked(true);
+      }
+      console.warn("[Intensive] play failed:", err.name);
+    });
   }, [line.audio_file]);
 
   const pauseAudio = useCallback(() => {
@@ -533,7 +541,7 @@ function DictationView({ iv, setIntensive, resetIntensive, onSubmit }: {
 
   // Auto-play on line change
   useEffect(() => {
-    playAudio();
+    playAudio(true);
     inputRef.current?.focus();
     return () => { audioRef.current?.pause(); };
   }, [iv.currentLine]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -566,7 +574,7 @@ function DictationView({ iv, setIntensive, resetIntensive, onSubmit }: {
       }
       if (e.key === "r" && !inInput) {
         e.preventDefault();
-        playAudio();
+        playAudio(false);
       }
       if (e.key === "ArrowRight" && !inInput) {
         e.preventDefault();
@@ -635,6 +643,19 @@ function DictationView({ iv, setIntensive, resetIntensive, onSubmit }: {
         <span className="text-xs text-slate-500 font-medium">{iv.currentLine + 1}/{totalLines}</span>
       </div>
 
+      {/* Autoplay blocked hint */}
+      {autoplayBlocked && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 flex items-center gap-2">
+          <span className="text-amber-600 text-sm">Chrome blocked autoplay.</span>
+          <button
+            onClick={() => { setAutoplayBlocked(false); playAudio(); }}
+            className="text-sm font-semibold text-amber-700 underline hover:no-underline"
+          >
+            Play now
+          </button>
+        </div>
+      )}
+
       {/* Audio controls */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4">
         <div className="flex items-center justify-between mb-3">
@@ -649,7 +670,7 @@ function DictationView({ iv, setIntensive, resetIntensive, onSubmit }: {
 
         <div className="flex gap-2">
           <button
-            onClick={togglePlay}
+            onClick={() => { setAutoplayBlocked(false); togglePlay(); }}
             className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white py-2.5 rounded-xl font-semibold hover:opacity-90 flex items-center justify-center gap-2"
           >
             {playing ? (
@@ -659,7 +680,7 @@ function DictationView({ iv, setIntensive, resetIntensive, onSubmit }: {
             )}
           </button>
           <button
-            onClick={playAudio}
+            onClick={() => playAudio()}
             className="px-4 border border-slate-300 rounded-xl text-sm hover:bg-slate-50 flex items-center gap-1"
             title="Replay (R)"
           >
