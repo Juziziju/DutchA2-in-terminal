@@ -24,8 +24,10 @@ type Phase =
   | "shadow_setup"
   | "shadow_play"
   | "shadow_record"
+  | "shadow_recorded"
   | "shadow_review"
   | "shadow_report"
+  | "mic_test"
   | "create_scene"
   | "progress"
   | "spreken_exam_intro"
@@ -92,7 +94,7 @@ export default function Speaking() {
   const { setSprekenExamActive } = useSprekenExamGuard();
 
   // Warn user before leaving during active practice
-  const isInPractice = ["prep", "recording", "uploading", "review", "session_report", "shadow_record", "shadow_review", "shadow_report", "shadow_play", "spreken_prep", "spreken_record", "spreken_review", "spreken_exam_intro", "spreken_onderdeel_intro", "spreken_exam_results"].includes(phase);
+  const isInPractice = ["prep", "recording", "uploading", "review", "session_report", "shadow_record", "shadow_recorded", "shadow_review", "shadow_report", "shadow_play", "spreken_prep", "spreken_record", "spreken_review", "spreken_exam_intro", "spreken_onderdeel_intro", "spreken_exam_results"].includes(phase);
   useEffect(() => {
     if (!isInPractice) return;
     const handler = (e: BeforeUnloadEvent) => {
@@ -492,17 +494,8 @@ export default function Speaking() {
       // Fire background upload (don't await)
       backgroundShadowUpload(recorder.audioBlob, shadowSentenceIndex, sentence);
 
-      // Auto-advance
-      if (shadowScene && shadowSentenceIndex + 1 < shadowScene.model_sentences.length) {
-        recorder.reset();
-        prevBlobRef.current = null;
-        setShadowSentenceIndex(shadowSentenceIndex + 1);
-        setPhase("shadow_play");
-      } else {
-        recorder.reset();
-        prevBlobRef.current = null;
-        setPhase("shadow_report");
-      }
+      // Show recorded view with re-record option instead of auto-advancing
+      setPhase("shadow_recorded");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recorder.audioBlob, phase]);
@@ -600,6 +593,25 @@ export default function Speaking() {
     recorder.stop();
   }, [recorder]);
 
+  const reRecordShadow = () => {
+    recorder.reset();
+    prevBlobRef.current = null;
+    // Remove the last result for this sentence so re-record overwrites it
+    setShadowResults((prev) => prev.filter((r) => r.sentenceIndex !== shadowSentenceIndex));
+    setPhase("shadow_play");
+  };
+
+  const advanceShadow = () => {
+    recorder.reset();
+    prevBlobRef.current = null;
+    if (shadowScene && shadowSentenceIndex + 1 < shadowScene.model_sentences.length) {
+      setShadowSentenceIndex(shadowSentenceIndex + 1);
+      setPhase("shadow_play");
+    } else {
+      setPhase("shadow_report");
+    }
+  };
+
   const nextShadowSentence = () => {
     recorder.reset();
     prevBlobRef.current = null;
@@ -641,7 +653,9 @@ export default function Speaking() {
 
   switch (phase) {
     case "home":
-      return <SpeakingHome scenes={scenes} onBlock1={openSceneList} onBlock2={openPracticeSetup} onBlock3={() => { loadHistory(); setPhase("review"); }} onBlock4={openShadowSetup} onProgress={() => setPhase("progress")} history={history} loadHistory={loadHistory} />;
+      return <SpeakingHome scenes={scenes} onBlock1={openSceneList} onBlock2={openPracticeSetup} onBlock3={() => { loadHistory(); setPhase("review"); }} onBlock4={openShadowSetup} onProgress={() => setPhase("progress")} onMicTest={() => setPhase("mic_test")} history={history} loadHistory={loadHistory} />;
+    case "mic_test":
+      return <MicTestView onBack={goHome} />;
     case "scene_list":
       return <SceneListView scenes={scenes} onSelect={openSceneDetail} onBack={goHome} onCreateScene={() => setPhase("create_scene")} />;
     case "create_scene":
@@ -709,6 +723,16 @@ export default function Speaking() {
           recorder={recorder}
           onStop={stopShadowRecording}
           onBack={goHome}
+        />
+      ) : null;
+    case "shadow_recorded":
+      return shadowScene ? (
+        <ShadowRecordedView
+          scene={shadowScene}
+          sentenceIndex={shadowSentenceIndex}
+          onReRecord={reRecordShadow}
+          onNext={advanceShadow}
+          hasMore={shadowSentenceIndex + 1 < shadowScene.model_sentences.length}
         />
       ) : null;
     case "shadow_review":
@@ -795,7 +819,7 @@ export default function Speaking() {
 // ── Sub-views ───────────────────────────────────────────────────────────────
 
 function SpeakingHome({
-  scenes, onBlock1, onBlock2, onBlock3, onBlock4, onProgress, history, loadHistory,
+  scenes, onBlock1, onBlock2, onBlock3, onBlock4, onProgress, onMicTest, history, loadHistory,
 }: {
   scenes: api.SpeakingSceneSummary[];
   onBlock1: () => void;
@@ -803,6 +827,7 @@ function SpeakingHome({
   onBlock3: () => void;
   onBlock4: () => void;
   onProgress: () => void;
+  onMicTest: () => void;
   history: api.SpeakingHistoryItem[];
   loadHistory: () => void;
 }) {
@@ -876,6 +901,13 @@ function SpeakingHome({
           <h2 className="text-lg font-bold text-white mb-1">Freestyle Talk</h2>
           <p className="text-sm text-slate-400">Have a free conversation in Dutch with AI</p>
         </Link>
+        {/* Mic Test */}
+        <button onClick={onMicTest} className="bg-gradient-to-br from-amber-900/40 to-slate-800 hover:from-amber-800/40 hover:to-slate-700 rounded-xl p-6 text-left transition-colors border border-amber-700/30">
+          <div className="text-3xl mb-3">🎤</div>
+          <h2 className="text-lg font-bold text-white mb-1">Mic Test</h2>
+          <p className="text-sm text-slate-400 mb-3">Test your microphone before starting practice</p>
+          <div className="text-xs text-slate-500">Record & play back</div>
+        </button>
       </div>
     </div>
   );
@@ -2133,6 +2165,265 @@ function ShadowReviewView({
       <p className="text-slate-400 text-xs mt-3 text-center">
         Press <kbd className="px-1.5 py-0.5 bg-slate-200 rounded text-slate-700 text-xs font-mono">Space</kbd> for {hasMore ? "next sentence" : "done"}
       </p>
+    </div>
+  );
+}
+
+
+// ── Shadow Recorded View (after recording, before advancing) ─────────────────
+
+function ShadowRecordedView({
+  scene, sentenceIndex, onReRecord, onNext, hasMore,
+}: {
+  scene: api.SpeakingSceneDetail;
+  sentenceIndex: number;
+  onReRecord: () => void;
+  onNext: () => void;
+  hasMore: boolean;
+}) {
+  const sentence = scene.model_sentences[sentenceIndex];
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.code === "Space" && !e.repeat) {
+        e.preventDefault();
+        onNext();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onNext]);
+
+  return (
+    <div className="p-6 max-w-2xl mx-auto flex flex-col items-center">
+      <div className="text-xs text-slate-500 mb-2">
+        Sentence {sentenceIndex + 1} of {scene.model_sentences.length}
+      </div>
+
+      <div className="bg-slate-800 rounded-xl p-6 border border-slate-700 w-full mb-6 text-center">
+        <p className="text-white text-lg mb-2">{sentence.text}</p>
+        <p className="text-slate-400 text-sm">{sentence.english}</p>
+      </div>
+
+      <div className="flex items-center gap-2 mb-6">
+        <span className="w-3 h-3 bg-green-500 rounded-full" />
+        <span className="text-green-400 font-medium text-sm">Recording saved</span>
+      </div>
+
+      <div className="flex gap-3 w-full">
+        <button
+          onClick={onReRecord}
+          className="flex-1 py-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-medium"
+        >
+          Re-record
+        </button>
+        <button
+          onClick={onNext}
+          className="flex-1 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium"
+        >
+          {hasMore ? "Next Sentence" : "See Results"}
+        </button>
+      </div>
+      <p className="text-slate-400 text-xs mt-3 text-center">
+        Press <kbd className="px-1.5 py-0.5 bg-slate-200 rounded text-slate-700 text-xs font-mono">Space</kbd> for {hasMore ? "next sentence" : "results"}
+      </p>
+    </div>
+  );
+}
+
+
+// ── Mic Test View ────────────────────────────────────────────────────────────
+
+function MicTestView({ onBack }: { onBack: () => void }) {
+  const [status, setStatus] = useState<"idle" | "recording" | "recorded" | "playing" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [level, setLevel] = useState(0);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animRef = useRef<number | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const cleanup = useCallback(() => {
+    if (animRef.current) cancelAnimationFrame(animRef.current);
+    if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    streamRef.current = null;
+    analyserRef.current = null;
+  }, [audioUrl]);
+
+  useEffect(() => cleanup, [cleanup]);
+
+  const startRecording = async () => {
+    setErrorMsg(null);
+    setAudioUrl(null);
+    chunksRef.current = [];
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      // Set up analyser for level meter
+      const ctx = new AudioContext();
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+
+      const updateLevel = () => {
+        if (!analyserRef.current) return;
+        const data = new Uint8Array(analyserRef.current.frequencyBinCount);
+        analyserRef.current.getByteTimeDomainData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) {
+          const v = (data[i] - 128) / 128;
+          sum += v * v;
+        }
+        setLevel(Math.sqrt(sum / data.length));
+        animRef.current = requestAnimationFrame(updateLevel);
+      };
+      updateLevel();
+
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : undefined;
+      const recorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
+      recorderRef.current = recorder;
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        const url = URL.createObjectURL(blob);
+        setAudioUrl(url);
+        setStatus("recorded");
+        if (animRef.current) cancelAnimationFrame(animRef.current);
+        setLevel(0);
+        stream.getTracks().forEach((t) => t.stop());
+      };
+
+      recorder.start();
+      setStatus("recording");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setErrorMsg(msg.includes("Permission") || msg.includes("NotAllowed")
+        ? "Microphone access denied. Please allow microphone access in your browser settings."
+        : `Microphone error: ${msg}`);
+      setStatus("error");
+    }
+  };
+
+  const stopRecording = () => {
+    if (recorderRef.current && recorderRef.current.state !== "inactive") {
+      recorderRef.current.stop();
+    }
+  };
+
+  const playBack = () => {
+    if (!audioUrl) return;
+    const audio = new Audio(audioUrl);
+    audioRef.current = audio;
+    audio.onended = () => setStatus("recorded");
+    audio.onerror = () => setStatus("recorded");
+    setStatus("playing");
+    audio.play();
+  };
+
+  return (
+    <div className="p-6 max-w-2xl mx-auto flex flex-col items-center">
+      <button onClick={onBack} className="self-start text-blue-400 hover:text-blue-300 text-sm mb-4">
+        &larr; Back
+      </button>
+      <h1 className="text-2xl font-bold text-slate-800 mb-2">Microphone Test</h1>
+      <p className="text-slate-400 text-sm mb-8 text-center">
+        Record a short clip and play it back to make sure your microphone is working.
+      </p>
+
+      {errorMsg && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 w-full">
+          <p className="text-red-600 text-sm">{errorMsg}</p>
+        </div>
+      )}
+
+      {/* Level meter */}
+      {status === "recording" && (
+        <div className="w-full mb-6">
+          <div className="h-4 bg-slate-700 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-green-500 rounded-full transition-all duration-75"
+              style={{ width: `${Math.min(level * 300, 100)}%` }}
+            />
+          </div>
+          <p className="text-slate-400 text-xs mt-1 text-center">Speak now — you should see the bar move</p>
+        </div>
+      )}
+
+      {status === "recording" && (
+        <div className="flex items-center gap-3 mb-6">
+          <span className="w-4 h-4 bg-red-500 rounded-full animate-pulse" />
+          <span className="text-red-400 font-medium">Recording...</span>
+        </div>
+      )}
+
+      {status === "recorded" && (
+        <div className="flex items-center gap-2 mb-6">
+          <span className="w-3 h-3 bg-green-500 rounded-full" />
+          <span className="text-green-400 text-sm">Recording ready for playback</span>
+        </div>
+      )}
+
+      {status === "playing" && (
+        <div className="flex items-center gap-3 mb-6">
+          <span className="w-4 h-4 bg-blue-500 rounded-full animate-pulse" />
+          <span className="text-blue-400 font-medium">Playing back...</span>
+        </div>
+      )}
+
+      <div className="flex gap-3">
+        {(status === "idle" || status === "error") && (
+          <button
+            onClick={startRecording}
+            className="px-8 py-3 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold"
+          >
+            Start Recording
+          </button>
+        )}
+        {status === "recording" && (
+          <button
+            onClick={stopRecording}
+            className="px-8 py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-semibold"
+          >
+            Stop Recording
+          </button>
+        )}
+        {status === "recorded" && (
+          <>
+            <button
+              onClick={playBack}
+              className="px-8 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+            >
+              Play Back
+            </button>
+            <button
+              onClick={startRecording}
+              className="px-8 py-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold"
+            >
+              Record Again
+            </button>
+          </>
+        )}
+      </div>
+
+      {status === "recorded" && (
+        <p className="text-slate-400 text-sm mt-6 text-center">
+          If you can hear your voice clearly, your microphone is working!
+        </p>
+      )}
     </div>
   );
 }

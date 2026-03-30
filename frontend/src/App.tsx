@@ -17,6 +17,7 @@ import StudyMaterial from "./pages/StudyMaterial";
 import VocabNotebook from "./pages/VocabNotebook";
 import Writing from "./pages/Writing";
 import DueReview from "./pages/DueReview";
+import SprekenSprint from "./pages/SprekenSprint";
 
 export default function App() {
   return (
@@ -36,6 +37,7 @@ export default function App() {
           <Route path="vocab-due" element={<DueReview />} />
           <Route path="vocab-notebook" element={<VocabNotebook />} />
           <Route path="study-material" element={<StudyMaterial />} />
+          <Route path="sprint" element={<SprekenSprint />} />
           <Route path="planner" element={<Planner />} />
           <Route path="advisor" element={<Advisor />} />
           <Route path="exam" element={<MockExam />} />

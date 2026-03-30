@@ -1885,3 +1885,138 @@ export async function askAdvisorStream(
   }
   return full;
 }
+
+
+// ── Sprint (20-day Spreken crash course) ────────────────────────────────────
+
+export interface SprintActivateResponse {
+  start_date: string;
+  exam_date: string;
+  current_day: number;
+  total_days: number;
+}
+
+export interface SprintDayOverview {
+  day: number;
+  phase: number;
+  phase_name: string;
+  headline_en: string;
+  headline_zh: string;
+  target_minutes: number;
+  is_current: boolean;
+  is_past: boolean;
+  completed: boolean;
+  vocab_reviewed: number;
+  vocab_mastered: number;
+  speaking_sessions: number;
+  speaking_avg_score: number | null;
+}
+
+export interface SprintOverview {
+  active: boolean;
+  current_day: number;
+  start_date: string | null;
+  exam_date: string | null;
+  days_remaining: number;
+  completed_count: number;
+  days: SprintDayOverview[];
+}
+
+export interface SprintVocabItem {
+  dutch: string;
+  english: string;
+  topic: string;
+  onderdelen: number[];
+  example_sentence: string;
+  priority: number;
+  audio_file?: string;
+}
+
+export interface SprintDayDetail {
+  day: number;
+  phase: number;
+  headline_en: string;
+  headline_zh: string;
+  vocab_topics: string[];
+  new_words: number;
+  speaking_task: {
+    type: string;
+    onderdeel?: number;
+    description_en: string;
+    description_zh: string;
+    question_count: number;
+  };
+  review_previous: boolean;
+  target_minutes: number;
+  tip_en: string;
+  tip_zh: string;
+  phase_info: { phase: number; name_en: string; name_zh: string };
+  vocab: SprintVocabItem[];
+  vocab_total: number;
+  progress: {
+    vocab_reviewed: number;
+    vocab_mastered: number;
+    speaking_sessions: number;
+    speaking_avg_score: number | null;
+    completed: boolean;
+  };
+}
+
+export interface SprintStats {
+  days_completed: number;
+  total_days: number;
+  total_vocab_reviewed: number;
+  total_vocab_mastered: number;
+  total_speaking_sessions: number;
+  avg_speaking_score: number | null;
+  phase_avg_scores: Record<number, number | null>;
+  score_trend: { day: number; score: number }[];
+}
+
+export function activateSprint() {
+  return request<SprintActivateResponse>("POST", "/sprint/activate");
+}
+
+export function getSprintOverview() {
+  return request<SprintOverview>("GET", "/sprint/overview");
+}
+
+export function getSprintDay(day: number) {
+  return request<SprintDayDetail>("GET", `/sprint/day/${day}`);
+}
+
+export function getSprintVocab(params?: { topic?: string; onderdeel?: number; day?: number }) {
+  const p: Record<string, string> = {};
+  if (params?.topic) p.topic = params.topic;
+  if (params?.onderdeel) p.onderdeel = String(params.onderdeel);
+  if (params?.day) p.day = String(params.day);
+  return request<SprintVocabItem[]>("GET", "/sprint/vocab", undefined, p);
+}
+
+export function completeSprintVocab(day: number, reviewed: number, mastered: number) {
+  return request<{ ok: boolean }>("POST", `/sprint/day/${day}/complete-vocab`, { reviewed, mastered });
+}
+
+export function completeSprintSpeaking(day: number, sessions: number, avg_score?: number) {
+  return request<{ ok: boolean }>("POST", `/sprint/day/${day}/complete-speaking`, { sessions, avg_score });
+}
+
+export function getSprintStats() {
+  return request<SprintStats>("GET", "/sprint/stats");
+}
+
+export function getSprintTopics() {
+  return request<{ slug: string; nl: string; en: string; count: number }[]>("GET", "/sprint/topics");
+}
+
+export function syncSprintVocab() {
+  return request<{ added: number; total: number }>("POST", "/sprint/sync-vocab");
+}
+
+export function getSprintDayQuestions(day: number) {
+  return request<any[]>("GET", `/sprint/day/${day}/questions`);
+}
+
+export function getLatestExamScore() {
+  return request<{ has_score: boolean; score_pct?: number; date?: string }>("GET", "/sprint/latest-exam-score");
+}

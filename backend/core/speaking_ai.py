@@ -20,7 +20,7 @@ def transcribe_audio(audio_path: Path) -> str:
     client = _get_client()
     with open(audio_path, "rb") as f:
         result = client.audio.transcriptions.create(
-            model="whisper-large-v3-turbo",
+            model="whisper-large-v3",
             file=f,
             language="nl",
         )

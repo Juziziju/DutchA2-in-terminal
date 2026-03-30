@@ -216,6 +216,16 @@ async def submit_recording(
                         break
                 if question:
                     break
+    # For sprint mode, build a generic question (just transcribe + review)
+    if not question and scene.startswith("sprint_day_"):
+        question = {
+            "id": question_id,
+            "prompt_nl": "Spreken Sprint oefening",
+            "prompt_en": "Spreken Sprint practice",
+            "expected_phrases": [],
+            "model_answer": "",
+            "question_type": question_type,
+        }
     # For AI-generated mockexam prompts, build question from form fields
     if not question and scene == "mockexam_ai" and prompt_nl:
         ep = []

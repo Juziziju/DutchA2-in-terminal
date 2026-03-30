@@ -22,7 +22,8 @@ from backend.models.personal_vocab import PersonalVocab  # noqa: F401
 from backend.models.reading import ReadingSession  # noqa: F401
 from backend.models.knm import KNMSession  # noqa: F401
 from backend.models.writing import WritingSession, WritingErrorWeight  # noqa: F401
-from backend.routers import advisor, auth, exam, flashcards, freestyle, knm, listening, personal_vocab, planner, reading, results, speaking, vocab, writing
+from backend.models.sprint import SprintProgress  # noqa: F401
+from backend.routers import advisor, auth, exam, flashcards, freestyle, knm, listening, personal_vocab, planner, reading, results, speaking, sprint, vocab, writing
 
 app = FastAPI(title="Dutch A2 Blitz", version="1.0.0")
 
@@ -68,6 +69,7 @@ app.include_router(personal_vocab.router)
 app.include_router(reading.router)
 app.include_router(knm.router)
 app.include_router(writing.router)
+app.include_router(sprint.router)
 
 
 @app.on_event("startup")

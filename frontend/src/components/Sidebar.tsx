@@ -13,6 +13,7 @@ import {
   LayersIcon,
   NotebookIcon,
   PlannerIcon,
+  SprintIcon,
   XIcon,
 } from "./icons";
 import SidebarItem, { SidebarSubItem } from "./SidebarItem";
@@ -149,6 +150,7 @@ export default function Sidebar() {
 
           <SectionLabel isCollapsed={isCollapsed}>Prepare</SectionLabel>
           <div className="space-y-0.5">
+            <SidebarItem to="/sprint" icon={<SprintIcon />} label="Spreken Sprint" />
             <SidebarItem to="/planner" icon={<PlannerIcon />} label="Learning Planner" data-tour="planner" />
             <SidebarItem to="/study-material" icon={<ChartIcon />} label="Study Material" />
             <SidebarItem to="/exam" icon={<ClipboardIcon />} label="Mock Exam" data-tour="mock-exam" badge={active.mockExam ? <ActiveDot /> : undefined} />
