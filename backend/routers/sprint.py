@@ -116,14 +116,24 @@ def sync_sprint_vocab(
 ):
     """Import sprint vocab into Vocab table with TTS audio generation."""
     added = 0
+    updated = 0
     for entry in SPREKEN_VOCAB:
         existing = db.exec(
             select(Vocab).where(Vocab.dutch == entry["dutch"])
         ).first()
         if existing:
+            # Update category to Sprint prefix if not already
+            topic_names_upd = SPREKEN_TOPICS.get(entry["topic"], {})
+            topic_en_upd = topic_names_upd.get("en", entry["topic"].replace("_", " ").title())
+            new_cat = f"Sprint: {topic_en_upd}"
+            if existing.category != new_cat:
+                existing.category = new_cat
+                db.add(existing)
+                updated += 1
             continue
         topic_names = SPREKEN_TOPICS.get(entry["topic"], {})
-        category = topic_names.get("en", entry["topic"].replace("_", " ").title())
+        topic_en = topic_names.get("en", entry["topic"].replace("_", " ").title())
+        category = f"Sprint: {topic_en}"
         try:
             audio_file = ensure_vocab_audio(entry["dutch"])
         except Exception:
@@ -139,7 +149,7 @@ def sync_sprint_vocab(
         db.add(vocab)
         added += 1
     db.commit()
-    return {"added": added, "total": len(SPREKEN_VOCAB)}
+    return {"added": added, "updated": updated, "total": len(SPREKEN_VOCAB)}
 
 
 @router.get("/overview")

@@ -16,7 +16,7 @@ import {
 } from "../api";
 import { useAudioPlay } from "../components/AudioPlayer";
 
-type NotebookTab = "course" | "personal";
+type NotebookTab = "course" | "personal" | "questions";
 
 // ── Shared constants ────────────────────────────────────────────────────────
 
@@ -66,6 +66,7 @@ export default function VocabNotebook() {
         {([
           { key: "course" as const, label: "Course Vocab" },
           { key: "personal" as const, label: "Personal Vocab" },
+          { key: "questions" as const, label: "Questions Vocab" },
         ]).map((t) => (
           <button
             key={t.key}
@@ -83,6 +84,7 @@ export default function VocabNotebook() {
 
       {tab === "course" && <CourseVocabTab />}
       {tab === "personal" && <PersonalVocabTab />}
+      {tab === "questions" && <QuestionsVocabTab />}
     </div>
   );
 }
@@ -614,5 +616,258 @@ function PersonalVocabTab() {
         )}
       </div>
     </>
+  );
+}
+
+
+// ── Questions Vocab Tab ─────────────────────────────────────────────────────
+
+interface QuestionEntry {
+  dutch: string;
+  english: string;
+  chinese: string;
+  grammar_note?: string;
+  example?: string;
+}
+
+interface QuestionCategory {
+  title: string;
+  description: string;
+  questions: QuestionEntry[];
+}
+
+const QUESTION_VOCAB: QuestionCategory[] = [
+  {
+    title: "Vraagwoorden (Question Words)",
+    description: "Basic question words used in all exam parts",
+    questions: [
+      { dutch: "Wat?", english: "What?", chinese: "什么？" },
+      { dutch: "Wie?", english: "Who?", chinese: "谁？" },
+      { dutch: "Waar?", english: "Where?", chinese: "哪里？" },
+      { dutch: "Wanneer?", english: "When?", chinese: "什么时候？" },
+      { dutch: "Waarom?", english: "Why?", chinese: "为什么？" },
+      { dutch: "Hoe?", english: "How?", chinese: "怎样？" },
+      { dutch: "Hoeveel?", english: "How many / How much?", chinese: "多少？" },
+      { dutch: "Hoe laat?", english: "What time?", chinese: "几点？" },
+      { dutch: "Hoe lang?", english: "How long?", chinese: "多长时间？" },
+      { dutch: "Hoe vaak?", english: "How often?", chinese: "多久一次？" },
+      { dutch: "Welk(e)?", english: "Which?", chinese: "哪个？", grammar_note: "welk (het-word) / welke (de-word & plural)" },
+      { dutch: "Hoelang duurt het?", english: "How long does it take?", chinese: "要多长时间？" },
+    ],
+  },
+  {
+    title: "Ja/Nee vragen (Yes/No Questions)",
+    description: "Verb-first questions — verb moves to position 1",
+    questions: [
+      { dutch: "Bent u getrouwd?", english: "Are you married?", chinese: "你结婚了吗？", grammar_note: "Verb (bent) first → yes/no question" },
+      { dutch: "Heeft u kinderen?", english: "Do you have children?", chinese: "你有孩子吗？", grammar_note: "Heeft + u + noun" },
+      { dutch: "Woont u in Amsterdam?", english: "Do you live in Amsterdam?", chinese: "你住在阿姆斯特丹吗？" },
+      { dutch: "Werkt u?", english: "Do you work?", chinese: "你工作吗？" },
+      { dutch: "Spreekt u Nederlands?", english: "Do you speak Dutch?", chinese: "你说荷兰语吗？" },
+      { dutch: "Vindt u dat leuk?", english: "Do you like that?", chinese: "你喜欢那个吗？" },
+      { dutch: "Kunt u mij helpen?",  english: "Can you help me?", chinese: "你能帮我吗？" },
+      { dutch: "Mag ik iets vragen?", english: "May I ask something?", chinese: "我可以问一下吗？" },
+      { dutch: "Is het duur?", english: "Is it expensive?", chinese: "贵吗？" },
+      { dutch: "Heeft u een afspraak?", english: "Do you have an appointment?", chinese: "你有预约吗？" },
+    ],
+  },
+  {
+    title: "Spreken Onderdeel 1 — Situatievragen",
+    description: "Common questions in exam part 1: short answers about daily situations",
+    questions: [
+      { dutch: "Stel uzelf voor.", english: "Introduce yourself.", chinese: "请自我介绍。", grammar_note: "Imperative — 'stel ... voor' is a separable verb (zich voorstellen)" },
+      { dutch: "Vertel wat er aan de hand is.", english: "Tell what is going on.", chinese: "说说怎么了。", grammar_note: "'aan de hand' = going on/wrong" },
+      { dutch: "Vertel waarom u belt.", english: "Explain why you are calling.", chinese: "说说你为什么打电话。", grammar_note: "'waarom' triggers subordinate clause: verb goes to end" },
+      { dutch: "Wat is er met u aan de hand?", english: "What is wrong with you?", chinese: "你怎么了？" },
+      { dutch: "Wat voor klachten heeft u?", english: "What kind of complaints do you have?", chinese: "你有什么症状？", grammar_note: "'wat voor' = what kind of" },
+      { dutch: "Hoe laat begint de les?", english: "What time does the lesson start?", chinese: "课几点开始？" },
+      { dutch: "Waar kan ik dat vinden?", english: "Where can I find that?", chinese: "我在哪里能找到？" },
+      { dutch: "Kunt u dat herhalen?", english: "Can you repeat that?", chinese: "你能重复一下吗？", grammar_note: "Useful when you don't understand the question" },
+    ],
+  },
+  {
+    title: "Spreken Onderdeel 2 — Foto beschrijven",
+    description: "Questions about photo description — describe what you see + personal opinion",
+    questions: [
+      { dutch: "Vertel wat u op de foto ziet.", english: "Describe what you see in the photo.", chinese: "描述照片里看到了什么。", grammar_note: "'ziet' — present tense of 'zien' (to see)" },
+      { dutch: "Wat ziet u op de foto?", english: "What do you see in the photo?", chinese: "你在照片里看到了什么？" },
+      { dutch: "Gaat u vaak naar de markt?", english: "Do you often go to the market?", chinese: "你经常去市场吗？", grammar_note: "'gaat u' — formal you + verb first = question" },
+      { dutch: "Waarom wel of niet?", english: "Why or why not?", chinese: "为什么去/不去？" },
+      { dutch: "Eet u thuis vaak samen?", english: "Do you often eat together at home?", chinese: "你在家经常一起吃饭吗？" },
+      { dutch: "Wat doet u graag in uw vrije tijd?", english: "What do you like to do in your free time?", chinese: "你空闲时间喜欢做什么？", grammar_note: "'graag' = gladly, makes verb into 'like to'" },
+      { dutch: "Hoe ziet uw buurt eruit?", english: "What does your neighbourhood look like?", chinese: "你的社区是什么样的？", grammar_note: "'eruitzien' = to look like (separable)" },
+      { dutch: "Doet u aan sport?", english: "Do you do sports?", chinese: "你做运动吗？", grammar_note: "'aan sport doen' = to do sports" },
+    ],
+  },
+  {
+    title: "Spreken Onderdeel 3 — Roltaken",
+    description: "Role play task instructions — you play a role in a situation",
+    questions: [
+      { dutch: "U wilt een afspraak maken.", english: "You want to make an appointment.", chinese: "你想预约。", grammar_note: "'willen' (want) + infinitive at end" },
+      { dutch: "Vertel wat u wilt.", english: "Tell what you want.", chinese: "说说你想要什么。" },
+      { dutch: "Vraag informatie over...", english: "Ask for information about...", chinese: "询问关于...的信息。" },
+      { dutch: "Leg uit wat het probleem is.", english: "Explain what the problem is.", chinese: "解释问题是什么。", grammar_note: "'uitleggen' = to explain (separable)" },
+      { dutch: "U belt naar...", english: "You are calling...", chinese: "你打电话给...。", grammar_note: "'bellen naar' = to call (someone)" },
+      { dutch: "Zeg wat u ervan vindt.", english: "Say what you think about it.", chinese: "说说你对此的看法。", grammar_note: "'ervan vinden' = to think about it" },
+      { dutch: "Wat wilt u graag?", english: "What would you like?", chinese: "你想要什么？" },
+      { dutch: "Kunt u een andere datum voorstellen?", english: "Can you suggest another date?", chinese: "你能建议另一个日期吗？" },
+    ],
+  },
+  {
+    title: "Spreken Onderdeel 4 — Vergelijken & Kiezen",
+    description: "Compare two options, make a choice, explain why",
+    questions: [
+      { dutch: "Vergelijk de twee opties.", english: "Compare the two options.", chinese: "比较这两个选项。" },
+      { dutch: "Welke kiest u? Waarom?", english: "Which do you choose? Why?", chinese: "你选哪个？为什么？" },
+      { dutch: "Wat zijn de voordelen?", english: "What are the advantages?", chinese: "有什么优点？" },
+      { dutch: "Wat zijn de nadelen?", english: "What are the disadvantages?", chinese: "有什么缺点？" },
+      { dutch: "Wat is het verschil?", english: "What is the difference?", chinese: "有什么区别？", grammar_note: "'het verschil' = the difference (het-word)" },
+      { dutch: "Wat past beter bij u?", english: "What suits you better?", chinese: "什么更适合你？", grammar_note: "'passen bij' = to suit" },
+      { dutch: "Wat vindt u belangrijker?", english: "What do you find more important?", chinese: "你觉得什么更重要？", grammar_note: "'belangrijker' = comparative of 'belangrijk'" },
+      { dutch: "Kunt u uw keuze uitleggen?", english: "Can you explain your choice?", chinese: "你能解释你的选择吗？" },
+    ],
+  },
+  {
+    title: "Schrijven — Veelvoorkomende vragen",
+    description: "Common question patterns seen in writing exam tasks",
+    questions: [
+      { dutch: "Wanneer kunt u komen?", english: "When can you come?", chinese: "你什么时候能来？" },
+      { dutch: "Kunt u de afspraak verzetten?", english: "Can you reschedule the appointment?", chinese: "你能改约时间吗？", grammar_note: "'verzetten' = to reschedule/move" },
+      { dutch: "Hoeveel kost het?", english: "How much does it cost?", chinese: "多少钱？" },
+      { dutch: "Waar moet ik naartoe?", english: "Where do I need to go?", chinese: "我要去哪里？", grammar_note: "'naartoe' = to (direction), attached to 'waar'" },
+      { dutch: "Hoe kan ik me aanmelden?", english: "How can I register?", chinese: "我怎么报名？", grammar_note: "'zich aanmelden' = to register (separable + reflexive)" },
+      { dutch: "Is het mogelijk om...?", english: "Is it possible to...?", chinese: "有没有可能...？" },
+      { dutch: "Kunt u mij meer informatie geven?", english: "Can you give me more information?", chinese: "你能给我更多信息吗？" },
+      { dutch: "Wat moet ik meenemen?", english: "What do I need to bring?", chinese: "我需要带什么？", grammar_note: "'meenemen' = to bring along (separable)" },
+    ],
+  },
+  {
+    title: "Grammatica patronen (Grammar Patterns)",
+    description: "Key grammar structures that appear in questions",
+    questions: [
+      { dutch: "Verb-first = ja/nee vraag", english: "Verb first = yes/no question", chinese: "动词放第一位 = 是/否问题", grammar_note: "Werkt u? Heeft u? Bent u? — verb before subject", example: "Werkt u in Amsterdam? → Do you work in Amsterdam?" },
+      { dutch: "Vraagwoord + V2", english: "Question word + verb 2nd", chinese: "疑问词 + 动词在第二位", grammar_note: "Waar woont u? Wat doet u? — question word 1st, verb 2nd", example: "Waar woont u? → Where do you live?" },
+      { dutch: "Scheidbare werkwoorden in vragen", english: "Separable verbs in questions", chinese: "可分动词在问题中", grammar_note: "Prefix goes to end: 'Stelt u uzelf voor' → voor-stellen", example: "Wanneer komt u aan? → When do you arrive? (aan-komen)" },
+      { dutch: "Bijzin met 'dat/omdat/wanneer'", english: "Subordinate clause — verb to end", chinese: "从句 — 动词移到句末", grammar_note: "After 'dat/omdat/als/wanneer', the verb goes to the END", example: "Vertel waarom u belt. → Tell why you are calling. (belt goes to end)" },
+      { dutch: "Modale werkwoorden", english: "Modal verbs: kunnen/willen/moeten/mogen", chinese: "情态动词：能/想/必须/可以", grammar_note: "Modal verb 2nd position, main verb infinitive at end", example: "Kunt u mij helpen? → Can you help me? (helpen at end)" },
+      { dutch: "Inversie (subject-verb swap)", english: "Inversion after adverb/time", chinese: "时间/副词后主谓倒装", grammar_note: "After time/place at start, verb stays 2nd, subject moves after", example: "Morgen ga ik naar school. → Tomorrow I go to school." },
+    ],
+  },
+];
+
+function QuestionsVocabTab() {
+  const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set([0]));
+  const [search, setSearch] = useState("");
+
+  const toggleSection = (idx: number) => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
+
+  const filteredCategories = useMemo(() => {
+    if (!search.trim()) return QUESTION_VOCAB;
+    const q = search.toLowerCase();
+    return QUESTION_VOCAB.map((cat) => ({
+      ...cat,
+      questions: cat.questions.filter(
+        (e) =>
+          e.dutch.toLowerCase().includes(q) ||
+          e.english.toLowerCase().includes(q) ||
+          e.chinese.includes(q) ||
+          (e.grammar_note && e.grammar_note.toLowerCase().includes(q)),
+      ),
+    })).filter((cat) => cat.questions.length > 0);
+  }, [search]);
+
+  const totalQuestions = filteredCategories.reduce((s, c) => s + c.questions.length, 0);
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="mb-4">
+        <p className="text-slate-500 text-sm">
+          Common Dutch question patterns for the speaking & writing exam — {totalQuestions} items
+        </p>
+      </div>
+
+      {/* Search */}
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Search questions..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      {/* Sections */}
+      <div className="space-y-3">
+        {filteredCategories.map((cat, catIdx) => {
+          const originalIdx = QUESTION_VOCAB.indexOf(cat) >= 0 ? QUESTION_VOCAB.indexOf(cat) : catIdx;
+          const isExpanded = expandedSections.has(originalIdx) || search.trim().length > 0;
+
+          return (
+            <div key={catIdx} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              {/* Section header */}
+              <button
+                onClick={() => toggleSection(originalIdx)}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
+              >
+                <div className="text-left">
+                  <h3 className="font-bold text-slate-800 text-sm">{cat.title}</h3>
+                  <p className="text-slate-400 text-xs">{cat.description}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400">{cat.questions.length}</span>
+                  <svg
+                    className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </button>
+
+              {/* Questions */}
+              {isExpanded && (
+                <div className="border-t border-slate-100">
+                  {cat.questions.map((q, qIdx) => (
+                    <div
+                      key={qIdx}
+                      className="px-4 py-3 border-b border-slate-50 last:border-b-0 hover:bg-slate-50/50"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-slate-800">{q.dutch}</p>
+                          <p className="text-blue-600 text-sm">{q.english}</p>
+                          <p className="text-slate-500 text-sm">{q.chinese}</p>
+                          {q.grammar_note && (
+                            <p className="text-amber-600 text-xs mt-1 flex items-start gap-1">
+                              <span className="shrink-0">📝</span>
+                              <span>{q.grammar_note}</span>
+                            </p>
+                          )}
+                          {q.example && (
+                            <p className="text-green-600 text-xs mt-0.5 flex items-start gap-1">
+                              <span className="shrink-0">💡</span>
+                              <span>{q.example}</span>
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }

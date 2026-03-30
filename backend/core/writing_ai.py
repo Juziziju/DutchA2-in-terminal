@@ -93,21 +93,21 @@ TASK_TYPE_CONFIGS = {
 
 REVIEW_SCHEMA = """{
   "score": 75,
-  "content_score": 3,
-  "language_score": 2,
+  "content_score": 5,
+  "language_score": 3,
   "content_checklist": [
     {"point_nl": "要点荷兰语", "point_en": "bullet point English", "addressed": true}
   ],
   "grammar_errors": [
     {
-      "text": "original sentence with error",
-      "correction": "corrected sentence",
+      "text": "the student's EXACT original sentence containing the error (REQUIRED, never omit)",
+      "correction": "the corrected version of that sentence",
       "rule_nl": "Korte uitleg van de grammaticaregel",
       "explanation_zh": "中文解释为什么错以及规则"
     }
   ],
   "feedback_nl": "Korte feedback in het Nederlands",
-  "improved_answer": "The student's full text rewritten correctly in Dutch (A2 level)"
+  "improved_answer": "The student's full text rewritten correctly in Dutch (A2 level, preserve line breaks)"
 }"""
 
 
@@ -226,12 +226,13 @@ def review_writing(task_type: str, prompt: dict, user_response: str) -> dict:
 === SCORING: 10-point scale (content 5 + language 5) — DUO A2 Schrijven ===
 
 **content_score (0-5)**: Did the student address the required points?
-- 5 = all points fully addressed with clear detail
-- 4 = all points addressed, minor detail missing
+- 5 = all points addressed (even if grammar is bad, content counts independently)
+- 4 = one point only partially addressed or lacking detail
 - 3 = one point missing or unclear
 - 2 = two points missing
 - 1 = most points missing
 - 0 = off-topic or empty
+IMPORTANT: If all checklist items are ✅, content_score MUST be 5. Content and language are scored INDEPENDENTLY.
 For each bullet point / guiding question, report in content_checklist whether it was addressed (✅/❌).
 
 **language_score (0-5)**: A2-level grammar and vocabulary
@@ -245,10 +246,12 @@ For each bullet point / guiding question, report in content_checklist whether it
 **score** = round((content_score + language_score) / 10 * 100)  → 0-100 for storage
 
 === WHAT COUNTS AS AN A2 ERROR (flag these) ===
+- Spelling errors: typos, doubled letters, missing letters (e.g. "nier" → "niet", "makken" → "maken")
 - Wrong verb conjugation: komen/komt, wil/wilt, heb/heeft
 - Wrong word order (V2 rule)
 - Wrong auxiliary: hebben vs zijn
 - Wrong article: de/het/een
+- Wrong adjective inflection: de nieuw → de nieuwe (add -e after de-words)
 - Wrong negation: niet vs geen
 - Wrong preposition in fixed A2 expressions (naar school, op kantoor)
 - Separable verbs not split: Ik opbel → Ik bel op
@@ -268,11 +271,12 @@ For each bullet point / guiding question, report in content_checklist whether it
 
 === GRAMMAR ERRORS ===
 - Report at most 4 errors. Fewer is fine — do NOT search for problems.
-- ONLY flag errors that make the sentence grammatically WRONG in Dutch.
+- ONLY flag errors that make the sentence grammatically WRONG or contain spelling mistakes.
 - Do NOT flag style preferences, word choice variations, or alternative phrasings.
 - Do NOT flag capitalisation or punctuation.
 - If the student's sentence is understandable and grammatically acceptable, it is NOT an error.
-- Each error: original sentence → corrected sentence → Dutch grammar rule → 中文解释
+- CRITICAL: Each error MUST include "text" (the student's EXACT original sentence/phrase containing the error) and "correction" (the corrected version). NEVER omit the "text" field — if you can't quote the original, don't report that error.
+- Each error also has: rule_nl (Dutch grammar rule) and explanation_zh (中文解释)
 - Do NOT invent rules. Do NOT suggest B1+ improvements.
 
 === IMPROVED_ANSWER ===
